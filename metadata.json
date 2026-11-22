@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix Remix Remix Discord",
+  "description": "Discord completo con mensajes directos, servidores, canales de voz, perfil, tienda, misiones, Orbs y Nitro.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

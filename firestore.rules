@@ -1,0 +1,444 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions & Validation Blueprints
+    // ===============================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isDesignatedAppOwner() {
+      return isVerifiedUser() && request.auth.token.email == 'emaneriera@gmail.com';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_.-]+$');
+    }
+
+    function nonEmptyStr(val, maxLen) {
+      return val is string && val.size() >= 1 && val.size() <= maxLen;
+    }
+
+    function optStr(data, field, maxLen) {
+      return !(field in data) || data[field] == null || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isRecentTimestamp(ts) {
+      return ts is timestamp && ts <= request.time + duration.value(5, 'm');
+    }
+
+    function isValidPublicProfile(data, uid) {
+      return data.keys().hasAll(['uid', 'displayName', 'username', 'usernameLower', 'avatar', 'status', 'memberSince', 'updatedAt'])
+        && data.keys().hasOnly([
+          'uid', 'displayName', 'username', 'usernameLower', 'avatar', 'customAvatarUrl',
+          'status', 'customStatus', 'bio', 'bannerColor', 'bannerImage',
+          'decoration', 'profileEffect', 'profileFrame', 'nameplate', 'serverTag',
+          'nitroTier', 'displayNameStyle', 'displayNameColorPreset',
+          'displayNameCustomColors', 'displayNameGlow', 'badgeIds', 'memberSince', 'updatedAt'
+        ])
+        && data.uid == uid
+        && nonEmptyStr(data.displayName, 40)
+        && nonEmptyStr(data.username, 32)
+        && nonEmptyStr(data.usernameLower, 32)
+        && data.usernameLower == data.username.lower()
+        && nonEmptyStr(data.avatar, 32)
+        && data.status in ['online', 'idle', 'dnd', 'offline']
+        && nonEmptyStr(data.memberSince, 32)
+        && isRecentTimestamp(data.updatedAt)
+        && optStr(data, 'customAvatarUrl', 200000)
+        && optStr(data, 'customStatus', 120)
+        && optStr(data, 'bio', 400)
+        && optStr(data, 'bannerColor', 24)
+        && optStr(data, 'bannerImage', 200000)
+        && optStr(data, 'serverTag', 12)
+        && (!('nitroTier' in data) || data.nitroTier in ['none', 'basic', 'nitro'])
+        && (!('badgeIds' in data) || (data.badgeIds is list && data.badgeIds.size() <= 16));
+    }
+
+    function isValidPrivateAccount(data, uid) {
+      return data.keys().hasAll(['uid', 'orbs', 'nitroTier', 'ownedBundleIds', 'updatedAt'])
+        && data.keys().hasOnly([
+          'uid', 'orbs', 'nitroTier', 'ownedBundleIds', 'wishlistIds',
+          'unlockedBadgeIds', 'equippedBadgeIds', 'claimedQuestIds',
+          'boostsGiven', 'boostStreakMonths', 'giftsSent', 'streamHours',
+          'gamesPlayedCount', 'accountYears', 'perServerProfiles',
+          'joinedServerIds', 'isOwnerAccount', 'updatedAt'
+        ])
+        && data.uid == uid
+        && data.orbs is number && data.orbs >= 0 && data.orbs <= 999999999999999
+        && data.nitroTier in ['none', 'basic', 'nitro']
+        && data.ownedBundleIds is list && data.ownedBundleIds.size() <= 200
+        && (!('wishlistIds' in data) || (data.wishlistIds is list && data.wishlistIds.size() <= 200))
+        && (!('unlockedBadgeIds' in data) || (data.unlockedBadgeIds is list && data.unlockedBadgeIds.size() <= 20))
+        && (!('equippedBadgeIds' in data) || (data.equippedBadgeIds is list && data.equippedBadgeIds.size() <= 20))
+        && (!('claimedQuestIds' in data) || (data.claimedQuestIds is list && data.claimedQuestIds.size() <= 100))
+        && (!('joinedServerIds' in data) || (data.joinedServerIds is list && data.joinedServerIds.size() <= 100))
+        && (!('isOwnerAccount' in data) || data.isOwnerAccount == false || isDesignatedAppOwner())
+        && isRecentTimestamp(data.updatedAt);
+    }
+
+    function isValidNotification(data, uid) {
+      return data.keys().hasAll(['id', 'recipientUid', 'senderUid', 'type', 'title', 'body', 'unread', 'avatar', 'createdAt'])
+        && data.keys().hasOnly([
+          'id', 'recipientUid', 'senderUid', 'type', 'title', 'body',
+          'timestamp', 'unread', 'avatar', 'serverName', 'targetDmId',
+          'targetServerId', 'targetChannelId', 'createdAt'
+        ])
+        && data.recipientUid == uid
+        && data.type in ['mention', 'reply', 'friend', 'quest', 'system']
+        && nonEmptyStr(data.title, 120)
+        && nonEmptyStr(data.body, 500)
+        && data.unread is bool
+        && nonEmptyStr(data.avatar, 32)
+        && isRecentTimestamp(data.createdAt);
+    }
+
+    function isValidDm(data, dmId) {
+      return data.keys().hasAll(['id', 'participantIds', 'lastMessagePreview', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'participantIds', 'isGroup', 'groupTitle', 'groupEmoji', 'groupColor',
+          'participantProfiles', 'lastMessagePreview', 'lastTimestamp', 'lastSenderId',
+          'unreadBy', 'updatedAt'
+        ])
+        && data.id == dmId
+        && data.participantIds is list
+        && data.participantIds.size() >= 2
+        && data.participantIds.size() <= 10
+        && data.lastMessagePreview is string && data.lastMessagePreview.size() <= 240
+        && optStr(data, 'groupTitle', 60)
+        && (!('unreadBy' in data) || (data.unreadBy is list && data.unreadBy.size() <= 10))
+        && isRecentTimestamp(data.updatedAt);
+    }
+
+    function isDmParticipant(dmId) {
+      return isVerifiedUser()
+        && request.auth.uid in get(/databases/$(database)/documents/dms/$(dmId)).data.participantIds;
+    }
+
+    function isServerMember(serverId) {
+      return isVerifiedUser()
+        && exists(/databases/$(database)/documents/servers/$(serverId)/members/$(request.auth.uid));
+    }
+
+    function isServerAdmin(serverId) {
+      let srv = get(/databases/$(database)/documents/servers/$(serverId)).data;
+      return isVerifiedUser() && (srv.ownerId == request.auth.uid || request.auth.uid in srv.adminIds);
+    }
+
+    function isServerAdminOrCreatingOwner(serverId) {
+      return isServerAdmin(serverId)
+        || (
+          !exists(/databases/$(database)/documents/servers/$(serverId))
+          && existsAfter(/databases/$(database)/documents/servers/$(serverId))
+          && getAfter(/databases/$(database)/documents/servers/$(serverId)).data.ownerId == request.auth.uid
+        );
+    }
+
+    function isValidServer(data, serverId) {
+      return data.keys().hasAll(['id', 'name', 'shortCode', 'ownerId', 'adminIds', 'accentColor', 'bannerColor', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'name', 'shortCode', 'ownerId', 'adminIds', 'iconStyle',
+          'accentColor', 'bannerColor', 'bannerImage', 'customIconUrl', 'customEmoji',
+          'description', 'memberCount', 'onlineCount', 'boostLevel', 'boostCount',
+          'unlockedPerkIds', 'activeServerTag', 'categoriesOrder', 'roles',
+          'customEmojis', 'stickers', 'chatTheme', 'chatWallpaperUrl',
+          'chatMessageStyle', 'chatAccentColor', 'showAllChannels',
+          'communityEnabled', 'isDiscoverable', 'createdAt', 'updatedAt'
+        ])
+        && data.id == serverId
+        && nonEmptyStr(data.name, 80)
+        && nonEmptyStr(data.shortCode, 6)
+        && isValidId(data.ownerId)
+        && data.adminIds is list && data.adminIds.size() >= 1 && data.adminIds.size() <= 20
+        && data.ownerId in data.adminIds
+        && optStr(data, 'description', 400)
+        && optStr(data, 'customIconUrl', 200000)
+        && optStr(data, 'bannerImage', 200000)
+        && optStr(data, 'chatWallpaperUrl', 200000)
+        && isRecentTimestamp(data.createdAt)
+        && isRecentTimestamp(data.updatedAt);
+    }
+
+    function isValidServerMember(data, memberUid) {
+      return data.keys().hasAll(['uid', 'displayName', 'username', 'avatar', 'roleIds', 'isAdmin', 'joinedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'username', 'avatar', 'customAvatarUrl', 'status', 'roleIds', 'isAdmin', 'joinedAt'])
+        && data.uid == memberUid
+        && nonEmptyStr(data.displayName, 40)
+        && nonEmptyStr(data.username, 32)
+        && nonEmptyStr(data.avatar, 32)
+        && data.roleIds is list && data.roleIds.size() <= 20
+        && data.isAdmin is bool
+        && isRecentTimestamp(data.joinedAt);
+    }
+
+    function isValidChannel(data, channelId) {
+      return data.keys().hasAll(['id', 'name', 'type', 'category', 'position', 'createdAt'])
+        && data.keys().hasOnly(['id', 'name', 'type', 'category', 'isPrivate', 'topic', 'position', 'createdAt'])
+        && data.id == channelId
+        && nonEmptyStr(data.name, 60)
+        && data.type in ['text', 'voice', 'announcement']
+        && data.category is string && data.category.size() <= 60
+        && data.position is int && data.position >= 0 && data.position <= 500
+        && optStr(data, 'topic', 200)
+        && isRecentTimestamp(data.createdAt);
+    }
+
+    function isValidChatMessage(data, messageId) {
+      return data.keys().hasAll(['id', 'authorId', 'authorName', 'authorAvatar', 'content', 'createdAt'])
+        && data.keys().hasOnly([
+          'id', 'authorId', 'authorName', 'authorAvatar', 'authorTag',
+          'content', 'timestamp', 'edited', 'editedAt', 'pinned',
+          'mentionEveryone', 'replyTo', 'forwardedFrom', 'imageUrl',
+          'sticker', 'audioNote', 'poll', 'reactions', 'createdAt'
+        ])
+        && data.id == messageId
+        && isValidId(data.authorId)
+        && nonEmptyStr(data.authorName, 40)
+        && nonEmptyStr(data.authorAvatar, 32)
+        && data.content is string && data.content.size() <= 2000
+        && optStr(data, 'imageUrl', 200000)
+        && (!('reactions' in data) || (data.reactions is list && data.reactions.size() <= 40))
+        && isRecentTimestamp(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Startup connection check document
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Public searchable user profiles (no PII)
+    match /publicProfiles/{uid} {
+      allow get: if isVerifiedUser() && isValidId(uid);
+      allow list: if isVerifiedUser() && resource.data.usernameLower is string;
+      allow create, update: if isOwner(uid) && isValidId(uid) && isValidPublicProfile(request.resource.data, uid);
+      allow delete: if false;
+    }
+
+    // Unique @username reservation index
+    match /usernames/{usernameLower} {
+      allow get: if isVerifiedUser() && isValidId(usernameLower);
+      allow list: if false;
+      allow create: if isVerifiedUser()
+        && usernameLower == usernameLower.lower()
+        && usernameLower.size() >= 2 && usernameLower.size() <= 32
+        && request.resource.data.keys().hasAll(['uid', 'username', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'username', 'displayName', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.username.lower() == usernameLower
+        && isRecentTimestamp(request.resource.data.createdAt);
+      allow update: if isVerifiedUser()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasAll(['uid', 'username', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'username', 'displayName', 'createdAt'])
+        && request.resource.data.username.lower() == usernameLower
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isVerifiedUser() && resource.data.uid == request.auth.uid;
+    }
+
+    // Private per-user account wallet, inventory, badges
+    match /users/{uid}/private/account {
+      allow get: if isOwner(uid);
+      allow list: if false;
+      allow create, update: if isOwner(uid) && isValidPrivateAccount(request.resource.data, uid);
+      allow delete: if false;
+    }
+
+    // Per-user notifications (including /everyone server mentions)
+    match /users/{uid}/notifications/{notificationId} {
+      allow get: if isOwner(uid) && isValidId(notificationId);
+      allow list: if isOwner(uid);
+      allow create: if isVerifiedUser()
+        && isValidId(notificationId)
+        && isValidNotification(request.resource.data, uid)
+        && request.resource.data.senderUid == request.auth.uid
+        && (
+          uid == request.auth.uid
+          || (
+            'targetServerId' in request.resource.data
+            && request.resource.data.targetServerId is string
+            && isServerMember(request.resource.data.targetServerId)
+            && exists(/databases/$(database)/documents/servers/$(request.resource.data.targetServerId)/members/$(uid))
+          )
+          || (
+            'targetDmId' in request.resource.data
+            && request.resource.data.targetDmId is string
+            && isDmParticipant(request.resource.data.targetDmId)
+            && uid in get(/databases/$(database)/documents/dms/$(request.resource.data.targetDmId)).data.participantIds
+          )
+        );
+      allow update: if isOwner(uid)
+        && isValidId(notificationId)
+        && isValidNotification(request.resource.data, uid)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.senderUid == resource.data.senderUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread']);
+      allow delete: if isOwner(uid) && isValidId(notificationId);
+    }
+
+    // Direct Message threads
+    match /dms/{dmId} {
+      allow get: if isVerifiedUser() && isValidId(dmId) && request.auth.uid in resource.data.participantIds;
+      allow list: if isVerifiedUser() && request.auth.uid in resource.data.participantIds;
+      allow create: if isVerifiedUser()
+        && isValidId(dmId)
+        && isValidDm(request.resource.data, dmId)
+        && request.auth.uid in request.resource.data.participantIds;
+      allow update: if isVerifiedUser()
+        && isValidId(dmId)
+        && isValidDm(request.resource.data, dmId)
+        && request.auth.uid in resource.data.participantIds
+        && request.resource.data.participantIds == resource.data.participantIds
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessagePreview', 'lastTimestamp', 'lastSenderId', 'unreadBy', 'updatedAt', 'participantProfiles']);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow get: if isDmParticipant(dmId) && isValidId(messageId);
+        allow list: if isDmParticipant(dmId);
+        allow create: if isDmParticipant(dmId)
+          && isValidId(messageId)
+          && request.resource.data.authorId == request.auth.uid
+          && isValidChatMessage(request.resource.data, messageId);
+        allow update: if isDmParticipant(dmId)
+          && isValidId(messageId)
+          && isValidChatMessage(request.resource.data, messageId)
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && (
+            (
+              resource.data.authorId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'edited', 'editedAt', 'pinned', 'reactions', 'poll'])
+            )
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'poll', 'pinned'])
+          );
+        allow delete: if isDmParticipant(dmId) && isValidId(messageId) && resource.data.authorId == request.auth.uid;
+      }
+    }
+
+    // Servers with strict Owner / Admin permission enforcement
+    match /servers/{serverId} {
+      allow get: if isVerifiedUser() && isValidId(serverId);
+      allow list: if isVerifiedUser()
+        && (
+          resource.data.isDiscoverable == true
+          || resource.data.ownerId == request.auth.uid
+          || request.auth.uid in resource.data.adminIds
+        );
+      allow create: if isVerifiedUser()
+        && isValidId(serverId)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.auth.uid in request.resource.data.adminIds
+        && isValidServer(request.resource.data, serverId);
+      allow update: if isVerifiedUser()
+        && isValidId(serverId)
+        && (resource.data.ownerId == request.auth.uid || request.auth.uid in resource.data.adminIds)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (request.resource.data.adminIds == resource.data.adminIds || resource.data.ownerId == request.auth.uid)
+        && isValidServer(request.resource.data, serverId);
+      allow delete: if isVerifiedUser() && isValidId(serverId) && resource.data.ownerId == request.auth.uid;
+
+      match /members/{memberUid} {
+        allow get: if isVerifiedUser() && isValidId(memberUid);
+        allow list: if isVerifiedUser() && resource.data.uid is string;
+        allow create: if isVerifiedUser()
+          && isValidId(memberUid)
+          && isValidServerMember(request.resource.data, memberUid)
+          && (
+            (
+              !exists(/databases/$(database)/documents/servers/$(serverId))
+              && existsAfter(/databases/$(database)/documents/servers/$(serverId))
+              && getAfter(/databases/$(database)/documents/servers/$(serverId)).data.ownerId == request.auth.uid
+              && memberUid == request.auth.uid
+              && request.resource.data.isAdmin == true
+            )
+            || (
+              exists(/databases/$(database)/documents/servers/$(serverId))
+              && (
+                isServerAdmin(serverId)
+                || (memberUid == request.auth.uid && request.resource.data.isAdmin == false && request.resource.data.roleIds.size() == 0)
+              )
+            )
+          );
+        allow update: if isVerifiedUser()
+          && isValidId(memberUid)
+          && isValidServerMember(request.resource.data, memberUid)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.joinedAt == resource.data.joinedAt
+          && (
+            (
+              isServerAdmin(serverId)
+              && (memberUid != get(/databases/$(database)/documents/servers/$(serverId)).data.ownerId || request.resource.data.isAdmin == true)
+            )
+            || (
+              memberUid == request.auth.uid
+              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin', 'roleIds'])
+            )
+          );
+        allow delete: if isVerifiedUser()
+          && isValidId(memberUid)
+          && (
+            (memberUid == request.auth.uid && memberUid != get(/databases/$(database)/documents/servers/$(serverId)).data.ownerId)
+            || (isServerAdmin(serverId) && memberUid != get(/databases/$(database)/documents/servers/$(serverId)).data.ownerId)
+          );
+      }
+
+      match /channels/{channelId} {
+        allow get: if isServerMember(serverId) && isValidId(channelId);
+        allow list: if isServerMember(serverId);
+        allow create: if isServerAdminOrCreatingOwner(serverId)
+          && isValidId(channelId)
+          && isValidChannel(request.resource.data, channelId);
+        allow update: if isServerAdmin(serverId)
+          && isValidId(channelId)
+          && isValidChannel(request.resource.data, channelId)
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isServerAdmin(serverId) && isValidId(channelId);
+
+        match /messages/{messageId} {
+          allow get: if isServerMember(serverId) && isValidId(messageId);
+          allow list: if isServerMember(serverId);
+          allow create: if isServerMember(serverId)
+            && isValidId(messageId)
+            && request.resource.data.authorId == request.auth.uid
+            && isValidChatMessage(request.resource.data, messageId);
+          allow update: if isServerMember(serverId)
+            && isValidId(messageId)
+            && isValidChatMessage(request.resource.data, messageId)
+            && request.resource.data.authorId == resource.data.authorId
+            && request.resource.data.createdAt == resource.data.createdAt
+            && (
+              (
+                resource.data.authorId == request.auth.uid
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'edited', 'editedAt', 'pinned', 'reactions', 'poll'])
+              )
+              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'poll'])
+              || (isServerAdmin(serverId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned']))
+            );
+          allow delete: if isServerMember(serverId)
+            && isValidId(messageId)
+            && (resource.data.authorId == request.auth.uid || isServerAdmin(serverId));
+        }
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

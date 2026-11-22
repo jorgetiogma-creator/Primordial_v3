@@ -1,0 +1,275 @@
+{
+  "entities": {
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Public profile directory for registered Primordial users searchable by username",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID of the user" },
+        "displayName": { "type": "string", "description": "Display name" },
+        "username": { "type": "string", "description": "Unique handle without @" },
+        "usernameLower": { "type": "string", "description": "Lowercase unique handle for search" },
+        "avatar": { "type": "string", "description": "Preset avatar key" },
+        "customAvatarUrl": { "type": "string", "description": "Optional avatar image URL" },
+        "status": { "type": "string", "enum": ["online", "idle", "dnd", "offline"] },
+        "customStatus": { "type": "string" },
+        "bio": { "type": "string" },
+        "bannerColor": { "type": "string" },
+        "bannerImage": { "type": "string" },
+        "decoration": { "type": "string" },
+        "profileEffect": { "type": "string" },
+        "profileFrame": { "type": "string" },
+        "nameplate": { "type": "string" },
+        "serverTag": { "type": "string" },
+        "nitroTier": { "type": "string", "enum": ["none", "basic", "nitro"] },
+        "displayNameStyle": { "type": "string" },
+        "displayNameColorPreset": { "type": "string" },
+        "displayNameCustomColors": { "type": "array", "items": { "type": "string" } },
+        "displayNameGlow": { "type": "boolean" },
+        "badgeIds": { "type": "array", "items": { "type": "string" } },
+        "memberSince": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "username", "usernameLower", "avatar", "status", "memberSince", "updatedAt"]
+    },
+    "UsernameClaim": {
+      "title": "UsernameClaim",
+      "description": "Unique username reservation index mapping lowercase username to UID",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "createdAt"]
+    },
+    "PrivateAccount": {
+      "title": "PrivateAccount",
+      "description": "Private user account state including Orbs balance, inventory, badges, and Nitro tier",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "orbs": { "type": "number" },
+        "nitroTier": { "type": "string", "enum": ["none", "basic", "nitro"] },
+        "ownedBundleIds": { "type": "array", "items": { "type": "string" } },
+        "wishlistIds": { "type": "array", "items": { "type": "string" } },
+        "unlockedBadgeIds": { "type": "array", "items": { "type": "string" } },
+        "equippedBadgeIds": { "type": "array", "items": { "type": "string" } },
+        "claimedQuestIds": { "type": "array", "items": { "type": "string" } },
+        "boostsGiven": { "type": "integer" },
+        "boostStreakMonths": { "type": "integer" },
+        "giftsSent": { "type": "integer" },
+        "streamHours": { "type": "integer" },
+        "gamesPlayedCount": { "type": "integer" },
+        "accountYears": { "type": "integer" },
+        "joinedServerIds": { "type": "array", "items": { "type": "string" } },
+        "isOwnerAccount": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "orbs", "nitroTier", "ownedBundleIds", "updatedAt"]
+    },
+    "UserNotification": {
+      "title": "UserNotification",
+      "description": "Per-user inbox notifications including /everyone mentions and DM replies",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "recipientUid": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "type": { "type": "string", "enum": ["mention", "reply", "friend", "quest", "system"] },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "unread": { "type": "boolean" },
+        "avatar": { "type": "string" },
+        "serverName": { "type": "string" },
+        "targetDmId": { "type": "string" },
+        "targetServerId": { "type": "string" },
+        "targetChannelId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "recipientUid", "senderUid", "type", "title", "body", "unread", "avatar", "createdAt"]
+    },
+    "DirectMessage": {
+      "title": "DirectMessage",
+      "description": "Direct message thread between real users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "isGroup": { "type": "boolean" },
+        "groupTitle": { "type": "string" },
+        "groupEmoji": { "type": "string" },
+        "groupColor": { "type": "string" },
+        "participantProfiles": { "type": "object" },
+        "lastMessagePreview": { "type": "string" },
+        "lastTimestamp": { "type": "string" },
+        "lastSenderId": { "type": "string" },
+        "unreadBy": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "participantIds", "lastMessagePreview", "updatedAt"]
+    },
+    "DirectMessageMessage": {
+      "title": "DirectMessageMessage",
+      "description": "Individual message inside a direct message thread",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "edited": { "type": "boolean" },
+        "pinned": { "type": "boolean" },
+        "replyTo": { "type": "object" },
+        "imageUrl": { "type": "string" },
+        "sticker": { "type": "object" },
+        "audioNote": { "type": "object" },
+        "poll": { "type": "object" },
+        "reactions": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "authorId", "authorName", "authorAvatar", "content", "createdAt"]
+    },
+    "Server": {
+      "title": "Server",
+      "description": "Community or friend server with strict ownerId and adminIds authorization",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "shortCode": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "adminIds": { "type": "array", "items": { "type": "string" } },
+        "iconStyle": { "type": "string" },
+        "accentColor": { "type": "string" },
+        "bannerColor": { "type": "string" },
+        "bannerImage": { "type": "string" },
+        "customIconUrl": { "type": "string" },
+        "customEmoji": { "type": "string" },
+        "description": { "type": "string" },
+        "boostLevel": { "type": "integer" },
+        "boostCount": { "type": "integer" },
+        "unlockedPerkIds": { "type": "array", "items": { "type": "string" } },
+        "activeServerTag": { "type": "string" },
+        "categoriesOrder": { "type": "array", "items": { "type": "string" } },
+        "roles": { "type": "array" },
+        "customEmojis": { "type": "array" },
+        "stickers": { "type": "array" },
+        "chatTheme": { "type": "string" },
+        "chatWallpaperUrl": { "type": "string" },
+        "chatMessageStyle": { "type": "string" },
+        "chatAccentColor": { "type": "string" },
+        "showAllChannels": { "type": "boolean" },
+        "communityEnabled": { "type": "boolean" },
+        "isDiscoverable": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "shortCode", "ownerId", "adminIds", "accentColor", "bannerColor", "createdAt", "updatedAt"]
+    },
+    "ServerMember": {
+      "title": "ServerMember",
+      "description": "Membership record with server-scoped roles and admin permission flag",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "username": { "type": "string" },
+        "avatar": { "type": "string" },
+        "customAvatarUrl": { "type": "string" },
+        "status": { "type": "string" },
+        "roleIds": { "type": "array", "items": { "type": "string" } },
+        "isAdmin": { "type": "boolean" },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "username", "avatar", "roleIds", "isAdmin", "joinedAt"]
+    },
+    "ServerChannel": {
+      "title": "ServerChannel",
+      "description": "Channel inside a server managed strictly by server owner or admins",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "voice", "announcement"] },
+        "category": { "type": "string" },
+        "isPrivate": { "type": "boolean" },
+        "topic": { "type": "string" },
+        "position": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "type", "category", "position", "createdAt"]
+    },
+    "ChannelMessage": {
+      "title": "ChannelMessage",
+      "description": "Message inside a server channel supporting /everyone mentions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorTag": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "edited": { "type": "boolean" },
+        "pinned": { "type": "boolean" },
+        "mentionEveryone": { "type": "boolean" },
+        "replyTo": { "type": "object" },
+        "imageUrl": { "type": "string" },
+        "sticker": { "type": "object" },
+        "audioNote": { "type": "object" },
+        "poll": { "type": "object" },
+        "reactions": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "authorId", "authorName", "authorAvatar", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/publicProfiles/{uid}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Public searchable user profiles (no PII)"
+    },
+    "/usernames/{usernameLower}": {
+      "schema": { "$ref": "#/entities/UsernameClaim" },
+      "description": "Unique username lookup table"
+    },
+    "/users/{uid}/private/account": {
+      "schema": { "$ref": "#/entities/PrivateAccount" },
+      "description": "Owner-only private account wallet, inventory, and badges"
+    },
+    "/users/{uid}/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/UserNotification" },
+      "description": "Per-user inbox notifications"
+    },
+    "/dms/{dmId}": {
+      "schema": { "$ref": "#/entities/DirectMessage" },
+      "description": "Direct message thread metadata"
+    },
+    "/dms/{dmId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/DirectMessageMessage" },
+      "description": "Messages inside a direct message thread"
+    },
+    "/servers/{serverId}": {
+      "schema": { "$ref": "#/entities/Server" },
+      "description": "Servers with strict ownerId and adminIds write enforcement"
+    },
+    "/servers/{serverId}/members/{memberUid}": {
+      "schema": { "$ref": "#/entities/ServerMember" },
+      "description": "Server members subcollection"
+    },
+    "/servers/{serverId}/channels/{channelId}": {
+      "schema": { "$ref": "#/entities/ServerChannel" },
+      "description": "Server channels subcollection"
+    },
+    "/servers/{serverId}/channels/{channelId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChannelMessage" },
+      "description": "Server channel messages subcollection"
+    }
+  }
+}
