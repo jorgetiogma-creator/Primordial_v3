@@ -10,9 +10,14 @@ createRoot(document.getElementById('root')!).render(
 );
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
+  const registerServiceWorker = () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
       // Service worker registration failed or unsupported in current context
     });
-  });
+  };
+  if (document.readyState === 'complete') {
+    registerServiceWorker();
+  } else {
+    window.addEventListener('load', registerServiceWorker);
+  }
 }

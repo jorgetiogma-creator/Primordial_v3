@@ -27,12 +27,14 @@ import {
   ChatReaction,
   CreateServerPayload,
   DirectMessageThread,
+  FriendRequestItem,
   NotificationItem,
   PresenceStatus,
   PublicUserProfile,
   Server,
   ServerMemberSummary,
   ServerRole,
+  ThreadMessage,
   UserProfile,
 } from '../types/discord';
 import { DESIGNATED_OWNER_EMAIL } from '../utils/ownerAccess';
@@ -548,6 +550,13 @@ export function subscribeToDms(
 }
 
 function docToChatMessage(docId: string, d: Record<string, unknown>): ChatMessage {
+  const createdAtObj = d.createdAt as { toMillis?: () => number } | undefined;
+  const createdAtMs =
+    typeof d.createdAtMs === 'number'
+      ? d.createdAtMs
+      : createdAtObj && typeof createdAtObj.toMillis === 'function'
+        ? createdAtObj.toMillis()
+        : undefined;
   return {
     id: docId,
     authorId: String(d.authorId || ''),
@@ -556,11 +565,13 @@ function docToChatMessage(docId: string, d: Record<string, unknown>): ChatMessag
     authorIsBot: false,
     authorTag: d.authorTag ? String(d.authorTag) : undefined,
     timestamp: String(d.timestamp || 'Ahora'),
+    createdAtMs,
     content: String(d.content || ''),
     edited: Boolean(d.edited),
     editedAt: d.editedAt ? String(d.editedAt) : undefined,
     pinned: Boolean(d.pinned),
     mentionEveryone: Boolean(d.mentionEveryone),
+    threadCount: typeof d.threadCount === 'number' ? d.threadCount : 0,
     replyTo: d.replyTo as ChatMessage['replyTo'],
     forwardedFrom: d.forwardedFrom as ChatMessage['forwardedFrom'],
     imageUrl: sanitizeMediaUrl(d.imageUrl as string | undefined),
@@ -644,9 +655,11 @@ export async function sendDmMessage(params: {
       authorTag: currentUser.serverTag ? clampStr(currentUser.serverTag, 12) : undefined,
       content: safeContent,
       timestamp: nowLabel,
+      createdAtMs: Date.now(),
       edited: false,
       pinned: false,
       mentionEveryone: false,
+      threadCount: 0,
       replyTo,
       imageUrl: safeImageUrl,
       sticker,
@@ -700,6 +713,7 @@ export async function updateFirestoreMessage(params: {
     pinned: boolean;
     reactions: ChatReaction[];
     poll: ChatPoll;
+    threadCount: number;
   }>;
 }): Promise<void> {
   const { collectionPath, messageId, patch } = params;
@@ -724,6 +738,81 @@ export async function deleteFirestoreMessage(collectionPath: string, messageId: 
   }
 }
 
+export function subscribeToMessageThreads(
+  parentMessagePath: string,
+  onData: (replies: ThreadMessage[]) => void
+): Unsubscribe {
+  const path = `${parentMessagePath}/threads`;
+  const q = query(collection(db, path), orderBy('createdAt', 'asc'), limit(120));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const replies: ThreadMessage[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        const createdAtObj = d.createdAt as { toMillis?: () => number } | undefined;
+        replies.push({
+          id: docSnap.id,
+          authorId: String(d.authorId || ''),
+          authorName: String(d.authorName || 'Usuario'),
+          authorAvatar: (d.authorAvatar as AvatarKey) || 'madara',
+          authorTag: d.authorTag ? String(d.authorTag) : undefined,
+          timestamp: String(d.timestamp || 'Ahora'),
+          createdAtMs:
+            typeof d.createdAtMs === 'number'
+              ? d.createdAtMs
+              : createdAtObj && typeof createdAtObj.toMillis === 'function'
+                ? createdAtObj.toMillis()
+                : undefined,
+          content: String(d.content || ''),
+        });
+      });
+      onData(replies);
+    },
+    (error) => {
+      console.warn(`Unable to subscribe to threads ${path}:`, error?.message || error);
+    }
+  );
+}
+
+export async function sendThreadReply(params: {
+  parentMessagePath: string;
+  currentUser: UserProfile;
+  content: string;
+  nextThreadCount: number;
+}): Promise<void> {
+  const { parentMessagePath, currentUser, content, nextThreadCount } = params;
+  const replyId = makeSafeId('thr');
+  const safeContent = clampStr(content, 2000);
+  if (!safeContent) return;
+  const path = `${parentMessagePath}/threads/${replyId}`;
+
+  const batch = writeBatch(db);
+  batch.set(
+    doc(db, parentMessagePath, 'threads', replyId),
+    stripUndefined({
+      id: replyId,
+      authorId: currentUser.id,
+      authorName: clampStr(currentUser.displayName, 40) || currentUser.username,
+      authorAvatar: clampStr(currentUser.avatar, 32) || 'madara',
+      authorTag: currentUser.serverTag ? clampStr(currentUser.serverTag, 12) : undefined,
+      content: safeContent,
+      timestamp: formatShortTime(),
+      createdAtMs: Date.now(),
+      createdAt: serverTimestamp(),
+    })
+  );
+  batch.update(doc(db, parentMessagePath), {
+    threadCount: Math.max(1, Math.min(10000, Math.floor(nextThreadCount))),
+  });
+
+  try {
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
 // ============================================================================
 // Servers, Members, Channels, Roles & /everyone Notifications
 // ============================================================================
@@ -732,32 +821,33 @@ export async function createFirestoreServer(params: {
   uid: string;
   currentUser: UserProfile;
   payload: CreateServerPayload;
-}): Promise<string> {
+}): Promise<Server> {
   const { uid, currentUser, payload } = params;
   const serverId = makeSafeId('srv');
   const cleanName = clampStr(payload.name, 80) || 'Nuevo Servidor';
-  const shortCode = cleanName
+  const rawLetters = cleanName
     .split(/\s+/)
-    .map((w) => w[0])
+    .map((w) => w.replace(/[^a-zA-Z0-9]/g, '')[0] || '')
     .join('')
     .slice(0, 4)
-    .toUpperCase() || 'SR';
+    .toUpperCase();
+  const shortCode = clampStr(rawLetters || cleanName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'SR', 6) || 'SR';
 
   const roles: ServerRole[] = payload.includeStarterRoles
     ? payload.starterRoles && payload.starterRoles.length > 0
       ? payload.starterRoles
       : [
           {
-            id: 'role-admin',
-            name: 'Administrador',
-            color: '#e11d48',
+            id: 'role-owner',
+            name: '👑 Owner',
+            color: '#f59e0b',
             hoist: true,
             permissions: ['Administrador', 'Gestionar canales', 'Gestionar mensajes', 'Expulsar miembros'],
           },
           {
-            id: 'role-member',
-            name: 'Miembro',
-            color: '#3b82f6',
+            id: 'role-everyone',
+            name: '@everyone',
+            color: '#b5bac1',
             hoist: false,
             permissions: ['Enviar mensajes', 'Leer historial', 'Conectar a voz'],
           },
@@ -772,31 +862,52 @@ export async function createFirestoreServer(params: {
         },
       ];
 
+  const ownerRoleId =
+    roles.find((r) => r.permissions.includes('Administrador'))?.id || roles[0]?.id || 'role-owner';
+
+  const safeIcon = safeMedia200k(payload.customIconUrl);
+  const safeCustomAvatar = safeMedia200k(currentUser.customAvatarUrl);
+  const safeMemberUsername =
+    clampStr(currentUser.username, 32) || clampStr(currentUser.displayName, 32) || uid.slice(0, 12);
+  const safeMemberDisplayName = clampStr(currentUser.displayName, 40) || safeMemberUsername;
+  const safeMemberAvatar = clampStr(currentUser.avatar, 32) || 'madara';
+  const accentColor = clampStr(payload.accentColor, 24) || '#5865F2';
+  const categoriesOrder = payload.includeVoiceChannels
+    ? ['Canales de texto', 'Canales de voz']
+    : ['Canales de texto'];
+  const description = `Servidor creado por ${safeMemberDisplayName}.`;
+
+  const privRef = doc(db, 'users', uid, 'private', 'account');
+  let privExists = true;
+  try {
+    const privSnap = await getDoc(privRef);
+    privExists = privSnap.exists();
+  } catch {
+    privExists = true;
+  }
+
   const batch = writeBatch(db);
-  const safeIcon = sanitizeMediaUrl(payload.customIconUrl);
 
   batch.set(
     doc(db, 'servers', serverId),
     stripUndefined({
       id: serverId,
       name: cleanName,
-      shortCode: clampStr(shortCode, 6),
+      shortCode,
       ownerId: uid,
       adminIds: [uid],
       iconStyle: 'custom',
-      accentColor: clampStr(payload.accentColor, 24) || '#5865F2',
-      bannerColor: clampStr(payload.accentColor, 24) || '#5865F2',
-      customIconUrl: safeIcon ? clampStr(safeIcon, 200000) : undefined,
-      customEmoji: payload.customEmoji ? clampStr(payload.customEmoji, 12) : undefined,
-      description: `Servidor creado por ${clampStr(currentUser.displayName, 40)}.`,
+      accentColor,
+      bannerColor: accentColor,
+      customIconUrl: safeIcon,
+      customEmoji: !safeIcon && payload.customEmoji ? clampStr(payload.customEmoji, 12) : undefined,
+      description,
       memberCount: 1,
       onlineCount: 1,
       boostLevel: 0,
       boostCount: 0,
       unlockedPerkIds: [],
-      categoriesOrder: payload.includeVoiceChannels
-        ? ['Canales de texto', 'Canales de voz']
-        : ['Canales de texto'],
+      categoriesOrder,
       roles,
       customEmojis: [],
       stickers: [],
@@ -814,12 +925,12 @@ export async function createFirestoreServer(params: {
     doc(db, 'servers', serverId, 'members', uid),
     stripUndefined({
       uid,
-      displayName: clampStr(currentUser.displayName, 40) || currentUser.username,
-      username: clampStr(currentUser.username, 32),
-      avatar: clampStr(currentUser.avatar, 32) || 'madara',
-      customAvatarUrl: sanitizeMediaUrl(currentUser.customAvatarUrl),
+      displayName: safeMemberDisplayName,
+      username: safeMemberUsername,
+      avatar: safeMemberAvatar,
+      customAvatarUrl: safeCustomAvatar,
       status: currentUser.status || 'online',
-      roleIds: ['role-admin'],
+      roleIds: [ownerRoleId],
       isAdmin: true,
       joinedAt: serverTimestamp(),
     })
@@ -827,13 +938,34 @@ export async function createFirestoreServer(params: {
 
   const chGeneral = makeSafeId('ch');
   const chAnuncios = makeSafeId('ch');
+  const createdChannels: Channel[] = [
+    {
+      id: chGeneral,
+      name: 'general',
+      type: 'text',
+      category: 'Canales de texto',
+      isPrivate: false,
+      topic: `Chat principal de ${cleanName}`,
+      messages: [],
+    },
+    {
+      id: chAnuncios,
+      name: 'anuncios',
+      type: 'announcement',
+      category: 'Canales de texto',
+      isPrivate: false,
+      topic: 'Avisos oficiales y menciones @everyone',
+      messages: [],
+    },
+  ];
+
   batch.set(doc(db, 'servers', serverId, 'channels', chGeneral), {
     id: chGeneral,
     name: 'general',
     type: 'text',
     category: 'Canales de texto',
     isPrivate: false,
-    topic: `Chat principal de ${cleanName}`,
+    topic: clampStr(`Chat principal de ${cleanName}`, 200),
     position: 0,
     createdAt: serverTimestamp(),
   });
@@ -860,16 +992,89 @@ export async function createFirestoreServer(params: {
       position: 2,
       createdAt: serverTimestamp(),
     });
+    createdChannels.push({
+      id: chVoice,
+      name: 'Sala General',
+      type: 'voice',
+      category: 'Canales de voz',
+      isPrivate: false,
+      topic: 'Canal de voz',
+      voiceParticipants: [],
+      messages: [],
+    });
   }
 
-  batch.update(doc(db, 'users', uid, 'private', 'account'), {
-    joinedServerIds: arrayUnion(serverId),
-    updatedAt: serverTimestamp(),
-  });
+  if (privExists) {
+    batch.update(privRef, {
+      joinedServerIds: arrayUnion(serverId),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    batch.set(privRef, {
+      uid,
+      orbs: Math.max(0, Math.floor(currentUser.orbs || 1200)),
+      nitroTier: currentUser.nitroTier || 'none',
+      ownedBundleIds: [],
+      wishlistIds: [],
+      unlockedBadgeIds: currentUser.unlockedBadgeIds || ['hypesquad'],
+      equippedBadgeIds: currentUser.equippedBadgeIds || ['hypesquad'],
+      claimedQuestIds: [],
+      boostsGiven: currentUser.boostsGiven || 0,
+      boostStreakMonths: currentUser.boostStreakMonths || 0,
+      giftsSent: currentUser.giftsSent || 0,
+      streamHours: currentUser.streamHours || 0,
+      gamesPlayedCount: currentUser.gamesPlayedCount || 0,
+      accountYears: currentUser.accountYears || 0,
+      perServerProfiles: currentUser.perServerProfiles || {},
+      joinedServerIds: [serverId],
+      isOwnerAccount: false,
+      updatedAt: serverTimestamp(),
+    });
+  }
 
   try {
     await batch.commit();
-    return serverId;
+    return {
+      id: serverId,
+      name: cleanName,
+      shortCode,
+      ownerId: uid,
+      adminIds: [uid],
+      members: [
+        {
+          uid,
+          displayName: safeMemberDisplayName,
+          username: safeMemberUsername,
+          avatar: safeMemberAvatar as AvatarKey,
+          customAvatarUrl: safeCustomAvatar,
+          status: currentUser.status || 'online',
+          roleIds: [ownerRoleId],
+          isAdmin: true,
+        },
+      ],
+      isDiscoverable: true,
+      iconStyle: 'custom',
+      accentColor,
+      bannerColor: accentColor,
+      customIconUrl: safeIcon,
+      customEmoji: !safeIcon && payload.customEmoji ? clampStr(payload.customEmoji, 12) : undefined,
+      description,
+      memberCount: 1,
+      onlineCount: 1,
+      boostLevel: 0,
+      boostCount: 0,
+      unlockedPerkIds: [],
+      categoriesOrder,
+      roles,
+      memberRoleIds: { [uid]: [ownerRoleId] },
+      customEmojis: [],
+      stickers: [],
+      chatTheme: payload.chatTheme || 'onyx',
+      chatMessageStyle: payload.chatMessageStyle || 'classic',
+      showAllChannels: true,
+      communityEnabled: payload.audience === 'community',
+      channels: createdChannels,
+    };
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `servers/${serverId}`);
   }
@@ -893,6 +1098,12 @@ export async function joinFirestoreServer(
 
     const memberRef = doc(db, 'servers', cleanServerId, 'members', uid);
     const memberSnap = await getDoc(memberRef);
+    const privRef = doc(db, 'users', uid, 'private', 'account');
+    const privSnap = await getDoc(privRef);
+
+    const safeUsername =
+      clampStr(currentUser.username, 32) || clampStr(currentUser.displayName, 32) || uid.slice(0, 12);
+    const safeDisplayName = clampStr(currentUser.displayName, 40) || safeUsername;
 
     const batch = writeBatch(db);
     if (!memberSnap.exists()) {
@@ -900,10 +1111,10 @@ export async function joinFirestoreServer(
         memberRef,
         stripUndefined({
           uid,
-          displayName: clampStr(currentUser.displayName, 40) || currentUser.username,
-          username: clampStr(currentUser.username, 32),
+          displayName: safeDisplayName,
+          username: safeUsername,
           avatar: clampStr(currentUser.avatar, 32) || 'madara',
-          customAvatarUrl: sanitizeMediaUrl(currentUser.customAvatarUrl),
+          customAvatarUrl: safeMedia200k(currentUser.customAvatarUrl),
           status: currentUser.status || 'online',
           roleIds: [],
           isAdmin: isOwnerOrAdmin,
@@ -912,10 +1123,33 @@ export async function joinFirestoreServer(
       );
     }
 
-    batch.update(doc(db, 'users', uid, 'private', 'account'), {
-      joinedServerIds: arrayUnion(cleanServerId),
-      updatedAt: serverTimestamp(),
-    });
+    if (privSnap.exists()) {
+      batch.update(privRef, {
+        joinedServerIds: arrayUnion(cleanServerId),
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      batch.set(privRef, {
+        uid,
+        orbs: Math.max(0, Math.floor(currentUser.orbs || 1200)),
+        nitroTier: currentUser.nitroTier || 'none',
+        ownedBundleIds: [],
+        wishlistIds: [],
+        unlockedBadgeIds: currentUser.unlockedBadgeIds || ['hypesquad'],
+        equippedBadgeIds: currentUser.equippedBadgeIds || ['hypesquad'],
+        claimedQuestIds: [],
+        boostsGiven: currentUser.boostsGiven || 0,
+        boostStreakMonths: currentUser.boostStreakMonths || 0,
+        giftsSent: currentUser.giftsSent || 0,
+        streamHours: currentUser.streamHours || 0,
+        gamesPlayedCount: currentUser.gamesPlayedCount || 0,
+        accountYears: currentUser.accountYears || 0,
+        perServerProfiles: currentUser.perServerProfiles || {},
+        joinedServerIds: [cleanServerId],
+        isOwnerAccount: false,
+        updatedAt: serverTimestamp(),
+      });
+    }
 
     await batch.commit();
     return true;
@@ -1013,13 +1247,82 @@ export function subscribeToServerDetail(
   let channels: Channel[] = [];
   let members: ServerMemberSummary[] = [];
   let hasServerDoc = false;
+  let unsubMembers: Unsubscribe | null = null;
+  let unsubChannels: Unsubscribe | null = null;
+  let disposed = false;
 
   const emit = () => {
+    if (disposed) return;
     if (!hasServerDoc || !serverDocData) {
       onUpdate(null);
       return;
     }
     onUpdate(docToServerShell(serverId, serverDocData, channels, members));
+  };
+
+  const stopSubcollections = () => {
+    if (unsubMembers) {
+      unsubMembers();
+      unsubMembers = null;
+    }
+    if (unsubChannels) {
+      unsubChannels();
+      unsubChannels = null;
+    }
+    members = [];
+    channels = [];
+  };
+
+  const startSubcollections = () => {
+    if (disposed || unsubMembers || unsubChannels) return;
+    unsubMembers = onSnapshot(
+      collection(db, 'servers', serverId, 'members'),
+      (snap) => {
+        const nextMembers: ServerMemberSummary[] = [];
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
+          nextMembers.push({
+            uid: String(d.uid || docSnap.id),
+            displayName: String(d.displayName || 'Usuario'),
+            username: String(d.username || ''),
+            avatar: (d.avatar as AvatarKey) || 'madara',
+            customAvatarUrl: sanitizeMediaUrl(d.customAvatarUrl as string | undefined),
+            status: (d.status as PresenceStatus) || 'online',
+            roleIds: Array.isArray(d.roleIds) ? (d.roleIds as string[]) : [],
+            isAdmin: Boolean(d.isAdmin),
+          });
+        });
+        members = nextMembers;
+        emit();
+      },
+      (error) => {
+        console.warn(`Unable to read members for server ${serverId}:`, error?.message || error);
+      }
+    );
+
+    unsubChannels = onSnapshot(
+      query(collection(db, 'servers', serverId, 'channels'), orderBy('position', 'asc')),
+      (snap) => {
+        const nextChannels: Channel[] = [];
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
+          nextChannels.push({
+            id: docSnap.id,
+            name: String(d.name || 'general'),
+            type: (d.type as Channel['type']) || 'text',
+            category: String(d.category || 'Canales de texto'),
+            isPrivate: Boolean(d.isPrivate),
+            topic: d.topic ? String(d.topic) : undefined,
+            messages: [],
+          });
+        });
+        channels = nextChannels;
+        emit();
+      },
+      (error) => {
+        console.warn(`Unable to read channels for server ${serverId}:`, error?.message || error);
+      }
+    );
   };
 
   const unsubServer = onSnapshot(
@@ -1028,64 +1331,27 @@ export function subscribeToServerDetail(
       if (!snap.exists()) {
         hasServerDoc = false;
         serverDocData = null;
+        stopSubcollections();
       } else {
         hasServerDoc = true;
         serverDocData = snap.data();
+        startSubcollections();
       }
       emit();
     },
-    (error) => handleFirestoreError(error, OperationType.GET, `servers/${serverId}`)
-  );
-
-  const unsubMembers = onSnapshot(
-    collection(db, 'servers', serverId, 'members'),
-    (snap) => {
-      const nextMembers: ServerMemberSummary[] = [];
-      snap.forEach((docSnap) => {
-        const d = docSnap.data();
-        nextMembers.push({
-          uid: String(d.uid || docSnap.id),
-          displayName: String(d.displayName || 'Usuario'),
-          username: String(d.username || ''),
-          avatar: (d.avatar as AvatarKey) || 'madara',
-          customAvatarUrl: sanitizeMediaUrl(d.customAvatarUrl as string | undefined),
-          status: (d.status as PresenceStatus) || 'online',
-          roleIds: Array.isArray(d.roleIds) ? (d.roleIds as string[]) : [],
-          isAdmin: Boolean(d.isAdmin),
-        });
-      });
-      members = nextMembers;
+    (error) => {
+      console.warn(`Unable to read server ${serverId}:`, error?.message || error);
+      hasServerDoc = false;
+      serverDocData = null;
+      stopSubcollections();
       emit();
-    },
-    (error) => handleFirestoreError(error, OperationType.LIST, `servers/${serverId}/members`)
-  );
-
-  const unsubChannels = onSnapshot(
-    query(collection(db, 'servers', serverId, 'channels'), orderBy('position', 'asc')),
-    (snap) => {
-      const nextChannels: Channel[] = [];
-      snap.forEach((docSnap) => {
-        const d = docSnap.data();
-        nextChannels.push({
-          id: docSnap.id,
-          name: String(d.name || 'general'),
-          type: (d.type as Channel['type']) || 'text',
-          category: String(d.category || 'Canales de texto'),
-          isPrivate: Boolean(d.isPrivate),
-          topic: d.topic ? String(d.topic) : undefined,
-          messages: [],
-        });
-      });
-      channels = nextChannels;
-      emit();
-    },
-    (error) => handleFirestoreError(error, OperationType.LIST, `servers/${serverId}/channels`)
+    }
   );
 
   return () => {
+    disposed = true;
     unsubServer();
-    unsubMembers();
-    unsubChannels();
+    stopSubcollections();
   };
 }
 
@@ -1096,8 +1362,8 @@ export async function updateFirestoreServer(
   const path = `servers/${serverId}`;
   try {
     const clean = stripUndefined({
-      name: patch.name !== undefined ? clampStr(patch.name, 80) : undefined,
-      shortCode: patch.shortCode !== undefined ? clampStr(patch.shortCode, 6) : undefined,
+      name: patch.name !== undefined ? clampStr(patch.name, 80) || undefined : undefined,
+      shortCode: patch.shortCode !== undefined ? clampStr(patch.shortCode, 6) || undefined : undefined,
       iconStyle: patch.iconStyle,
       accentColor: patch.accentColor,
       bannerColor: patch.bannerColor,
@@ -1123,6 +1389,7 @@ export async function updateFirestoreServer(
       isDiscoverable: patch.isDiscoverable,
       updatedAt: serverTimestamp(),
     });
+    if (Object.keys(clean).length <= 1) return;
     await updateDoc(doc(db, 'servers', serverId), clean);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
@@ -1166,6 +1433,15 @@ export async function updateServerMemberRolesInFirestore(params: {
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function kickFirestoreServerMember(serverId: string, targetUid: string): Promise<void> {
+  const path = `servers/${serverId}/members/${targetUid}`;
+  try {
+    await deleteDoc(doc(db, 'servers', serverId, 'members', targetUid));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
 
@@ -1253,7 +1529,9 @@ export function subscribeToChannelMessages(
       });
       onData(msgs);
     },
-    (error) => handleFirestoreError(error, OperationType.LIST, path)
+    (error) => {
+      console.warn(`Unable to subscribe to ${path}:`, error?.message || error);
+    }
   );
 }
 
@@ -1320,9 +1598,11 @@ export async function sendChannelMessage(params: {
       authorTag: currentUser.serverTag ? clampStr(currentUser.serverTag, 12) : undefined,
       content: safeContent,
       timestamp: formatShortTime(),
+      createdAtMs: Date.now(),
       edited: false,
       pinned: false,
       mentionEveryone: hasEveryone,
+      threadCount: 0,
       replyTo,
       imageUrl: safeImageUrl,
       sticker,
@@ -1444,3 +1724,79 @@ export async function clearNotificationsInFirestore(uid: string, notifIds: strin
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
+
+export function subscribeToFriendRequests(
+  uid: string,
+  onData: (requests: FriendRequestItem[]) => void
+): Unsubscribe {
+  const path = `users/${uid}/friendRequests`;
+  const q = query(collection(db, path), orderBy('createdAt', 'desc'), limit(60));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list: FriendRequestItem[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d.status === 'pending') {
+          list.push({
+            fromUid: String(d.fromUid || docSnap.id),
+            toUid: String(d.toUid || uid),
+            fromDisplayName: String(d.fromDisplayName || 'Usuario'),
+            fromUsername: String(d.fromUsername || ''),
+            fromAvatar: (d.fromAvatar as AvatarKey) || 'madara',
+            fromCustomAvatarUrl: sanitizeMediaUrl(d.fromCustomAvatarUrl as string | undefined),
+            status: 'pending',
+          });
+        }
+      });
+      onData(list);
+    },
+    (error) => {
+      console.warn(`Unable to subscribe to friendRequests ${path}:`, error?.message || error);
+    }
+  );
+}
+
+export async function sendFriendRequest(params: {
+  fromUser: UserProfile;
+  toUid: string;
+}): Promise<void> {
+  const { fromUser, toUid } = params;
+  if (!toUid || toUid === fromUser.id) return;
+  const path = `users/${toUid}/friendRequests/${fromUser.id}`;
+  try {
+    await setDoc(
+      doc(db, 'users', toUid, 'friendRequests', fromUser.id),
+      stripUndefined({
+        fromUid: fromUser.id,
+        toUid,
+        fromDisplayName: clampStr(fromUser.displayName, 40) || fromUser.username,
+        fromUsername: clampStr(fromUser.username, 32) || fromUser.id.slice(0, 12),
+        fromAvatar: clampStr(fromUser.avatar, 32) || 'madara',
+        fromCustomAvatarUrl: safeMedia200k(fromUser.customAvatarUrl),
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      })
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function respondFriendRequest(params: {
+  uid: string;
+  fromUid: string;
+  accept: boolean;
+}): Promise<void> {
+  const { uid, fromUid, accept } = params;
+  const path = `users/${uid}/friendRequests/${fromUid}`;
+  try {
+    await updateDoc(doc(db, 'users', uid, 'friendRequests', fromUid), {
+      status: accept ? 'accepted' : 'declined',
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+

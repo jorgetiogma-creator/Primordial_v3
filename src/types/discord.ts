@@ -402,11 +402,13 @@ export interface ChatMessage {
   authorIsBot?: boolean;
   authorTag?: string;
   timestamp: string;
+  createdAtMs?: number;
   content: string;
   edited?: boolean;
   editedAt?: string;
   pinned?: boolean;
   mentionEveryone?: boolean;
+  threadCount?: number;
   replyTo?: {
     messageId?: string;
     authorName: string;
@@ -431,6 +433,35 @@ export interface ChatMessage {
     waveform: number[];
   };
   poll?: ChatPoll;
+}
+
+export interface ThreadMessage {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: AvatarKey;
+  authorTag?: string;
+  timestamp: string;
+  createdAtMs?: number;
+  content: string;
+}
+
+export interface FriendRequestItem {
+  fromUid: string;
+  toUid: string;
+  fromDisplayName: string;
+  fromUsername: string;
+  fromAvatar: AvatarKey;
+  fromCustomAvatarUrl?: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt?: string;
+}
+
+export interface AppPreferences {
+  soundsEnabled: boolean;
+  chatFontSize: 'small' | 'standard' | 'large';
+  compactMode: boolean;
+  typingIndicatorEnabled: boolean;
 }
 
 export interface DirectMessageThread {

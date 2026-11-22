@@ -122,6 +122,7 @@ service cloud.firestore {
 
     function isDmParticipant(dmId) {
       return isVerifiedUser()
+        && exists(/databases/$(database)/documents/dms/$(dmId))
         && request.auth.uid in get(/databases/$(database)/documents/dms/$(dmId)).data.participantIds;
     }
 
@@ -131,8 +132,12 @@ service cloud.firestore {
     }
 
     function isServerAdmin(serverId) {
-      let srv = get(/databases/$(database)/documents/servers/$(serverId)).data;
-      return isVerifiedUser() && (srv.ownerId == request.auth.uid || request.auth.uid in srv.adminIds);
+      return isVerifiedUser()
+        && exists(/databases/$(database)/documents/servers/$(serverId))
+        && (
+          get(/databases/$(database)/documents/servers/$(serverId)).data.ownerId == request.auth.uid
+          || request.auth.uid in get(/databases/$(database)/documents/servers/$(serverId)).data.adminIds
+        );
     }
 
     function isServerAdminOrCreatingOwner(serverId) {
@@ -176,6 +181,7 @@ service cloud.firestore {
         && nonEmptyStr(data.displayName, 40)
         && nonEmptyStr(data.username, 32)
         && nonEmptyStr(data.avatar, 32)
+        && optStr(data, 'customAvatarUrl', 200000)
         && data.roleIds is list && data.roleIds.size() <= 20
         && data.isAdmin is bool
         && isRecentTimestamp(data.joinedAt);
@@ -197,9 +203,9 @@ service cloud.firestore {
       return data.keys().hasAll(['id', 'authorId', 'authorName', 'authorAvatar', 'content', 'createdAt'])
         && data.keys().hasOnly([
           'id', 'authorId', 'authorName', 'authorAvatar', 'authorTag',
-          'content', 'timestamp', 'edited', 'editedAt', 'pinned',
+          'content', 'timestamp', 'createdAtMs', 'edited', 'editedAt', 'pinned',
           'mentionEveryone', 'replyTo', 'forwardedFrom', 'imageUrl',
-          'sticker', 'audioNote', 'poll', 'reactions', 'createdAt'
+          'sticker', 'audioNote', 'poll', 'reactions', 'threadCount', 'createdAt'
         ])
         && data.id == messageId
         && isValidId(data.authorId)
@@ -207,8 +213,42 @@ service cloud.firestore {
         && nonEmptyStr(data.authorAvatar, 32)
         && data.content is string && data.content.size() <= 2000
         && optStr(data, 'imageUrl', 200000)
+        && (!('createdAtMs' in data) || data.createdAtMs is int)
+        && (!('threadCount' in data) || (data.threadCount is int && data.threadCount >= 0 && data.threadCount <= 10000))
         && (!('reactions' in data) || (data.reactions is list && data.reactions.size() <= 40))
         && isRecentTimestamp(data.createdAt);
+    }
+
+    function isValidThreadMessage(data, replyId) {
+      return data.keys().hasAll(['id', 'authorId', 'authorName', 'authorAvatar', 'content', 'createdAt'])
+        && data.keys().hasOnly([
+          'id', 'authorId', 'authorName', 'authorAvatar', 'authorTag',
+          'content', 'timestamp', 'createdAtMs', 'createdAt'
+        ])
+        && data.id == replyId
+        && isValidId(data.authorId)
+        && nonEmptyStr(data.authorName, 40)
+        && nonEmptyStr(data.authorAvatar, 32)
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 2000
+        && (!('createdAtMs' in data) || data.createdAtMs is int)
+        && isRecentTimestamp(data.createdAt);
+    }
+
+    function isValidFriendRequest(data, fromUid, toUid) {
+      return data.keys().hasAll(['fromUid', 'toUid', 'fromDisplayName', 'fromUsername', 'fromAvatar', 'status', 'createdAt'])
+        && data.keys().hasOnly([
+          'fromUid', 'toUid', 'fromDisplayName', 'fromUsername',
+          'fromAvatar', 'fromCustomAvatarUrl', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.fromUid == fromUid
+        && data.toUid == toUid
+        && nonEmptyStr(data.fromDisplayName, 40)
+        && nonEmptyStr(data.fromUsername, 32)
+        && nonEmptyStr(data.fromAvatar, 32)
+        && optStr(data, 'fromCustomAvatarUrl', 200000)
+        && data.status in ['pending', 'accepted', 'declined']
+        && isRecentTimestamp(data.createdAt)
+        && (!('updatedAt' in data) || isRecentTimestamp(data.updatedAt));
     }
 
     // ===============================================================
@@ -290,6 +330,28 @@ service cloud.firestore {
       allow delete: if isOwner(uid) && isValidId(notificationId);
     }
 
+    // Incoming friend requests
+    match /users/{uid}/friendRequests/{fromUid} {
+      allow get: if isVerifiedUser() && isValidId(uid) && isValidId(fromUid)
+        && (request.auth.uid == uid || request.auth.uid == fromUid);
+      allow list: if isOwner(uid);
+      allow create: if isVerifiedUser()
+        && isValidId(uid) && isValidId(fromUid)
+        && request.auth.uid == fromUid
+        && uid != fromUid
+        && isValidFriendRequest(request.resource.data, fromUid, uid)
+        && request.resource.data.status == 'pending';
+      allow update: if isOwner(uid)
+        && isValidId(fromUid)
+        && isValidFriendRequest(request.resource.data, fromUid, uid)
+        && request.resource.data.fromUid == resource.data.fromUid
+        && request.resource.data.toUid == resource.data.toUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(uid) && isValidId(fromUid)
+        && (request.auth.uid == uid || request.auth.uid == fromUid);
+    }
+
     // Direct Message threads
     match /dms/{dmId} {
       allow get: if isVerifiedUser() && isValidId(dmId) && request.auth.uid in resource.data.participantIds;
@@ -321,11 +383,22 @@ service cloud.firestore {
           && (
             (
               resource.data.authorId == request.auth.uid
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'edited', 'editedAt', 'pinned', 'reactions', 'poll'])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'edited', 'editedAt', 'pinned', 'reactions', 'poll', 'threadCount'])
             )
-            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'poll', 'pinned'])
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'poll', 'pinned', 'threadCount'])
           );
         allow delete: if isDmParticipant(dmId) && isValidId(messageId) && resource.data.authorId == request.auth.uid;
+
+        match /threads/{replyId} {
+          allow get: if isDmParticipant(dmId) && isValidId(replyId);
+          allow list: if isDmParticipant(dmId);
+          allow create: if isDmParticipant(dmId)
+            && isValidId(replyId)
+            && request.resource.data.authorId == request.auth.uid
+            && isValidThreadMessage(request.resource.data, replyId);
+          allow update: if false;
+          allow delete: if isDmParticipant(dmId) && isValidId(replyId) && resource.data.authorId == request.auth.uid;
+        }
       }
     }
 
@@ -382,7 +455,11 @@ service cloud.firestore {
           && (
             (
               isServerAdmin(serverId)
-              && (memberUid != get(/databases/$(database)/documents/servers/$(serverId)).data.ownerId || request.resource.data.isAdmin == true)
+              && (
+                !exists(/databases/$(database)/documents/servers/$(serverId))
+                || memberUid != get(/databases/$(database)/documents/servers/$(serverId)).data.ownerId
+                || request.resource.data.isAdmin == true
+              )
             )
             || (
               memberUid == request.auth.uid
@@ -391,6 +468,7 @@ service cloud.firestore {
           );
         allow delete: if isVerifiedUser()
           && isValidId(memberUid)
+          && exists(/databases/$(database)/documents/servers/$(serverId))
           && (
             (memberUid == request.auth.uid && memberUid != get(/databases/$(database)/documents/servers/$(serverId)).data.ownerId)
             || (isServerAdmin(serverId) && memberUid != get(/databases/$(database)/documents/servers/$(serverId)).data.ownerId)
@@ -424,14 +502,27 @@ service cloud.firestore {
             && (
               (
                 resource.data.authorId == request.auth.uid
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'edited', 'editedAt', 'pinned', 'reactions', 'poll'])
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'edited', 'editedAt', 'pinned', 'reactions', 'poll', 'threadCount'])
               )
-              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'poll'])
+              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'poll', 'threadCount'])
               || (isServerAdmin(serverId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned']))
             );
           allow delete: if isServerMember(serverId)
             && isValidId(messageId)
             && (resource.data.authorId == request.auth.uid || isServerAdmin(serverId));
+
+          match /threads/{replyId} {
+            allow get: if isServerMember(serverId) && isValidId(replyId);
+            allow list: if isServerMember(serverId);
+            allow create: if isServerMember(serverId)
+              && isValidId(replyId)
+              && request.resource.data.authorId == request.auth.uid
+              && isValidThreadMessage(request.resource.data, replyId);
+            allow update: if false;
+            allow delete: if isServerMember(serverId)
+              && isValidId(replyId)
+              && (resource.data.authorId == request.auth.uid || isServerAdmin(serverId));
+          }
         }
       }
     }

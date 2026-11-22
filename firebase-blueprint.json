@@ -122,8 +122,10 @@
         "authorAvatar": { "type": "string" },
         "content": { "type": "string" },
         "timestamp": { "type": "string" },
+        "createdAtMs": { "type": "integer" },
         "edited": { "type": "boolean" },
         "pinned": { "type": "boolean" },
+        "threadCount": { "type": "integer" },
         "replyTo": { "type": "object" },
         "imageUrl": { "type": "string" },
         "sticker": { "type": "object" },
@@ -216,9 +218,11 @@
         "authorTag": { "type": "string" },
         "content": { "type": "string" },
         "timestamp": { "type": "string" },
+        "createdAtMs": { "type": "integer" },
         "edited": { "type": "boolean" },
         "pinned": { "type": "boolean" },
         "mentionEveryone": { "type": "boolean" },
+        "threadCount": { "type": "integer" },
         "replyTo": { "type": "object" },
         "imageUrl": { "type": "string" },
         "sticker": { "type": "object" },
@@ -228,6 +232,40 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "authorId", "authorName", "authorAvatar", "content", "createdAt"]
+    },
+    "ThreadMessage": {
+      "title": "ThreadMessage",
+      "description": "Reply inside a dedicated message thread",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorTag": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "createdAtMs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "authorId", "authorName", "authorAvatar", "content", "createdAt"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Incoming friend request awaiting acceptance or rejection",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string" },
+        "toUid": { "type": "string" },
+        "fromDisplayName": { "type": "string" },
+        "fromUsername": { "type": "string" },
+        "fromAvatar": { "type": "string" },
+        "fromCustomAvatarUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromUid", "toUid", "fromDisplayName", "fromUsername", "fromAvatar", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -247,6 +285,10 @@
       "schema": { "$ref": "#/entities/UserNotification" },
       "description": "Per-user inbox notifications"
     },
+    "/users/{uid}/friendRequests/{fromUid}": {
+      "schema": { "$ref": "#/entities/FriendRequest" },
+      "description": "Incoming friend requests for a user"
+    },
     "/dms/{dmId}": {
       "schema": { "$ref": "#/entities/DirectMessage" },
       "description": "Direct message thread metadata"
@@ -254,6 +296,10 @@
     "/dms/{dmId}/messages/{messageId}": {
       "schema": { "$ref": "#/entities/DirectMessageMessage" },
       "description": "Messages inside a direct message thread"
+    },
+    "/dms/{dmId}/messages/{messageId}/threads/{replyId}": {
+      "schema": { "$ref": "#/entities/ThreadMessage" },
+      "description": "Dedicated sub-chat replies inside a DM message thread"
     },
     "/servers/{serverId}": {
       "schema": { "$ref": "#/entities/Server" },
@@ -270,6 +316,10 @@
     "/servers/{serverId}/channels/{channelId}/messages/{messageId}": {
       "schema": { "$ref": "#/entities/ChannelMessage" },
       "description": "Server channel messages subcollection"
+    },
+    "/servers/{serverId}/channels/{channelId}/messages/{messageId}/threads/{replyId}": {
+      "schema": { "$ref": "#/entities/ThreadMessage" },
+      "description": "Dedicated sub-chat replies inside a channel message thread"
     }
   }
 }

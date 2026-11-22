@@ -52,7 +52,7 @@ import {
 } from '../types/discord';
 import { ServerIconArt, UserAvatar } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
-import { canManageServer, isServerOwner } from '../utils/ownerAccess';
+import { getServerPermissions } from '../utils/ownerAccess';
 
 interface ServerSettingsViewProps {
   server: Server;
@@ -62,6 +62,7 @@ interface ServerSettingsViewProps {
   onUpdateServer: (serverId: string, patch: Partial<Server>) => void;
   onToggleMemberAdmin?: (serverId: string, targetUid: string, makeAdmin: boolean) => void;
   onUpdateMemberRoles?: (serverId: string, targetUid: string, roleIds: string[], isAdmin: boolean) => void;
+  onKickMember?: (serverId: string, targetUid: string, memberName: string) => void;
   onAddChannel: (
     serverId: string,
     data: { name: string; type: Channel['type']; category: string; isPrivate?: boolean }
@@ -145,6 +146,7 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
   onUpdateServer,
   onToggleMemberAdmin,
   onUpdateMemberRoles,
+  onKickMember,
   onAddChannel,
   onUpdateChannel,
   onDeleteChannel,
@@ -201,9 +203,22 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
   const [roleColorInput, setRoleColorInput] = useState('#5865f2');
   const [roleGradEnd, setRoleGradEnd] = useState('#ec4899');
   const [roleUseGradient, setRoleUseGradient] = useState(false);
+  const [roleHoistInput, setRoleHoistInput] = useState(true);
+  const [rolePermsInput, setRolePermsInput] = useState<string[]>(['Enviar mensajes']);
 
-  const canManage = canManageServer(server, user.id);
-  const isOwnerSrv = isServerOwner(server, user.id);
+  // Members search, inline role assignment & kick confirm
+  const [memberSearch, setMemberSearch] = useState('');
+  const [roleTargetMemberId, setRoleTargetMemberId] = useState<string | null>(null);
+  const [kickCandidate, setKickCandidate] = useState<{ id: string; name: string } | null>(null);
+
+  const {
+    isOwner: isOwnerSrv,
+    canManageServer: canManage,
+    canManageChannels,
+    canKickMembers,
+    canManageRoles,
+    canPinMessages,
+  } = getServerPermissions(server, user.id);
 
   // Misc interactive state
   const [tagInput, setTagInput] = useState(server.activeServerTag || server.shortCode || 'SRV');
@@ -257,9 +272,12 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
     ),
   }));
 
+  const canEditRoles = canManage || canManageRoles;
+  const canEditChannels = canManage || canManageChannels;
+
   const handleToggleMemberRole = (memberId: string, roleId: string) => {
-    if (!canManage) {
-      onNotify('Necesitas permiso de administrador para editar roles.');
+    if (!canEditRoles) {
+      onNotify('Necesitas permiso para gestionar roles.');
       return;
     }
     const current = memberRoles[memberId] || [];
@@ -290,7 +308,13 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
     </header>
   );
 
-  if (!canManage && ADMIN_ONLY_SECTIONS.has(section)) {
+  const canAccessSection =
+    !ADMIN_ONLY_SECTIONS.has(section) ||
+    canManage ||
+    (section === 'canales' && canEditChannels) ||
+    (section === 'roles' && canEditRoles);
+
+  if (!canAccessSection) {
     return (
       <div className="flex-1 flex flex-col h-full bg-[#111214] text-white overflow-hidden">
         {renderSubHeader('Sin permiso de administrador')}
@@ -1388,6 +1412,14 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
 
   /* ---------------- 4. ROLES ---------------- */
   if (section === 'roles') {
+    const ROLE_PERMISSIONS_OPTIONS = [
+      { key: 'Administrador', desc: 'Acceso total a ajustes y moderación del servidor.' },
+      { key: 'Gestionar canales', desc: 'Crear, editar, reordenar y borrar canales.' },
+      { key: 'Expulsar miembros', desc: 'Expulsar miembros con menor jerarquía.' },
+      { key: 'Gestionar roles', desc: 'Crear roles y asignarlos a miembros.' },
+      { key: 'Fijar mensajes', desc: 'Fijar y desfijar mensajes en canales.' },
+    ];
+
     return (
       <div className="flex-1 flex flex-col h-full bg-[#111214] text-white overflow-hidden">
         {renderSubHeader(
@@ -1397,6 +1429,8 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
               setRoleNameInput('');
               setRoleColorInput('#5865f2');
               setRoleUseGradient(false);
+              setRoleHoistInput(true);
+              setRolePermsInput(['Enviar mensajes', 'Leer canales']);
               setShowNewRole(true);
             }}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full dc-btn-primary text-xs font-bold cursor-pointer"
@@ -1408,7 +1442,7 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
 
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 space-y-5">
           <div className="max-w-lg mx-auto space-y-5">
-            <div className="rounded-2xl bg-[#111216] border border-white/10 divide-y divide-white/[0.06] overflow-hidden">
+            <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] divide-y divide-[#2e3035] overflow-hidden">
               {roles.map((r, idx) => (
                 <div
                   key={r.id}
@@ -1418,6 +1452,8 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                     setRoleColorInput(r.color);
                     setRoleUseGradient(!!r.gradientColors);
                     if (r.gradientColors) setRoleGradEnd(r.gradientColors[1]);
+                    setRoleHoistInput(Boolean(r.hoist));
+                    setRolePermsInput([...(r.permissions || [])]);
                   }}
                   className="w-full px-3.5 py-3 flex items-center justify-between gap-2.5 hover:bg-white/[0.04] text-left cursor-pointer"
                 >
@@ -1434,22 +1470,29 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                       }}
                     />
                     <div className="min-w-0 flex-1">
-                      <p
-                        className="font-bold text-[15px] truncate"
-                        style={
-                          r.gradientColors
-                            ? {
-                                backgroundImage: `linear-gradient(90deg, ${r.gradientColors[0]}, ${r.gradientColors[1]})`,
-                                WebkitBackgroundClip: 'text',
-                                color: 'transparent',
-                              }
-                            : { color: r.color }
-                        }
-                      >
-                        {r.name}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p
+                          className="font-bold text-[15px] truncate"
+                          style={
+                            r.gradientColors
+                              ? {
+                                  backgroundImage: `linear-gradient(90deg, ${r.gradientColors[0]}, ${r.gradientColors[1]})`,
+                                  WebkitBackgroundClip: 'text',
+                                  color: 'transparent',
+                                }
+                              : { color: r.color }
+                          }
+                        >
+                          {r.name}
+                        </p>
+                        {r.hoist && (
+                          <span className="px-1.5 py-0.5 rounded bg-white/[0.06] text-[9.5px] font-bold text-zinc-400">
+                            Separado
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11.5px] text-zinc-400 truncate">
-                        {r.permissions.slice(0, 3).join(' · ')}
+                        {r.permissions.slice(0, 3).join(' · ') || 'Sin permisos especiales'}
                       </p>
                     </div>
                   </div>
@@ -1494,7 +1537,7 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
             </div>
 
             {/* Assign roles to members */}
-            <div className="rounded-2xl bg-[#111216] border border-white/10 p-4 space-y-3">
+            <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-4 space-y-3">
               <h3 className="font-display font-bold text-[15px]">
                 Asignar roles a miembros
               </h3>
@@ -1504,10 +1547,15 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                   return (
                     <div
                       key={m.id}
-                      className="p-3 rounded-xl bg-[#070709] border border-white/10 space-y-2"
+                      className="p-3 rounded-xl bg-[#111214] border border-[#2e3035] space-y-2"
                     >
                       <div className="flex items-center gap-2.5">
-                        <UserAvatar avatar={m.avatar} status={m.status} size="sm" />
+                        <UserAvatar
+                          avatar={m.avatar}
+                          customAvatarUrl={m.customAvatarUrl}
+                          status={m.status}
+                          size="sm"
+                        />
                         <span className="font-bold text-sm">{m.name}</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -1553,7 +1601,7 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-[#0c0d10] border border-white/15 rounded-t-3xl md:rounded-3xl p-5 space-y-4"
+              className="w-full max-w-md max-h-[90dvh] flex flex-col bg-[#1c1d22] border border-[#2e3035] rounded-t-3xl md:rounded-3xl p-5 space-y-4 overflow-y-auto"
             >
               <div className="flex items-center justify-between">
                 <h3 className="font-display font-bold text-lg">
@@ -1577,27 +1625,60 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                   value={roleNameInput}
                   onChange={(e) => setRoleNameInput(e.target.value)}
                   placeholder="Ej: 🔥 VIP"
-                  className="w-full mt-1 bg-[#14151a] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white"
+                  className="w-full mt-1 bg-[#111214] border border-[#2e3035] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#5865F2]"
                 />
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold uppercase text-zinc-400">Color del rol</label>
-                <div className="flex flex-wrap gap-2 mt-1.5">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold uppercase text-zinc-400">
+                  Color del rol (HEX personalizado)
+                </label>
+                <div className="flex flex-wrap gap-2 mt-1">
                   {ROLE_COLORS.map((c) => (
                     <button
                       key={c}
+                      type="button"
                       onClick={() => setRoleColorInput(c)}
                       className={`w-8 h-8 rounded-full border-2 cursor-pointer ${
-                        roleColorInput === c ? 'border-white scale-110' : 'border-white/10'
+                        roleColorInput.toLowerCase() === c.toLowerCase()
+                          ? 'border-white scale-110'
+                          : 'border-white/10'
                       }`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
                 </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="color"
+                    value={/^#[0-9a-fA-F]{6}$/.test(roleColorInput) ? roleColorInput : '#5865f2'}
+                    onChange={(e) => setRoleColorInput(e.target.value)}
+                    aria-label="Selector de color HEX"
+                    className="w-10 h-10 rounded-xl bg-transparent border border-[#2e3035] cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={roleColorInput}
+                    onChange={(e) => setRoleColorInput(e.target.value)}
+                    placeholder="#5865F2"
+                    className="flex-1 bg-[#111214] border border-[#2e3035] rounded-xl px-3 py-2 text-xs font-mono text-white uppercase focus:outline-none focus:border-[#5865F2]"
+                  />
+                </div>
               </div>
 
-              <label className="flex items-center justify-between p-3 rounded-xl bg-[#14151a] border border-white/10 cursor-pointer">
+              <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#111214] border border-[#2e3035] cursor-pointer">
+                <span className="text-xs font-semibold text-zinc-200">
+                  Mostrar miembros del rol por separado
+                </span>
+                <input
+                  type="checkbox"
+                  checked={roleHoistInput}
+                  onChange={(e) => setRoleHoistInput(e.target.checked)}
+                  className="w-4 h-4 accent-[#5865F2]"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-3 rounded-xl bg-[#111214] border border-[#2e3035] cursor-pointer">
                 <span className="text-xs font-semibold flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-pink-400" /> Gradiente de rol mejorado
                 </span>
@@ -1609,10 +1690,47 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                 />
               </label>
 
-              <div className="flex gap-2">
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase text-zinc-400">Permisos del rol</p>
+                <div className="rounded-xl bg-[#111214] border border-[#2e3035] divide-y divide-[#2e3035]">
+                  {ROLE_PERMISSIONS_OPTIONS.map((perm) => {
+                    const enabled = rolePermsInput.includes(perm.key);
+                    return (
+                      <label
+                        key={perm.key}
+                        className="p-3 flex items-center justify-between gap-3 cursor-pointer"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white">{perm.key}</p>
+                          <p className="text-[11px] text-zinc-400">{perm.desc}</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setRolePermsInput((prev) =>
+                                prev.includes(perm.key) ? prev : [...prev, perm.key]
+                              );
+                            } else {
+                              setRolePermsInput((prev) => prev.filter((x) => x !== perm.key));
+                            }
+                          }}
+                          className="w-4 h-4 accent-[#5865F2] shrink-0"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
                 <button
                   onClick={() => {
                     const name = roleNameInput.trim() || 'Nuevo Rol';
+                    const validHex = /^#[0-9a-fA-F]{6}$/.test(roleColorInput.trim())
+                      ? roleColorInput.trim()
+                      : '#5865f2';
                     if (editingRole) {
                       onUpdateServer(server.id, {
                         roles: roles.map((r) =>
@@ -1620,9 +1738,11 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                             ? {
                                 ...r,
                                 name,
-                                color: roleColorInput,
+                                color: validHex,
+                                hoist: roleHoistInput,
+                                permissions: rolePermsInput,
                                 gradientColors: roleUseGradient
-                                  ? [roleColorInput, roleGradEnd]
+                                  ? [validHex, roleGradEnd]
                                   : undefined,
                               }
                             : r
@@ -1632,12 +1752,12 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                       const newR: ServerRole = {
                         id: `role-${Date.now()}`,
                         name,
-                        color: roleColorInput,
+                        color: validHex,
                         gradientColors: roleUseGradient
-                          ? [roleColorInput, roleGradEnd]
+                          ? [validHex, roleGradEnd]
                           : undefined,
-                        hoist: true,
-                        permissions: ['Enviar mensajes', 'Adjuntar fotos'],
+                        hoist: roleHoistInput,
+                        permissions: rolePermsInput.length > 0 ? rolePermsInput : ['Enviar mensajes'],
                       };
                       onUpdateServer(server.id, { roles: [newR, ...roles] });
                     }
@@ -1741,18 +1861,48 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
   }
 
   if (section === 'miembros') {
+    const qMembers = memberSearch.trim().toLowerCase();
+    const filteredMembers = membersList.filter(
+      (m) =>
+        !qMembers ||
+        m.name.toLowerCase().includes(qMembers) ||
+        m.username.toLowerCase().includes(qMembers)
+    );
+    const activeRoleMember = roleTargetMemberId
+      ? membersList.find((m) => m.id === roleTargetMemberId) || null
+      : null;
+
     return (
       <div className="flex-1 flex flex-col h-full bg-[#111214] text-white overflow-hidden">
         {renderSubHeader(`Miembros · ${membersList.length}`)}
-        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-16 max-w-lg mx-auto w-full space-y-2.5">
-          {membersList.map((m) => {
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-16 max-w-lg mx-auto w-full space-y-3">
+          <div className="flex items-center gap-2 bg-[#1c1d22] border border-[#2e3035] rounded-xl px-3.5 h-10">
+            <input
+              type="text"
+              value={memberSearch}
+              onChange={(e) => setMemberSearch(e.target.value)}
+              placeholder="Buscar miembro por nombre o @usuario..."
+              className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 focus:outline-none"
+            />
+            {memberSearch && (
+              <button
+                type="button"
+                onClick={() => setMemberSearch('')}
+                className="text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {filteredMembers.map((m) => {
             const assigned = roles.filter((r) => (memberRoles[m.id] || []).includes(r.id));
             const isSrvOwner = m.id === server.ownerId;
             return (
               <div
                 key={m.id}
                 onClick={() => onInspectUser?.(m.id)}
-                className="rounded-2xl bg-[#111216] border border-white/10 hover:border-white/25 hover:bg-white/[0.03] p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] hover:border-white/25 hover:bg-[#26272f] p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <UserAvatar
@@ -1780,7 +1930,6 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                           Admin
                         </span>
                       ) : null}
-                      <span className="text-[10px] text-zinc-500 font-semibold">Ver perfil ›</span>
                     </div>
                     <p className="text-xs text-zinc-400">@{m.username}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
@@ -1796,7 +1945,7 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                   {isOwnerSrv && !isSrvOwner && m.id !== user.id && onToggleMemberAdmin && (
                     <button
                       type="button"
@@ -1804,7 +1953,7 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                         e.stopPropagation();
                         onToggleMemberAdmin(server.id, m.id, !m.isAdmin);
                       }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-colors ${
+                      className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-colors ${
                         m.isAdmin
                           ? 'bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25'
                           : 'bg-[#5865F2]/20 text-[#b4bcff] border border-[#5865F2]/40 hover:bg-[#5865F2]/30'
@@ -1813,23 +1962,147 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                       {m.isAdmin ? 'Quitar Admin' : 'Dar Admin'}
                     </button>
                   )}
-                  {canManage && (
+                  {canEditRoles && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSection('roles');
+                        setRoleTargetMemberId(m.id);
                       }}
-                      className="px-3 py-1.5 rounded-full dc-btn-secondary text-xs font-semibold cursor-pointer shrink-0"
+                      className="px-2.5 py-1.5 rounded-full dc-btn-secondary text-[11px] font-semibold cursor-pointer shrink-0"
                     >
                       Roles
+                    </button>
+                  )}
+                  {canKickMembers && !isSrvOwner && m.id !== user.id && onKickMember && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setKickCandidate({ id: m.id, name: m.name });
+                      }}
+                      className="px-2.5 py-1.5 rounded-full bg-[#f23f43]/15 hover:bg-[#f23f43]/25 border border-[#f23f43]/35 text-[#f23f43] text-[11px] font-bold cursor-pointer shrink-0"
+                    >
+                      Expulsar
                     </button>
                   )}
                 </div>
               </div>
             );
           })}
+
+          {filteredMembers.length === 0 && (
+            <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-6 text-center text-xs text-zinc-400">
+              No hay miembros que coincidan con «{memberSearch}».
+            </div>
+          )}
         </div>
+
+        {/* Member Role Checkbox Sheet */}
+        {activeRoleMember && (
+          <div
+            onClick={() => setRoleTargetMemberId(null)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-end md:items-center justify-center p-0 md:p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#1c1d22] border border-[#2e3035] rounded-t-3xl md:rounded-3xl p-5 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-display font-bold text-base text-white">
+                    Roles de {activeRoleMember.name}
+                  </h3>
+                  <p className="text-xs text-zinc-400">@{activeRoleMember.username}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRoleTargetMemberId(null)}
+                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="rounded-xl bg-[#111214] border border-[#2e3035] divide-y divide-[#2e3035] max-h-72 overflow-y-auto">
+                {roles
+                  .filter((r) => r.id !== 'role-everyone')
+                  .map((r) => {
+                    const checked = (memberRoles[activeRoleMember.id] || []).includes(r.id);
+                    return (
+                      <label
+                        key={r.id}
+                        className="px-3.5 py-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-white/[0.03]"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: r.color }}
+                          />
+                          <span className="text-sm font-semibold text-white truncate">
+                            {r.name}
+                          </span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleToggleMemberRole(activeRoleMember.id, r.id)}
+                          className="w-4 h-4 accent-[#5865F2]"
+                        />
+                      </label>
+                    );
+                  })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setRoleTargetMemberId(null)}
+                className="w-full h-10 rounded-full dc-btn-primary text-xs font-bold cursor-pointer"
+              >
+                Listo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Kick Confirmation Modal */}
+        {kickCandidate && (
+          <div
+            onClick={() => setKickCandidate(null)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-end md:items-center justify-center p-0 md:p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm bg-[#1c1d22] border border-[#2e3035] rounded-t-3xl md:rounded-3xl p-5 space-y-4 shadow-2xl"
+            >
+              <div className="space-y-1">
+                <h3 className="font-display font-bold text-lg text-white">
+                  ¿Expulsar a {kickCandidate.name}?
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Perderá el acceso a {server.name} hasta que vuelva a unirse con una invitación.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onKickMember?.(server.id, kickCandidate.id, kickCandidate.name);
+                    setKickCandidate(null);
+                  }}
+                  className="w-full h-11 rounded-full bg-[#f23f43] hover:bg-[#d83337] text-white text-sm font-bold cursor-pointer"
+                >
+                  Confirmar expulsión
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setKickCandidate(null)}
+                  className="w-full h-11 rounded-full dc-btn-secondary text-sm font-semibold cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -2043,7 +2316,7 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
   }
 
   /* ---------------- 0. MAIN MENU ---------------- */
-  const groups: {
+  const menuGroups: {
     heading?: string;
     items: { id: ServerSettingsSection; label: string; icon: React.ComponentType<{ className?: string }>; badge?: string }[];
   }[] = canManage
@@ -2092,6 +2365,21 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
         },
       ]
     : [
+        ...(canEditChannels || canEditRoles
+          ? [
+              {
+                heading: 'Permisos delegados',
+                items: [
+                  ...(canEditChannels
+                    ? [{ id: 'canales' as const, label: 'Canales', icon: AlignLeft }]
+                    : []),
+                  ...(canEditRoles
+                    ? [{ id: 'roles' as const, label: 'Roles', icon: Shield }]
+                    : []),
+                ],
+              },
+            ]
+          : []),
         {
           heading: 'Gente',
           items: [
@@ -2104,6 +2392,8 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
           items: [{ id: 'info', label: 'Información del servidor', icon: TrendingUp }],
         },
       ];
+
+  const groups = menuGroups;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#111214] text-white overflow-hidden">
@@ -2143,7 +2433,16 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
             </p>
             {!canManage && (
               <span className="mt-1 px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-semibold text-zinc-400">
-                Solo lectura · Requiere permiso de Administrador para editar
+                {canPinMessages || canKickMembers || canEditChannels || canEditRoles
+                  ? `Permisos activos: ${[
+                      canEditChannels && 'Canales',
+                      canEditRoles && 'Roles',
+                      canKickMembers && 'Expulsar',
+                      canPinMessages && 'Fijar mensajes',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}`
+                  : 'Solo lectura · Requiere permiso de Administrador para editar'}
               </span>
             )}
           </div>

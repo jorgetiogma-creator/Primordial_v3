@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import {
   Award,
@@ -28,17 +28,21 @@ import {
   getOrCreateDmThread,
   isUsernameAvailable,
   joinFirestoreServer,
+  kickFirestoreServerMember,
   leaveFirestoreServer,
   markAllNotificationsReadInFirestore,
   markDmThreadRead,
   markNotificationReadInFirestore,
   normalizeUsernameHandle,
+  respondFriendRequest,
   searchRealUsers,
   sendChannelMessage,
   sendDmMessage,
+  sendFriendRequest,
   subscribeToChannelMessages,
   subscribeToDmMessages,
   subscribeToDms,
+  subscribeToFriendRequests,
   subscribeToNotifications,
   subscribeToServerDetail,
   syncUserAccountToFirestore,
@@ -60,6 +64,7 @@ import {
   resolvePublicUserProfile,
 } from './data/discordData';
 import {
+  AppPreferences,
   AvatarKey,
   BadgeId,
   Channel,
@@ -67,6 +72,7 @@ import {
   CreateServerPayload,
   DirectMessageThread,
   FriendActivity,
+  FriendRequestItem,
   MainScreen,
   NotificationItem,
   PublicUserProfile,
@@ -104,11 +110,13 @@ import { OwnerPanelModal } from './components/OwnerPanelModal';
 import { sanitizeUserShopCosmetics } from './utils/shopOwnership';
 import {
   canManageServer,
+  getServerPermissions,
   isActiveAccountOwner,
   isServerOwner,
   normalizeSingleOwnerAccounts,
   RESERVED_OWNER_USERNAME,
 } from './utils/ownerAccess';
+import { playUiSound, triggerHaptic } from './utils/soundEffects';
 import {
   CreateServerModal,
   DiscoverModal,
@@ -125,6 +133,8 @@ const SESSION_KEY = 'discord_auth_session_v1';
 const ORBS_BUGFIX_KEY = 'discord_orbs_bugfix_v2';
 const SHOP_OWNERSHIP_MIGRATION_KEY = 'discord_shop_ownership_v1';
 const CLEAN_EMPTY_START_KEY = 'primordial_clean_empty_v1';
+const APP_PREFS_KEY = 'primordial_app_prefs_v1';
+const SERVER_ORDER_KEY = 'primordial_server_order_v1';
 
 const DEFAULT_ACCOUNT: StoredAccount = {
   id: 'acc-default',
@@ -357,6 +367,41 @@ export default function App() {
   const [joinedServerIds, setJoinedServerIds] = useState<string[]>([]);
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>([]);
   const [discoverableServers, setDiscoverableServers] = useState<Server[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequestItem[]>([]);
+  const [appPreferences, setAppPreferences] = useState<AppPreferences>(() => {
+    try {
+      const raw = localStorage.getItem(APP_PREFS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          soundsEnabled: parsed.soundsEnabled ?? true,
+          chatFontSize: parsed.chatFontSize || 'standard',
+          compactMode: Boolean(parsed.compactMode),
+          typingIndicatorEnabled: parsed.typingIndicatorEnabled ?? true,
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+    return {
+      soundsEnabled: true,
+      chatFontSize: 'standard',
+      compactMode: false,
+      typingIndicatorEnabled: true,
+    };
+  });
+  const [customServerOrder, setCustomServerOrder] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(SERVER_ORDER_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      /* ignore */
+    }
+    return [];
+  });
   const hydratedUidRef = useRef<string | null>(null);
 
   const isOwner = useMemo(
@@ -391,6 +436,11 @@ export default function App() {
     }
   }, []);
 
+  const accountsRef = useRef(accounts);
+  useEffect(() => {
+    accountsRef.current = accounts;
+  }, [accounts]);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (!fbUser) {
@@ -398,6 +448,19 @@ export default function App() {
         setFirebaseEmail(null);
         setPendingGoogleUser(null);
         hydratedUidRef.current = null;
+        setActiveAccountId((prev) => {
+          if (!prev) return null;
+          const isLocal = accountsRef.current.some((a) => a.id === prev);
+          if (!isLocal) {
+            try {
+              localStorage.removeItem(SESSION_KEY);
+            } catch {
+              /* ignore */
+            }
+            return null;
+          }
+          return prev;
+        });
         return;
       }
 
@@ -494,9 +557,14 @@ export default function App() {
       setNotifications(items);
     });
 
+    const unsubFriendReqs = subscribeToFriendRequests(firebaseUid, (reqs) => {
+      setFriendRequests(reqs);
+    });
+
     return () => {
       unsubDms();
       unsubNotifs();
+      unsubFriendReqs();
     };
   }, [firebaseUid, pendingGoogleUser]);
 
@@ -538,6 +606,7 @@ export default function App() {
       subscribeToServerDetail(srvId, (srvData) => {
         if (!srvData) {
           setServers((prev) => prev.filter((s) => s.id !== srvId));
+          setJoinedServerIds((prev) => (prev.includes(srvId) ? prev.filter((id) => id !== srvId) : prev));
           return;
         }
         setServers((prev) => {
@@ -657,6 +726,50 @@ export default function App() {
     }, 1000);
     return () => clearInterval(t);
   }, [voiceSession.active]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(APP_PREFS_KEY, JSON.stringify(appPreferences));
+    } catch {
+      /* ignore */
+    }
+  }, [appPreferences]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SERVER_ORDER_KEY, JSON.stringify(customServerOrder));
+    } catch {
+      /* ignore */
+    }
+  }, [customServerOrder]);
+
+  const handleUpdateAppPreferences = (patch: Partial<AppPreferences>) => {
+    setAppPreferences((prev) => ({ ...prev, ...patch }));
+  };
+
+  const orderedServers = useMemo(() => {
+    if (customServerOrder.length === 0) return servers;
+    const rank = new Map(customServerOrder.map((id, idx) => [id, idx]));
+    return [...servers].sort((a, b) => {
+      const ra = rank.get(a.id);
+      const rb = rank.get(b.id);
+      if (ra !== undefined && rb !== undefined) return ra - rb;
+      if (ra !== undefined) return -1;
+      if (rb !== undefined) return 1;
+      return 0;
+    });
+  }, [servers, customServerOrder]);
+
+  const handleMoveServer = (serverId: string, direction: 'up' | 'down') => {
+    const ids = orderedServers.map((s) => s.id);
+    const idx = ids.indexOf(serverId);
+    if (idx === -1) return;
+    const swap = direction === 'up' ? idx - 1 : idx + 1;
+    if (swap < 0 || swap >= ids.length) return;
+    [ids[idx], ids[swap]] = [ids[swap], ids[idx]];
+    setCustomServerOrder(ids);
+    triggerHaptic(10);
+  };
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
@@ -849,6 +962,8 @@ export default function App() {
     const hasEveryone = Boolean(
       payload.mentionEveryone || /(^|\s)[@/]everyone(\s|$|[.,!?:;])/i.test(payload.content || '')
     );
+    playUiSound(hasEveryone ? 'ping' : 'send', appPreferences.soundsEnabled);
+    triggerHaptic(8);
 
     if (activeContext.type === 'server' && activeServer && selectedChannelId) {
       const targetServerId = activeServer.id;
@@ -1077,8 +1192,9 @@ export default function App() {
     const targetMsg = getActiveMessagesList().find((m) => m.id === messageId);
     if (!targetMsg) return;
     const isAuthor = targetMsg.authorId === user.id || targetMsg.authorId === 'me';
-    if (activeContext.type === 'server' && !isAuthor && !canManageServer(activeServer, user.id)) {
-      showToastMsg('Necesitas permiso de administrador para fijar mensajes ajenos');
+    const { canPinMessages } = getServerPermissions(activeServer, user.id);
+    if (activeContext.type === 'server' && !isAuthor && !canPinMessages) {
+      showToastMsg('Necesitas permiso de fijar mensajes o administrador para fijar mensajes ajenos');
       return;
     }
     const nextPinned = !targetMsg.pinned;
@@ -1394,9 +1510,13 @@ export default function App() {
   };
 
   const handleUpdateServer = (serverId: string, patch: Partial<Server>) => {
-    if (!assertServerAdmin(serverId)) return;
+    const localOnlyKeys = new Set(['muted', 'badgeCount', 'hasUnread']);
+    const patchKeys = Object.keys(patch).filter((k) => patch[k as keyof Server] !== undefined);
+    const isLocalOnlyPatch = patchKeys.length > 0 && patchKeys.every((k) => localOnlyKeys.has(k));
+
+    if (!isLocalOnlyPatch && !assertServerAdmin(serverId)) return;
     setServers((prev) => prev.map((s) => (s.id === serverId ? { ...s, ...patch } : s)));
-    if (firebaseUid) {
+    if (firebaseUid && !isLocalOnlyPatch) {
       void updateFirestoreServer(serverId, patch).catch(() =>
         showToastMsg('No se pudieron guardar algunos cambios en el servidor')
       );
@@ -1436,8 +1556,13 @@ export default function App() {
   };
 
   const handleUpdateMemberRoles = (serverId: string, targetUid: string, roleIds: string[]) => {
-    const srv = assertServerAdmin(serverId);
+    const srv = servers.find((s) => s.id === serverId);
     if (!srv) return;
+    const { canManageServer: canManageSrv, canManageRoles } = getServerPermissions(srv, user.id);
+    if (!canManageSrv && !canManageRoles) {
+      showToastMsg('No tienes permiso para gestionar roles en este servidor');
+      return;
+    }
     const hasAdminRole = srv.roles?.some(
       (r) => roleIds.includes(r.id) && r.permissions.includes('Administrador')
     );
@@ -1467,6 +1592,42 @@ export default function App() {
         isAdmin: memberIsAdmin,
       }).catch(() => showToastMsg('Error al actualizar roles del miembro'));
     }
+  };
+
+  const handleKickMember = (serverId: string, targetUid: string, memberName: string) => {
+    const srv = servers.find((s) => s.id === serverId);
+    if (!srv) return;
+    const { canKickMembers } = getServerPermissions(srv, user.id);
+    if (!canKickMembers) {
+      showToastMsg('No tienes permiso para expulsar miembros en este servidor');
+      return;
+    }
+    if (targetUid === srv.ownerId || targetUid === user.id) {
+      showToastMsg('No puedes expulsar al dueño ni a ti mismo');
+      return;
+    }
+
+    setServers((prev) =>
+      prev.map((s) => {
+        if (s.id !== serverId) return s;
+        const nextRoleMap = { ...(s.memberRoleIds || {}) };
+        delete nextRoleMap[targetUid];
+        return {
+          ...s,
+          adminIds: (s.adminIds || []).filter((id) => id !== targetUid),
+          members: (s.members || []).filter((m) => m.uid !== targetUid),
+          memberRoleIds: nextRoleMap,
+          memberCount: Math.max(1, (s.memberCount || 1) - 1),
+        };
+      })
+    );
+
+    if (firebaseUid) {
+      void kickFirestoreServerMember(serverId, targetUid).catch(() =>
+        showToastMsg('No se pudo expulsar al miembro en la nube')
+      );
+    }
+    showToastMsg(`${memberName} fue expulsado de ${srv.name}`);
   };
 
   const handleOpenServerSettings = (
@@ -2134,6 +2295,7 @@ export default function App() {
     setDms([]);
     setServers([]);
     setNotifications([]);
+    setFriendRequests([]);
     setScreen('inicio');
     setMobileChatOpen(false);
     void signOut(auth).catch(() => undefined);
@@ -2161,18 +2323,25 @@ export default function App() {
         currentUser: user,
         payload: config,
       })
-        .then((newServerId) => {
-          setJoinedServerIds((prev) =>
-            prev.includes(newServerId) ? prev : [...prev, newServerId]
+        .then((createdSrv) => {
+          setServers((prev) =>
+            prev.some((s) => s.id === createdSrv.id) ? prev : [...prev, createdSrv]
           );
-          setActiveContext({ type: 'server', serverId: newServerId });
-          setSelectedChannelId(null);
+          setJoinedServerIds((prev) =>
+            prev.includes(createdSrv.id) ? prev : [...prev, createdSrv.id]
+          );
+          const firstCh =
+            createdSrv.channels.find((c) => !c.isPrivate && c.type !== 'voice') ||
+            createdSrv.channels[0];
+          setActiveContext({ type: 'server', serverId: createdSrv.id });
+          setSelectedChannelId(firstCh?.id || null);
           setScreen('inicio');
           setMobileChatOpen(false);
-          showToastMsg(`Servidor "${config.name}" creado`);
+          showToastMsg(`Servidor "${createdSrv.name}" creado`);
         })
-        .catch(() => {
-          showToastMsg('No se pudo crear el servidor en la nube.');
+        .catch((err) => {
+          console.error('Error creating server in Firestore:', err);
+          showToastMsg('No se pudo crear el servidor en la nube. Inténtalo de nuevo.');
         });
       return;
     }
@@ -2357,6 +2526,13 @@ export default function App() {
     showToastMsg(`Servidor "${name}" creado con ${newSrv.channels.length} canales`);
   };
 
+  const handleLoadDiscoverableServers = useCallback(async (): Promise<Server[]> => {
+    if (!firebaseUid) return [];
+    const list = await fetchDiscoverableServers();
+    setDiscoverableServers(list);
+    return list;
+  }, [firebaseUid]);
+
   const handleJoinServerById = async (serverIdOrInvite: string): Promise<boolean> => {
     const cleanId = serverIdOrInvite
       .trim()
@@ -2412,6 +2588,99 @@ export default function App() {
     } catch {
       showToastMsg('No se pudo abrir el chat con este usuario');
     }
+  };
+
+  const handleSendFriendRequest = async (profile: PublicUserProfile): Promise<void> => {
+    if (!firebaseUid || !profile.id || profile.id === user.id) return;
+    try {
+      await sendFriendRequest({ fromUser: user, toUid: profile.id });
+      showToastMsg(`Solicitud de amistad enviada a @${profile.username || profile.displayName}`);
+    } catch {
+      showToastMsg('No se pudo enviar la solicitud de amistad');
+    }
+  };
+
+  const handleRespondFriendRequest = async (
+    req: FriendRequestItem,
+    accept: boolean
+  ): Promise<void> => {
+    if (!firebaseUid) return;
+    try {
+      await respondFriendRequest({ uid: firebaseUid, fromUid: req.fromUid, accept });
+      setFriendRequests((prev) => prev.filter((item) => item.fromUid !== req.fromUid));
+      if (accept) {
+        const dmId = await getOrCreateDmThread(user, {
+          id: req.fromUid,
+          displayName: req.fromDisplayName,
+          username: req.fromUsername,
+          avatar: req.fromAvatar,
+          customAvatarUrl: req.fromCustomAvatarUrl,
+          status: 'online',
+          bio: '',
+          bannerColor: '#5865F2',
+          memberSince: 'Nov 2026',
+        });
+        showToastMsg(`Ahora tú y @${req.fromUsername} son amigos`);
+        handleSelectDm(dmId);
+      } else {
+        showToastMsg(`Solicitud de @${req.fromUsername} rechazada`);
+      }
+    } catch {
+      showToastMsg('No se pudo actualizar la solicitud de amistad');
+    }
+  };
+
+  const handleSendDmFromProfile = async (
+    profile: PublicUserProfile,
+    initialMessage?: string
+  ): Promise<void> => {
+    const text = initialMessage?.trim();
+    if (!firebaseUid) {
+      if (text) {
+        showToastMsg(`Mensaje preparado para @${profile.username || profile.displayName}`);
+      }
+      handleAddFriend(profile.username || profile.displayName);
+      return;
+    }
+    try {
+      const dmId = await getOrCreateDmThread(user, profile);
+      if (text) {
+        await sendDmMessage({
+          dmId,
+          currentUser: user,
+          recipientUids: [profile.id],
+          content: text,
+        });
+        playUiSound('send', appPreferences.soundsEnabled);
+      }
+      handleSelectDm(dmId);
+      showToastMsg(text ? `Mensaje enviado a @${profile.username}` : `Chat abierto con @${profile.username}`);
+    } catch {
+      showToastMsg('No se pudo enviar el mensaje directo');
+    }
+  };
+
+  const handleUpdateNickname = (serverId: string, nickname: string) => {
+    setUser((prev) => ({
+      ...prev,
+      perServerProfiles: {
+        ...(prev.perServerProfiles || {}),
+        [serverId]: {
+          ...(prev.perServerProfiles?.[serverId] || {}),
+          nickname,
+        },
+      },
+    }));
+    showToastMsg(nickname ? `Apodo cambiado a "${nickname}"` : 'Apodo restaurado');
+  };
+
+  const handleClearLocalChat = () => {
+    if (firebaseUid && activeContext.type === 'server') {
+      showToastMsg('Limpieza local disponible solo en chats temporales sin nube');
+      return;
+    }
+    mapActiveMessages(() => []);
+    showToastMsg('Historial visible limpiado');
   };
 
   const handleAddFriend = (username: string) => {
@@ -2504,17 +2773,17 @@ export default function App() {
         <NitroView
           user={user}
           onBack={() => setScreen('inicio')}
-          onSubscribe={(tier, costOrbs) => {
+          onSubscribe={(tier) => {
             setUser((prev) => ({
               ...prev,
-              orbs: prev.nitroTier === tier ? prev.orbs : Math.max(0, prev.orbs - costOrbs),
               nitroTier: tier,
               ...unlockBadgeHelper(prev, 'nitro'),
             }));
+            playUiSound('ping', appPreferences.soundsEnabled);
             showToastMsg(
               tier === 'nitro'
-                ? '¡Discord Nitro activado! Ya puedes usar diseños de nombre con brillo y cosméticos Nitro.'
-                : '¡Discord Nitro Basic activado! Ya puedes usar diseños de nombre con brillo y cosméticos Nitro.'
+                ? '¡Primordial Nitro ($2.00 USD/mes) activado! Cosméticos, brillo y ventajas desbloqueadas.'
+                : '¡Primordial Nitro Basic ($1.00 USD/mes) activado! Disfruta tus nuevas ventajas.'
             );
             setScreen('tu');
           }}
@@ -2561,6 +2830,8 @@ export default function App() {
         <SettingsView
           user={user}
           theme={theme}
+          appPreferences={appPreferences}
+          onUpdateAppPreferences={handleUpdateAppPreferences}
           onChangeTheme={setTheme}
           onBack={() => setScreen('tu')}
           onOpenNitro={() => setScreen('nitro')}
@@ -2579,11 +2850,14 @@ export default function App() {
       return (
         <FriendsView
           dms={dms}
+          friendRequests={friendRequests}
           onBack={() => setScreen('inicio')}
           onOpenDm={handleSelectDm}
           onAddFriend={handleAddFriend}
           onSearchUsers={handleSearchUsers}
           onAddRealUser={handleAddRealUser}
+          onSendFriendRequest={handleSendFriendRequest}
+          onRespondFriendRequest={handleRespondFriendRequest}
           onInspectUser={handleInspectUser}
         />
       );
@@ -2637,6 +2911,7 @@ export default function App() {
             onUpdateServer={handleUpdateServer}
             onToggleMemberAdmin={handleToggleMemberAdmin}
             onUpdateMemberRoles={handleUpdateMemberRoles}
+            onKickMember={handleKickMember}
             onAddChannel={handleAddChannel}
             onUpdateChannel={handleUpdateChannel}
             onDeleteChannel={handleDeleteChannel}
@@ -2668,6 +2943,7 @@ export default function App() {
               setScreen('inicio');
               showToastMsg(`Has salido de ${targetName}`);
             }}
+            onInspectUser={(uid) => handleInspectUser(uid)}
             onNotify={showToastMsg}
           />
         );
@@ -2744,6 +3020,8 @@ export default function App() {
         dms={dms}
         allServers={servers}
         typingLabel={activeTypingKey ? typingMap[activeTypingKey] || null : null}
+        appPreferences={appPreferences}
+        parentCollectionPath={getActiveMessagesCollectionPath() || undefined}
         onBackMobile={() => setMobileChatOpen(false)}
         onSendMessage={handleSendMessage}
         onSendRichMessage={handleSendRichMessage}
@@ -2755,7 +3033,9 @@ export default function App() {
         onToggleDmFavorite={() => activeDm && handleToggleDmFavorite(activeDm.id)}
         onToggleDmMute={() => activeDm && handleToggleDmMute(activeDm.id)}
         onToggleReaction={handleToggleReaction}
-        onStartCall={(video) =>
+        onStartCall={(video) => {
+          playUiSound('voiceJoin', appPreferences.soundsEnabled);
+          triggerHaptic(14);
           setVoiceSession({
             active: true,
             callNonce: Date.now(),
@@ -2773,13 +3053,15 @@ export default function App() {
             participants: activeDm
               ? [{ id: activeDm.otherUid || activeDm.id, name: activeDm.name, avatar: activeDm.avatar, speaking: false }]
               : [],
-          })
-        }
+          });
+        }}
         onJoinInviteServer={(url) => {
           void handleJoinServerById(url);
         }}
         onOpenNitro={() => setScreen('nitro')}
         onOpenServerSettings={handleOpenServerSettings}
+        onUpdateNickname={handleUpdateNickname}
+        onClearLocalChat={handleClearLocalChat}
         onInspectUser={handleInspectUser}
       />
     );
@@ -2835,7 +3117,7 @@ export default function App() {
           }`}
         >
           <ServerRail
-            servers={servers}
+            servers={orderedServers}
             activeContext={activeContext}
             onSelectDm={() => {
               setActiveContext({ type: 'dm' });
@@ -2854,6 +3136,7 @@ export default function App() {
               setShowCreateServer(true);
             }}
             onOpenDiscover={() => setShowDiscover(true)}
+            onMoveServer={handleMoveServer}
           />
 
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
@@ -2912,7 +3195,7 @@ export default function App() {
               <MessagesPanel
                 dms={dms}
                 activities={INITIAL_ACTIVITIES}
-                servers={servers}
+                servers={orderedServers}
                 activeContext={activeContext}
                 selectedDmId={selectedDmId}
                 selectedChannelId={selectedChannelId}
@@ -2922,6 +3205,8 @@ export default function App() {
                 onSelectDm={handleSelectDm}
                 onSelectChannel={handleSelectChannel}
                 onJoinVoice={(_srvId, _chId, chName, srvName) => {
+                  playUiSound('voiceJoin', appPreferences.soundsEnabled);
+                  triggerHaptic(14);
                   setVoiceSession({
                     active: true,
                     callNonce: Date.now(),
@@ -2980,7 +3265,15 @@ export default function App() {
             <VoiceOverlay
               voice={voiceSession}
               currentUser={user}
-              onToggleMute={() => setVoiceSession((v) => ({ ...v, muted: !v.muted }))}
+              soundsEnabled={appPreferences.soundsEnabled}
+              onToggleMute={() =>
+                setVoiceSession((v) => {
+                  const nextMuted = !v.muted;
+                  playUiSound(nextMuted ? 'mute' : 'unmute', appPreferences.soundsEnabled);
+                  triggerHaptic(10);
+                  return { ...v, muted: nextMuted };
+                })
+              }
               onToggleDeafen={() => setVoiceSession((v) => ({ ...v, deafened: !v.deafened }))}
               onToggleVideo={() => setVoiceSession((v) => ({ ...v, videoOn: !v.videoOn }))}
               onToggleScreen={() => {
@@ -2989,7 +3282,11 @@ export default function App() {
                 }
                 setVoiceSession((v) => ({ ...v, screenSharing: !v.screenSharing }));
               }}
-              onDisconnect={() => setVoiceSession((v) => ({ ...v, active: false }))}
+              onDisconnect={() => {
+                playUiSound('voiceLeave', appPreferences.soundsEnabled);
+                triggerHaptic(12);
+                setVoiceSession((v) => ({ ...v, active: false }));
+              }}
             />
 
             {/* Mobile Bottom Primary Tabs — 3 Clean Centered Tabs */}
@@ -3159,12 +3456,7 @@ export default function App() {
         onClose={() => setShowDiscover(false)}
         discoverableServers={discoverableServers}
         joinedServerIds={joinedServerIds}
-        onLoadServers={async () => {
-          if (!firebaseUid) return [];
-          const list = await fetchDiscoverableServers();
-          setDiscoverableServers(list);
-          return list;
-        }}
+        onLoadServers={handleLoadDiscoverableServers}
         onJoinServer={handleJoinServerById}
         onOpenCreateServer={() => {
           setCreateServerTemplate('friends');
@@ -3510,10 +3802,12 @@ export default function App() {
           setProfileViewTrigger((k) => k + 1);
           setScreen('tu');
         }}
-        onSendMessage={(prof) => {
-          void handleAddRealUser(prof);
+        onSendMessage={(prof, initialMsg) => {
+          void handleSendDmFromProfile(prof, initialMsg);
         }}
-        onStartCall={(prof, video) =>
+        onStartCall={(prof, video) => {
+          playUiSound('voiceJoin', appPreferences.soundsEnabled);
+          triggerHaptic(14);
           setVoiceSession({
             active: true,
             callNonce: Date.now(),
@@ -3527,8 +3821,8 @@ export default function App() {
             participants: [
               { id: prof.id, name: prof.displayName, avatar: prof.avatar, speaking: true },
             ],
-          })
-        }
+          });
+        }}
         onToggleFriend={(prof) => {
           const existing = dms.find(
             (d) =>
@@ -3540,7 +3834,7 @@ export default function App() {
           if (existing) {
             showToastMsg(`${prof.displayName} ya está en tu lista de chats/amigos`);
           } else {
-            void handleAddRealUser(prof);
+            void handleSendFriendRequest(prof).then(() => handleAddRealUser(prof));
           }
         }}
       />

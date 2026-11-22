@@ -3,10 +3,17 @@ import { Server, StoredAccount, UserProfile } from '../types/discord';
 export const RESERVED_OWNER_USERNAME = 'owner';
 export const DESIGNATED_OWNER_EMAIL = 'emaneriera@gmail.com';
 
+export interface ServerPermissions {
+  isOwner: boolean;
+  canManageServer: boolean;
+  canManageChannels: boolean;
+  canKickMembers: boolean;
+  canManageRoles: boolean;
+  canPinMessages: boolean;
+}
+
 /**
  * Resolves the ONE AND ONLY private Owner account ID.
- * - Once pinned with `isOwnerAccount: true`, ONLY that single account ID is ever recognized.
- * - On first migration before pinning, matches the user's exact `Owner` (`Owen`) account.
  */
 export function resolveSingleOwnerAccountId(accounts: StoredAccount[]): string | null {
   const pinned = accounts.find((acc) => acc.isOwnerAccount === true);
@@ -71,18 +78,48 @@ export function isServerOwner(server: Server | undefined, userId?: string | null
   return server.ownerId === userId;
 }
 
-export function canManageServer(server: Server | undefined, userId?: string | null): boolean {
-  if (!server || !userId) return false;
-  if (server.ownerId === userId) return true;
-  if (server.adminIds && server.adminIds.includes(userId)) return true;
+/**
+ * Returns every server permission boolean explicitly initialized (safe defaults: false)
+ * to eliminate any possibility of undefined permission ReferenceErrors.
+ */
+export function getServerPermissions(
+  server: Server | undefined,
+  userId?: string | null
+): ServerPermissions {
+  const defaults: ServerPermissions = {
+    isOwner: false,
+    canManageServer: false,
+    canManageChannels: false,
+    canKickMembers: false,
+    canManageRoles: false,
+    canPinMessages: false,
+  };
+
+  if (!server || !userId) return defaults;
+
+  const isOwner = Boolean(server.ownerId && server.ownerId === userId);
   const memberRecord = server.members?.find((m) => m.uid === userId);
-  if (memberRecord?.isAdmin) return true;
+  const isListedAdmin = Boolean(
+    (server.adminIds && server.adminIds.includes(userId)) || memberRecord?.isAdmin
+  );
+
   const roleIds = server.memberRoleIds?.[userId] ?? memberRecord?.roleIds ?? [];
-  if (roleIds.length > 0 && server.roles) {
-    const hasAdminRole = server.roles.some(
-      (role) => roleIds.includes(role.id) && role.permissions.includes('Administrador')
-    );
-    if (hasAdminRole) return true;
-  }
-  return false;
+  const activeRoles = (server.roles ?? []).filter((role) => roleIds.includes(role.id));
+  const hasPermission = (perm: string) =>
+    activeRoles.some((role) => role.permissions?.includes(perm));
+
+  const isAdmin = isOwner || isListedAdmin || hasPermission('Administrador');
+
+  return {
+    isOwner,
+    canManageServer: isAdmin,
+    canManageChannels: isAdmin || hasPermission('Gestionar canales'),
+    canKickMembers: isAdmin || hasPermission('Expulsar miembros'),
+    canManageRoles: isAdmin || hasPermission('Gestionar roles'),
+    canPinMessages: isAdmin || hasPermission('Fijar mensajes'),
+  };
+}
+
+export function canManageServer(server: Server | undefined, userId?: string | null): boolean {
+  return getServerPermissions(server, userId).canManageServer;
 }

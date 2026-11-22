@@ -48,7 +48,7 @@ import {
 } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
-import { canManageServer } from '../utils/ownerAccess';
+import { getServerPermissions } from '../utils/ownerAccess';
 
 interface MessagesPanelProps {
   dms: DirectMessageThread[];
@@ -121,12 +121,178 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
 }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [quickSearchOpen, setQuickSearchOpen] = useState(false);
+  const [quickSearchQuery, setQuickSearchQuery] = useState('');
   const [dmFilter, setDmFilter] = useState<'all' | 'unread' | 'groups'>('all');
   const [openDmMenuId, setOpenDmMenuId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [showServerSheet, setShowServerSheet] = useState(false);
+
+  const quickResults = useMemo(() => {
+    const q = quickSearchQuery.trim().toLowerCase();
+    const dmItems = dms
+      .filter(
+        (d) =>
+          !q ||
+          d.name.toLowerCase().includes(q) ||
+          (d.username || '').toLowerCase().includes(q) ||
+          d.lastMessagePreview.toLowerCase().includes(q) ||
+          d.messages.some((m) => m.content.toLowerCase().includes(q))
+      )
+      .slice(0, 6);
+
+    const channelItems: {
+      serverId: string;
+      serverName: string;
+      channelId: string;
+      channelName: string;
+      channelType: 'text' | 'voice' | 'announcement';
+      matchedSnippet?: string;
+    }[] = [];
+
+    for (const srv of servers) {
+      for (const ch of srv.channels) {
+        const nameHit = ch.name.toLowerCase().includes(q) || srv.name.toLowerCase().includes(q);
+        const msgHit = q
+          ? ch.messages.find((m) => m.content.toLowerCase().includes(q))
+          : undefined;
+        if (!q || nameHit || msgHit) {
+          channelItems.push({
+            serverId: srv.id,
+            serverName: srv.name,
+            channelId: ch.id,
+            channelName: ch.name,
+            channelType: ch.type,
+            matchedSnippet: msgHit ? `${msgHit.authorName}: ${msgHit.content}` : undefined,
+          });
+        }
+      }
+    }
+
+    return {
+      dmItems,
+      channelItems: channelItems.slice(0, 10),
+    };
+  }, [quickSearchQuery, dms, servers]);
+
+  const renderQuickSearchModal = () =>
+    quickSearchOpen ? (
+      <div
+        onClick={() => setQuickSearchOpen(false)}
+        className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start justify-center p-4 pt-14"
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-md rounded-3xl bg-[#1c1d22] border border-[#2e3035] shadow-2xl overflow-hidden flex flex-col max-h-[78vh] animate-[slideUp_180ms_ease-out]"
+        >
+          <div className="p-3 border-b border-[#2e3035] flex items-center gap-2 bg-[#111214]">
+            <Search className="w-4 h-4 text-[#949ba4] shrink-0" />
+            <input
+              type="text"
+              autoFocus
+              value={quickSearchQuery}
+              onChange={(e) => setQuickSearchQuery(e.target.value)}
+              placeholder="Buscar chats, canales, servidores o mensajes..."
+              className="flex-1 bg-transparent text-[14.5px] text-[#f2f3f5] placeholder:text-[#949ba4] focus:outline-none min-w-0"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setQuickSearchQuery('');
+                setQuickSearchOpen(false);
+              }}
+              className="w-7 h-7 rounded-full hover:bg-[#26272f] flex items-center justify-center text-[#949ba4] hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-2.5 space-y-3">
+            {quickResults.dmItems.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#949ba4] px-2 mb-1">
+                  Mensajes Directos
+                </p>
+                <div className="space-y-1">
+                  {quickResults.dmItems.map((dm) => (
+                    <button
+                      key={dm.id}
+                      type="button"
+                      onClick={() => {
+                        setQuickSearchOpen(false);
+                        setQuickSearchQuery('');
+                        onSelectDm(dm.id);
+                      }}
+                      className="w-full flex items-center gap-2.5 p-2 rounded-2xl hover:bg-[#26272f] text-left cursor-pointer"
+                    >
+                      <UserAvatar avatar={dm.avatar} status={dm.status} size="sm" borderColor="#1c1d22" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[#f2f3f5] truncate">{dm.name}</p>
+                        <p className="text-xs text-[#949ba4] truncate">{dm.lastMessagePreview}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {quickResults.channelItems.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#949ba4] px-2 mb-1">
+                  Canales y Servidores
+                </p>
+                <div className="space-y-1">
+                  {quickResults.channelItems.map((item) => (
+                    <button
+                      key={`${item.serverId}-${item.channelId}`}
+                      type="button"
+                      onClick={() => {
+                        setQuickSearchOpen(false);
+                        setQuickSearchQuery('');
+                        const srv = servers.find((s) => s.id === item.serverId);
+                        if (item.channelType === 'voice' && srv) {
+                          onJoinVoice(srv.id, item.channelId, item.channelName, srv.name);
+                        } else {
+                          onSelectChannel(item.serverId, item.channelId);
+                        }
+                      }}
+                      className="w-full flex items-center gap-2.5 p-2 rounded-2xl hover:bg-[#26272f] text-left cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-[#26272f] border border-[#2e3035] flex items-center justify-center shrink-0 text-[#949ba4]">
+                        {item.channelType === 'voice' ? (
+                          <Volume2 className="w-4 h-4" />
+                        ) : item.channelType === 'announcement' ? (
+                          <Megaphone className="w-4 h-4" />
+                        ) : (
+                          <Hash className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[#f2f3f5] truncate">
+                          #{item.channelName}{' '}
+                          <span className="text-xs font-normal text-[#949ba4]">· {item.serverName}</span>
+                        </p>
+                        {item.matchedSnippet && (
+                          <p className="text-xs text-[#b5bac1] truncate">{item.matchedSnippet}</p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {quickResults.dmItems.length === 0 && quickResults.channelItems.length === 0 && (
+              <p className="text-center text-xs text-[#949ba4] py-8">
+                No hay resultados para &ldquo;{quickSearchQuery}&rdquo;.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    ) : null;
 
   const baseDms = useMemo(() => {
     const contextList =
@@ -307,6 +473,19 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
     const server = servers.find((s) => s.id === activeContext.serverId);
     if (!server) return null;
 
+    const {
+      isOwner = false,
+      canManageServer = false,
+      canManageChannels = false,
+      canKickMembers = false,
+      canManageRoles = false,
+      canPinMessages = false,
+    } = getServerPermissions(server, currentUser.id);
+
+    const hasServerAdminAccess = Boolean(
+      isOwner || canManageServer || canManageChannels || canManageRoles || canKickMembers || canPinMessages
+    );
+
     const orderedCategories = Array.from(
       new Set([...(server.categoriesOrder || ['']), ...server.channels.map((c) => c.category)])
     );
@@ -447,6 +626,16 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    setQuickSearchOpen(true);
+                  }}
+                  title="Buscador rápido"
+                  className="w-7 h-7 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onOpenServerBoost(server.id);
                   }}
                   title="Mejorar este servidor"
@@ -507,14 +696,14 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                     }
                     className="flex-1 flex items-center gap-1 text-[11px] font-bold tracking-wide text-[var(--dc-text-muted)] hover:text-[var(--dc-text-primary)] uppercase cursor-pointer min-w-0 text-left"
                   >
-                    {isCollapsed ? (
-                      <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                    )}
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${
+                        isCollapsed ? '-rotate-90' : 'rotate-0'
+                      }`}
+                    />
                     <span className="truncate">{cat}</span>
                   </button>
-                  {canManageServer(server, currentUser.id) && (
+                  {(canManageServer || canManageChannels) && (
                     <button
                       onClick={() => onOpenServerSettings(server.id, 'canales')}
                       title="Gestionar canales"
@@ -650,7 +839,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                       <Settings className="w-5 h-5 text-white" />
                     </div>
                     <span className="text-[11.5px] font-medium text-zinc-300">
-                      {canManageServer(server, currentUser.id) ? 'Ajustes' : 'Información'}
+                      {hasServerAdminAccess ? 'Ajustes' : 'Información'}
                     </span>
                   </button>
                 </div>
@@ -671,24 +860,24 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                       setShowServerSheet(false);
                       onOpenServerSettings(
                         server.id,
-                        canManageServer(server, currentUser.id) ? 'canales' : 'miembros'
+                        canManageServer || canManageChannels ? 'canales' : 'miembros'
                       );
                     }}
                     className="w-full px-4 py-3.5 text-left text-[15px] font-medium text-white hover:bg-white/[0.04] cursor-pointer"
                   >
-                    {canManageServer(server, currentUser.id)
+                    {canManageServer || canManageChannels
                       ? 'Explorar y gestionar canales'
                       : 'Ver miembros del servidor'}
                   </button>
                 </div>
 
-                {canManageServer(server, currentUser.id) && (
+                {(canManageServer || canManageChannels) && (
                   <>
                     {/* Card 2: Reanudar la configuración de tu servidor */}
                     <button
                       onClick={() => {
                         setShowServerSheet(false);
-                        onOpenServerSettings(server.id, 'vista-general');
+                        onOpenServerSettings(server.id, canManageServer ? 'vista-general' : 'canales');
                       }}
                       className="w-full rounded-2xl bg-[#131419] hover:bg-[#191a21] border border-white/[0.08] p-4 text-left space-y-2.5 cursor-pointer"
                     >
@@ -755,7 +944,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                   >
                     Editar perfil por servidor
                   </button>
-                  {canManageServer(server, currentUser.id) && (
+                  {canManageServer && (
                     <label className="w-full px-4 py-3.5 flex items-center justify-between text-[15px] font-medium text-white cursor-pointer">
                       <span>Mostrar todos los canales</span>
                       <input
@@ -773,6 +962,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
             </motion.div>
           )}
         </AnimatePresence>
+        {renderQuickSearchModal()}
       </div>
     );
   }
@@ -816,8 +1006,13 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
           ) : (
             <>
               <button
-                onClick={() => setSearchOpen(true)}
-                aria-label="Buscar mensajes"
+                onClick={() => setQuickSearchOpen(true)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setSearchOpen(true);
+                }}
+                aria-label="Buscador rápido"
+                title="Buscador rápido"
                 className="w-10 h-10 rounded-full dc-btn-icon flex items-center justify-center shrink-0 cursor-pointer"
               >
                 <Search className="w-[18px] h-[18px]" />
@@ -1229,6 +1424,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
           )}
         </div>
       </div>
+      {renderQuickSearchModal()}
     </div>
   );
 };

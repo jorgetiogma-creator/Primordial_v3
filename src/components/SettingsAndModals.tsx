@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, AtSign, Award, Bell, Check, CheckCheck, ChevronRight, Clapperboard, Clock, Gamepad2, Globe, Headphones, HeadphoneOff, HelpCircle, Info, Link2, LogOut, MessageSquare, MessageSquareMore, Mic, MicOff, Monitor, Palette, PhoneCall, PhoneOff, Plus, QrCode, Search, Settings, Shield, Smartphone, Sparkles, Store, Trash2, Upload, User, UserCheck, UserPlus, Users, Video, VideoOff, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, AtSign, Award, Bell, Check, CheckCheck, ChevronRight, Clapperboard, Clock, Gamepad2, Globe, Headphones, HeadphoneOff, HelpCircle, Info, Link2, LogOut, MessageSquare, MessageSquareMore, Mic, MicOff, Monitor, Music, Palette, PhoneCall, PhoneOff, Plus, QrCode, Search, Settings, Shield, Smartphone, Sparkles, Store, Trash2, Upload, User, UserCheck, UserPlus, Users, Video, VideoOff, Volume2, X } from 'lucide-react';
 import {
+  AppPreferences,
+  AvatarKey,
   CreateServerPayload,
   DirectMessageThread,
+  FriendRequestItem,
   NotificationItem,
   PublicUserProfile,
   Server,
@@ -22,6 +25,30 @@ import {
 } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
 import { PWAInstallButton } from './PWAPrompts';
+import { playSoundboardClip, SOUNDBOARD_CLIPS, SoundboardClipId, triggerHaptic } from '../utils/soundEffects';
+
+const AVATAR_DOMINANT_COLORS: Record<string, string> = {
+  madara: '#7f1d1d',
+  snuf: '#312e81',
+  bumper: '#065f46',
+  alex: '#1d4ed8',
+  discrofy: '#5865F2',
+  dev: '#0f766e',
+  joawasa: '#9333ea',
+  dragon: '#b91c1c',
+  welcomer: '#047857',
+  yourbot: '#4338ca',
+  alirito: '#be185d',
+  xjenx: '#0369a1',
+  jorge: '#4f46e5',
+  carioca: '#b45309',
+  phibi: '#7c3aed',
+  locke: '#334155',
+  coffee: '#78350f',
+};
+
+const getAvatarBackdrop = (avatar: AvatarKey) =>
+  AVATAR_DOMINANT_COLORS[avatar] || '#5865F2';
 
 const PrimordialRowIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <PrimordialAppIcon className={`${className} rounded-md border border-white/10`} />
@@ -31,6 +58,8 @@ const PrimordialRowIcon: React.FC<{ className?: string }> = ({ className = 'w-5 
 export const SettingsView: React.FC<{
   user: UserProfile;
   theme: ThemeMode;
+  appPreferences?: AppPreferences;
+  onUpdateAppPreferences?: (patch: Partial<AppPreferences>) => void;
   onChangeTheme: (t: ThemeMode) => void;
   onBack: () => void;
   onOpenNitro: () => void;
@@ -42,6 +71,13 @@ export const SettingsView: React.FC<{
 }> = ({
   user,
   theme,
+  appPreferences = {
+    soundsEnabled: true,
+    chatFontSize: 'standard',
+    compactMode: false,
+    typingIndicatorEnabled: true,
+  },
+  onUpdateAppPreferences,
   onChangeTheme,
   onBack,
   onOpenNitro,
@@ -53,8 +89,8 @@ export const SettingsView: React.FC<{
 }) => {
   const [search, setSearch] = useState('');
   const [activeSubPanel, setActiveSubPanel] = useState<string | null>(null);
-  const [typingIndicator, setTypingIndicator] = useState(true);
   const [pushNotifs, setPushNotifs] = useState(true);
+  const typingIndicator = appPreferences.typingIndicatorEnabled;
 
   const q = search.trim().toLowerCase();
 
@@ -226,13 +262,78 @@ export const SettingsView: React.FC<{
                 <strong>{user.username}</strong>.
               </p>
             )}
+            {activeSubPanel === 'Chat' && (
+              <div className="space-y-3 pt-2">
+                <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] cursor-pointer">
+                  <div>
+                    <p className="text-sm font-semibold">Sonidos de la interfaz</p>
+                    <p className="text-xs text-[var(--dc-text-muted)]">
+                      Efectos suaves al enviar mensajes o entrar a voz
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={appPreferences.soundsEnabled}
+                    onChange={(e) =>
+                      onUpdateAppPreferences?.({ soundsEnabled: e.target.checked })
+                    }
+                    className="w-5 h-5 accent-[#5865F2]"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] cursor-pointer">
+                  <div>
+                    <p className="text-sm font-semibold">Modo compacto</p>
+                    <p className="text-xs text-[var(--dc-text-muted)]">
+                      Muestra más mensajes reduciendo el espaciado vertical
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={appPreferences.compactMode}
+                    onChange={(e) =>
+                      onUpdateAppPreferences?.({ compactMode: e.target.checked })
+                    }
+                    className="w-5 h-5 accent-[#5865F2]"
+                  />
+                </label>
+
+                <div className="p-3 rounded-xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] space-y-2">
+                  <p className="text-sm font-semibold">Tamaño de fuente del chat</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        { id: 'small', label: '14px Pequeño' },
+                        { id: 'standard', label: '15px Estándar' },
+                        { id: 'large', label: '16px Grande' },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => onUpdateAppPreferences?.({ chatFontSize: opt.id })}
+                        className={`py-2 px-2 rounded-xl border text-xs font-bold cursor-pointer ${
+                          appPreferences.chatFontSize === opt.id
+                            ? 'bg-[#5865F2] border-[#5865F2] text-white'
+                            : 'bg-[var(--dc-bg-input)] border-[var(--dc-border)] text-[var(--dc-text-secondary)]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {activeSubPanel === 'Indicador de escritura' && (
               <label className="flex items-center justify-between pt-2 cursor-pointer">
                 <span className="text-sm">Mostrar cuando otros están escribiendo</span>
                 <input
                   type="checkbox"
                   checked={typingIndicator}
-                  onChange={(e) => setTypingIndicator(e.target.checked)}
+                  onChange={(e) =>
+                    onUpdateAppPreferences?.({ typingIndicatorEnabled: e.target.checked })
+                  }
                   className="w-5 h-5 accent-[#5865F2]"
                 />
               </label>
@@ -365,11 +466,75 @@ export const SettingsView: React.FC<{
                             {theme === 'light' ? 'Claro' : theme === 'vice-city' ? 'Vice City' : theme}
                           </span>
                         )}
+                        {row.id === 'chat' && (
+                          <span className="text-xs text-[var(--dc-text-muted)]">
+                            {appPreferences.chatFontSize === 'small'
+                              ? '14px'
+                              : appPreferences.chatFontSize === 'large'
+                              ? '16px'
+                              : '15px'}
+                            {appPreferences.compactMode ? ' · Compacto' : ''}
+                          </span>
+                        )}
                         <ChevronRight className="w-4 h-4 text-[var(--dc-text-muted)]" />
                       </div>
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Controles rápidos de la App */}
+              <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] p-3.5 space-y-3 mt-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
+                  Ajustes rápidos de la App
+                </p>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm font-medium text-[var(--dc-text-primary)]">
+                    Sonidos de interfaz
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={appPreferences.soundsEnabled}
+                    onChange={(e) =>
+                      onUpdateAppPreferences?.({ soundsEnabled: e.target.checked })
+                    }
+                    className="w-4 h-4 accent-[#5865F2]"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm font-medium text-[var(--dc-text-primary)]">
+                    Modo compacto en chat
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={appPreferences.compactMode}
+                    onChange={(e) =>
+                      onUpdateAppPreferences?.({ compactMode: e.target.checked })
+                    }
+                    className="w-4 h-4 accent-[#5865F2]"
+                  />
+                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-[var(--dc-text-primary)]">
+                    Tamaño del chat
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {(['small', 'standard', 'large'] as const).map((sz) => (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => onUpdateAppPreferences?.({ chatFontSize: sz })}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
+                          appPreferences.chatFontSize === sz
+                            ? 'bg-[#5865F2] text-white'
+                            : 'bg-[var(--dc-bg-card)] text-[var(--dc-text-muted)]'
+                        }`}
+                      >
+                        {sz === 'small' ? '14px' : sz === 'standard' ? '15px' : '16px'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </section>
           )}
@@ -443,6 +608,7 @@ export const SettingsView: React.FC<{
 /* ---------------- FRIENDS VIEW ---------------- */
 export const FriendsView: React.FC<{
   dms: DirectMessageThread[];
+  friendRequests?: FriendRequestItem[];
   onBack: () => void;
   onOpenDm: (dmId: string) => void;
   onAddFriend: (
@@ -451,10 +617,25 @@ export const FriendsView: React.FC<{
   ) => void;
   onSearchUsers?: (query: string) => Promise<PublicUserProfile[]>;
   onAddRealUser?: (profile: PublicUserProfile) => Promise<void>;
+  onSendFriendRequest?: (profile: PublicUserProfile) => Promise<void>;
+  onRespondFriendRequest?: (req: FriendRequestItem, accept: boolean) => Promise<void>;
   onInspectUser?: (userId: string, fallback?: Partial<PublicUserProfile>) => void;
-}> = ({ dms, onBack, onOpenDm, onAddFriend, onSearchUsers, onAddRealUser, onInspectUser }) => {
+}> = ({
+  dms,
+  friendRequests = [],
+  onBack,
+  onOpenDm,
+  onAddFriend,
+  onSearchUsers,
+  onAddRealUser,
+  onSendFriendRequest,
+  onRespondFriendRequest,
+  onInspectUser,
+}) => {
   const friendThreads = dms.filter((d) => !d.isBot && !d.isGroup);
-  const [tab, setTab] = useState<'online' | 'all' | 'add'>(friendThreads.length === 0 ? 'add' : 'all');
+  const [tab, setTab] = useState<'online' | 'all' | 'pending' | 'add'>(
+    friendRequests.length > 0 ? 'pending' : friendThreads.length === 0 ? 'add' : 'all'
+  );
   const [friendHandle, setFriendHandle] = useState('');
   const [addedMsg, setAddedMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -503,8 +684,11 @@ export const FriendsView: React.FC<{
         setErrorMsg(`No encontramos ninguna cuenta real con el usuario «@${clean}». Pídele que cree su cuenta primero.`);
         return;
       }
+      if (onSendFriendRequest) {
+        await onSendFriendRequest(exactMatch);
+      }
       await onAddRealUser(exactMatch);
-      setAddedMsg(`Chat abierto con ${exactMatch.displayName} (@${exactMatch.username})`);
+      setAddedMsg(`Solicitud y chat abierto con ${exactMatch.displayName} (@${exactMatch.username})`);
       setFriendHandle('');
       setTimeout(() => setAddedMsg(null), 2600);
       return;
@@ -516,70 +700,132 @@ export const FriendsView: React.FC<{
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[var(--dc-bg-chat)] text-[var(--dc-text-primary)] overflow-hidden">
-      <header className="h-14 px-4 flex items-center justify-between border-b border-[var(--dc-border)] shrink-0">
+    <div className="flex-1 flex flex-col h-full bg-[#111214] text-[var(--dc-text-primary)] overflow-hidden">
+      <header className="h-14 px-4 flex items-center justify-between border-b border-[#2e3035] shrink-0">
         <div className="flex items-center gap-2.5">
           <button
             onClick={onBack}
-            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[var(--dc-text-primary)] cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-white/10 text-white cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <Users className="w-5 h-5 text-[var(--dc-text-muted)]" />
-          <h1 className="font-display font-bold text-[17px]">Amigos</h1>
+          <Users className="w-5 h-5 text-zinc-400" />
+          <h1 className="font-display font-bold text-[17px] text-white">Amigos</h1>
         </div>
         <button
           onClick={() => setTab('add')}
           className="px-3.5 py-1.5 rounded-full dc-btn-success text-xs font-bold cursor-pointer whitespace-nowrap"
         >
-          Buscar amigos
+          Añadir amigo
         </button>
       </header>
 
-      <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[var(--dc-border)] overflow-x-auto no-scrollbar">
+      <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#2e3035] overflow-x-auto no-scrollbar bg-[#1c1d22]">
         {[
-          { id: 'all', label: `Todos (${friendThreads.length})` },
           { id: 'online', label: 'En línea' },
-          { id: 'add', label: 'Buscar usuarios reales' },
+          { id: 'all', label: `Todos (${friendThreads.length})` },
+          { id: 'pending', label: `Pendientes (${friendRequests.length})` },
+          { id: 'add', label: 'Añadir amigo' },
         ].map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id as 'all' | 'online' | 'add')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer whitespace-nowrap ${
-              tab === t.id ? 'dc-btn-primary' : 'dc-btn-secondary'
+            onClick={() => setTab(t.id as 'online' | 'all' | 'pending' | 'add')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
+              tab === t.id ? 'dc-btn-primary' : 'bg-[#26272f] text-zinc-300 hover:text-white'
             }`}
           >
-            {t.label}
+            <span>{t.label}</span>
+            {t.id === 'pending' && friendRequests.length > 0 && (
+              <span className="w-2 h-2 rounded-full bg-[#f23f43]" />
+            )}
           </button>
         ))}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 max-w-2xl w-full mx-auto space-y-4">
-        {tab === 'add' ? (
+        {tab === 'pending' ? (
+          <div className="space-y-2.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
+              Solicitudes pendientes ({friendRequests.length})
+            </p>
+            {friendRequests.length === 0 ? (
+              <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-8 text-center space-y-2">
+                <UserPlus className="w-8 h-8 text-zinc-500 mx-auto" />
+                <p className="text-sm font-bold text-white">No hay solicitudes pendientes</p>
+                <p className="text-xs text-zinc-400">
+                  Cuando alguien te envíe una solicitud de amistad, aparecerá aquí para que la aceptes o rechaces.
+                </p>
+              </div>
+            ) : (
+              friendRequests.map((req) => (
+                <div
+                  key={req.fromUid}
+                  className="p-3.5 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <UserAvatar
+                      avatar={req.fromAvatar}
+                      customAvatarUrl={req.fromCustomAvatarUrl}
+                      status="online"
+                      size="md"
+                      borderColor="#1c1d22"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-white truncate">
+                        {req.fromDisplayName}
+                      </p>
+                      <p className="text-xs text-zinc-400 truncate">
+                        @{req.fromUsername} · Solicitud entrante
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => void onRespondFriendRequest?.(req, true)}
+                      aria-label="Aceptar solicitud"
+                      className="w-9 h-9 rounded-full bg-[#23a55a]/20 hover:bg-[#23a55a]/35 text-[#23a55a] border border-[#23a55a]/40 flex items-center justify-center cursor-pointer"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void onRespondFriendRequest?.(req, false)}
+                      aria-label="Rechazar solicitud"
+                      className="w-9 h-9 rounded-full bg-[#f23f43]/15 hover:bg-[#f23f43]/30 text-[#f23f43] border border-[#f23f43]/40 flex items-center justify-center cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : tab === 'add' ? (
           <>
             <form
               onSubmit={handleAdd}
-              className="space-y-3 bg-[var(--dc-bg-card)] p-5 rounded-2xl border border-[var(--dc-border)]"
+              className="space-y-3 bg-[#1c1d22] p-5 rounded-2xl border border-[#2e3035]"
             >
               <h2 className="font-display font-bold text-base">Buscar y añadir usuarios reales</h2>
-              <p className="text-xs text-[var(--dc-text-secondary)]">
-                Busca personas que ya crearon su cuenta en Primordial por su @usuario exacto o nombre para enviarles mensajes en tiempo real.
+              <p className="text-xs text-zinc-400">
+                Busca personas que ya crearon su cuenta en Primordial por su @usuario exacto o nombre para enviarles solicitud y mensajes en tiempo real.
               </p>
               <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-2 bg-[var(--dc-bg-input)] border border-[var(--dc-border)] rounded-xl px-3.5 focus-within:border-[#5865F2]">
-                  <Search className="w-4 h-4 text-[var(--dc-text-muted)] shrink-0" />
+                <div className="flex-1 flex items-center gap-2 bg-[#111214] border border-[#2e3035] rounded-xl px-3.5 focus-within:border-[#5865F2]">
+                  <Search className="w-4 h-4 text-zinc-400 shrink-0" />
                   <input
                     type="text"
                     value={friendHandle}
                     onChange={(e) => setFriendHandle(e.target.value)}
                     placeholder="Buscar por @usuario o nombre..."
-                    className="flex-1 bg-transparent py-2.5 text-sm text-[var(--dc-text-primary)] focus:outline-none"
+                    className="flex-1 bg-transparent py-2.5 text-sm text-white focus:outline-none"
                   />
                   {friendHandle && (
                     <button
                       type="button"
                       onClick={() => setFriendHandle('')}
-                      className="text-[var(--dc-text-muted)] hover:text-white cursor-pointer"
+                      className="text-zinc-400 hover:text-white cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -600,14 +846,14 @@ export const FriendsView: React.FC<{
                 </p>
               )}
               {errorMsg && (
-                <p className="text-xs text-[#f87171] font-semibold">
+                <p className="text-xs text-[#f23f43] font-semibold">
                   {errorMsg}
                 </p>
               )}
             </form>
 
             <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--dc-text-muted)] px-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
                 {searching
                   ? 'Buscando cuentas reales...'
                   : q
@@ -628,7 +874,7 @@ export const FriendsView: React.FC<{
                     onClick={() =>
                       onInspectUser?.(person.id, person)
                     }
-                    className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#1c1d22] hover:bg-[#26272f] border border-[#2e3035] transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <UserAvatar
@@ -636,53 +882,70 @@ export const FriendsView: React.FC<{
                         customAvatarUrl={person.customAvatarUrl}
                         status={person.status}
                         size="md"
-                        borderColor="var(--dc-bg-card)"
+                        borderColor="#1c1d22"
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm truncate">{person.displayName}</p>
-                          <span className="text-[11px] text-[var(--dc-text-muted)] truncate">
+                          <p className="font-bold text-sm truncate text-white">{person.displayName}</p>
+                          <span className="text-[11px] text-zinc-400 truncate">
                             @{person.username}
                           </span>
                         </div>
-                        <p className="text-xs text-[var(--dc-text-secondary)] truncate mt-0.5">
+                        <p className="text-xs text-zinc-400 truncate mt-0.5">
                           {person.customStatus || person.bio}
                         </p>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (existingDm) {
-                          onOpenDm(existingDm.id);
-                        } else if (onAddRealUser) {
-                          void onAddRealUser(person);
-                        } else {
-                          onAddFriend(person.displayName, {
-                            avatar: person.avatar,
-                            status: person.status,
-                          });
-                        }
-                      }}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap ${
-                        existingDm ? 'dc-btn-secondary' : 'dc-btn-primary'
-                      }`}
-                    >
-                      {existingDm ? 'Abrir chat' : 'Añadir y chatear'}
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {!existingDm && onSendFriendRequest && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void onSendFriendRequest(person).then(() => {
+                              setAddedMsg(`Solicitud enviada a @${person.username}`);
+                              setTimeout(() => setAddedMsg(null), 2600);
+                            });
+                          }}
+                          className="px-3 py-1.5 rounded-full bg-[#26272f] hover:bg-[#31333d] border border-[#2e3035] text-xs font-bold text-white cursor-pointer"
+                        >
+                          Enviar solicitud
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (existingDm) {
+                            onOpenDm(existingDm.id);
+                          } else if (onAddRealUser) {
+                            void onAddRealUser(person);
+                          } else {
+                            onAddFriend(person.displayName, {
+                              avatar: person.avatar,
+                              status: person.status,
+                            });
+                          }
+                        }}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap ${
+                          existingDm ? 'dc-btn-secondary' : 'dc-btn-primary'
+                        }`}
+                      >
+                        {existingDm ? 'Abrir chat' : 'Chatear'}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
 
               {!searching && realUsers.length === 0 && (
-                <div className="rounded-2xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] p-6 text-center space-y-2">
-                  <Users className="w-8 h-8 text-[var(--dc-text-muted)] mx-auto" />
-                  <p className="text-sm font-semibold text-[var(--dc-text-primary)]">
+                <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-6 text-center space-y-2">
+                  <Users className="w-8 h-8 text-zinc-500 mx-auto" />
+                  <p className="text-sm font-semibold text-white">
                     {q ? `Sin cuentas reales para «${friendHandle.trim()}»` : 'Aún no hay otros usuarios registrados'}
                   </p>
-                  <p className="text-xs text-[var(--dc-text-muted)]">
+                  <p className="text-xs text-zinc-400">
                     Cuando otra persona inicie sesión con Google y cree su @usuario, aparecerá aquí al instante para chatear contigo.
                   </p>
                 </div>
@@ -705,7 +968,7 @@ export const FriendsView: React.FC<{
                     serverTag: f.serverTag,
                   })
                 }
-                className="w-full flex items-center justify-between p-3 rounded-2xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between p-3 rounded-2xl bg-[#1c1d22] hover:bg-[#26272f] border border-[#2e3035] transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <UserAvatar
@@ -713,11 +976,11 @@ export const FriendsView: React.FC<{
                     status={f.status}
                     decoration={f.decoration || 'none'}
                     size="md"
-                    borderColor="var(--dc-bg-card)"
+                    borderColor="#1c1d22"
                   />
                   <div className="text-left min-w-0">
-                    <p className="font-bold text-sm truncate">{f.name}</p>
-                    <p className="text-xs text-[var(--dc-text-muted)] truncate">
+                    <p className="font-bold text-sm truncate text-white">{f.name}</p>
+                    <p className="text-xs text-zinc-400 truncate">
                       {f.username || f.lastMessagePreview}
                     </p>
                   </div>
@@ -728,7 +991,7 @@ export const FriendsView: React.FC<{
                     e.stopPropagation();
                     onOpenDm(f.id);
                   }}
-                  className="px-3 py-1.5 rounded-full bg-black/10 dark:bg-white/10 hover:bg-white/20 text-xs font-semibold cursor-pointer"
+                  className="px-3 py-1.5 rounded-full bg-[#26272f] hover:bg-[#31333d] text-xs font-semibold text-white cursor-pointer"
                 >
                   Mensaje
                 </button>
@@ -736,8 +999,8 @@ export const FriendsView: React.FC<{
             ))}
 
             {filtered.length === 0 && (
-              <div className="rounded-2xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] p-8 text-center space-y-3">
-                <p className="text-sm font-medium text-[var(--dc-text-secondary)]">
+              <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-8 text-center space-y-3">
+                <p className="text-sm font-medium text-zinc-300">
                   {tab === 'online'
                     ? 'Ninguno de tus amigos añadidos está en línea ahora.'
                     : 'Aún no has añadido amigos.'}
@@ -880,6 +1143,7 @@ export const NotificationsView: React.FC<{
 export const VoiceOverlay: React.FC<{
   voice: VoiceSession;
   currentUser: UserProfile;
+  soundsEnabled?: boolean;
   onToggleMute: () => void;
   onToggleDeafen: () => void;
   onToggleVideo: () => void;
@@ -888,6 +1152,7 @@ export const VoiceOverlay: React.FC<{
 }> = ({
   voice,
   currentUser,
+  soundsEnabled = true,
   onToggleMute,
   onToggleDeafen,
   onToggleVideo,
@@ -895,6 +1160,8 @@ export const VoiceOverlay: React.FC<{
   onDisconnect,
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const [showSoundboard, setShowSoundboard] = useState(false);
+  const [activeClipLabel, setActiveClipLabel] = useState<string | null>(null);
 
   useEffect(() => {
     if (voice.active && voice.callNonce) {
@@ -902,6 +1169,7 @@ export const VoiceOverlay: React.FC<{
     }
     if (!voice.active) {
       setExpanded(false);
+      setShowSoundboard(false);
     }
   }, [voice.active, voice.callNonce]);
 
@@ -911,12 +1179,21 @@ export const VoiceOverlay: React.FC<{
   const secs = String(voice.connectedSeconds % 60).padStart(2, '0');
   const isRinging = voice.connectedSeconds < 2;
 
+  const triggerClip = (clipId: SoundboardClipId, label: string, emoji: string) => {
+    playSoundboardClip(clipId, soundsEnabled);
+    triggerHaptic(18);
+    setActiveClipLabel(`${emoji} ${label}`);
+    window.setTimeout(() => setActiveClipLabel(null), 1600);
+  };
+
+  const selfTint = getAvatarBackdrop(currentUser.avatar);
+
   return (
     <>
-      <div className="bg-[#161b18] border-t border-[#23a55a]/30 px-3 py-2 flex items-center justify-between gap-2 shrink-0 text-white">
+      <div className="bg-[#1c1d22] border-t border-[#23a55a]/40 px-3 py-2 flex items-center justify-between gap-2 shrink-0 text-white shadow-xl">
         <button onClick={() => setExpanded(true)} className="text-left min-w-0 flex-1 cursor-pointer">
           <p className="text-xs font-bold text-[#23a55a] flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#23a55a]" />
+            <span className="w-2 h-2 rounded-full bg-[#23a55a] animate-pulse" />
             <span>
               {voice.videoOn ? 'Videollamada' : 'Voz conectada'} · {mins}:{secs}
             </span>
@@ -940,7 +1217,7 @@ export const VoiceOverlay: React.FC<{
             onClick={onToggleMute}
             aria-label="Silenciar micrófono"
             className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer ${
-              voice.muted ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10 text-white'
+              voice.muted ? 'bg-[#f23f43]/20 text-[#f23f43]' : 'hover:bg-white/10 text-white'
             }`}
           >
             {voice.muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -949,7 +1226,7 @@ export const VoiceOverlay: React.FC<{
             onClick={onToggleDeafen}
             aria-label="Ensordecer audio"
             className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer ${
-              voice.deafened ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10 text-white'
+              voice.deafened ? 'bg-[#f23f43]/20 text-[#f23f43]' : 'hover:bg-white/10 text-white'
             }`}
           >
             {voice.deafened ? (
@@ -961,7 +1238,7 @@ export const VoiceOverlay: React.FC<{
           <button
             onClick={onDisconnect}
             aria-label="Desconectar llamada"
-            className="w-9 h-9 rounded-full dc-btn-danger flex items-center justify-center cursor-pointer"
+            className="w-9 h-9 rounded-full bg-[#f23f43] hover:bg-[#d83337] text-white flex items-center justify-center cursor-pointer"
           >
             <PhoneOff className="w-4 h-4" />
           </button>
@@ -969,43 +1246,53 @@ export const VoiceOverlay: React.FC<{
       </div>
 
       {expanded && (
-        <div className="fixed inset-0 z-50 bg-[#111214] flex flex-col justify-between p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-[#23a55a]/20 text-[#23a55a] flex items-center justify-center">
-                {voice.videoOn ? <Video className="w-4.5 h-4.5" /> : <PhoneCall className="w-4.5 h-4.5" />}
+        <div className="fixed inset-0 z-50 bg-[#111214] flex flex-col justify-between p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-[#23a55a]/20 text-[#23a55a] flex items-center justify-center shrink-0">
+                {voice.videoOn ? <Video className="w-4.5 h-4.5" /> : <Volume2 className="w-4.5 h-4.5" />}
               </div>
-              <div>
-                <h3 className="font-display font-bold text-lg text-white leading-tight">
+              <div className="min-w-0">
+                <h3 className="font-display font-bold text-lg text-white leading-tight truncate">
                   {voice.channelName}
                 </h3>
-                <p className="text-xs text-[#23a55a] font-semibold tabular-nums">
-                  {isRinging ? 'Conectando llamada...' : `${voice.contextName} · ${mins}:${secs}`}
+                <p className="text-xs text-[#23a55a] font-semibold tabular-nums truncate">
+                  {isRinging ? 'Conectando sala de voz...' : `${voice.contextName} · ${mins}:${secs}`}
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setExpanded(false)}
-              className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-xs font-semibold text-white cursor-pointer"
-            >
-              Minimizar
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {activeClipLabel && (
+                <span className="px-3 py-1 rounded-full bg-[#5865F2]/25 border border-[#5865F2]/40 text-xs font-bold text-white animate-pulse">
+                  {activeClipLabel}
+                </span>
+              )}
+              <button
+                onClick={() => setExpanded(false)}
+                className="px-3.5 py-1.5 rounded-full bg-[#26272f] hover:bg-[#31333d] border border-[#2e3035] text-xs font-semibold text-white cursor-pointer"
+              >
+                Minimizar
+              </button>
+            </div>
           </div>
 
           <div
-            className={`grid gap-4 max-w-3xl mx-auto w-full my-auto ${
+            className={`grid gap-3.5 max-w-3xl mx-auto w-full my-auto ${
               voice.participants.length <= 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'
             }`}
           >
             <div
-              className={`aspect-video sm:aspect-square rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden ${
-                voice.videoOn
-                  ? 'bg-gradient-to-br from-[#1d2238] via-[#171924] to-[#111214] border-[#5865F2]/50'
-                  : 'bg-[#1c1d22] border-white/10'
+              className={`aspect-video sm:aspect-square rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
+                !voice.muted
+                  ? 'border-[#23a55a]/70 shadow-[0_0_24px_rgba(35,165,90,0.22)]'
+                  : 'border-[#2e3035]'
               }`}
+              style={{
+                background: `radial-gradient(circle at 50% 42%, ${selfTint}66 0%, #1c1d22 72%, #111214 100%)`,
+              }}
             >
               {voice.videoOn && (
-                <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/55 border border-white/15 text-[10.5px] font-bold text-emerald-300 flex items-center gap-1">
+                <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/60 border border-white/15 text-[10.5px] font-bold text-[#23a55a] flex items-center gap-1">
                   <Video className="w-3 h-3" />
                   <span>Cámara activa</span>
                 </div>
@@ -1016,7 +1303,13 @@ export const VoiceOverlay: React.FC<{
                   <span>Pantalla</span>
                 </div>
               )}
-              <div className={!voice.muted ? 'rounded-full speaking-ring' : ''}>
+              <div
+                className={`rounded-full p-1 transition-all ${
+                  !voice.muted && !voice.deafened
+                    ? 'ring-3 ring-[#23a55a] shadow-[0_0_22px_rgba(35,165,90,0.65)]'
+                    : ''
+                }`}
+              >
                 <UserAvatar
                   avatar={currentUser.avatar}
                   customAvatarUrl={currentUser.customAvatarUrl}
@@ -1024,89 +1317,145 @@ export const VoiceOverlay: React.FC<{
                   showStatus={false}
                 />
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/45">
                 <span className="text-sm font-bold text-white">{currentUser.displayName}</span>
-                {voice.muted && <MicOff className="w-3.5 h-3.5 text-red-400" />}
+                {voice.muted && <MicOff className="w-3.5 h-3.5 text-[#f23f43]" />}
+                {voice.deafened && <HeadphoneOff className="w-3.5 h-3.5 text-[#f23f43]" />}
               </div>
             </div>
 
-            {voice.participants.map((p, idx) => (
-              <div
-                key={p.id}
-                className={`aspect-video sm:aspect-square rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden ${
-                  voice.videoOn && idx === 0
-                    ? 'bg-gradient-to-br from-[#1a2c26] via-[#171c22] to-[#111214] border-[#23a55a]/45'
-                    : 'bg-[#1c1d22] border-white/10'
-                }`}
-              >
-                {voice.videoOn && idx === 0 && (
-                  <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/55 border border-white/15 text-[10.5px] font-bold text-sky-300 flex items-center gap-1">
-                    <Video className="w-3 h-3" />
-                    <span>Video simulado</span>
+            {voice.participants.map((p, idx) => {
+              const pTint = getAvatarBackdrop(p.avatar);
+              const isSpeaking = Boolean(p.speaking && !p.muted);
+              return (
+                <div
+                  key={p.id}
+                  className={`aspect-video sm:aspect-square rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
+                    isSpeaking
+                      ? 'border-[#23a55a]/75 shadow-[0_0_24px_rgba(35,165,90,0.25)]'
+                      : 'border-[#2e3035]'
+                  }`}
+                  style={{
+                    background: `radial-gradient(circle at 50% 42%, ${pTint}66 0%, #1c1d22 72%, #111214 100%)`,
+                  }}
+                >
+                  {voice.videoOn && idx === 0 && (
+                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/55 border border-white/15 text-[10.5px] font-bold text-sky-300 flex items-center gap-1">
+                      <Video className="w-3 h-3" />
+                      <span>Video activo</span>
+                    </div>
+                  )}
+                  <div
+                    className={`rounded-full p-1 transition-all ${
+                      isSpeaking ? 'ring-3 ring-[#23a55a] shadow-[0_0_22px_rgba(35,165,90,0.65)]' : ''
+                    }`}
+                  >
+                    <UserAvatar avatar={p.avatar} size="xl" showStatus={false} />
                   </div>
-                )}
-                <div className={p.speaking && !p.muted ? 'rounded-full speaking-ring' : ''}>
-                  <UserAvatar avatar={p.avatar} size="xl" showStatus={false} />
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/45">
+                    <span className="text-sm font-bold text-white">{p.name}</span>
+                    {p.muted && <MicOff className="w-3.5 h-3.5 text-[#f23f43]" />}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-white">{p.name}</span>
-                  {p.muted && <MicOff className="w-3.5 h-3.5 text-zinc-400" />}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="flex items-center justify-center gap-3 pb-4">
-            <button
-              onClick={onToggleVideo}
-              title={voice.videoOn ? 'Apagar cámara' : 'Encender cámara'}
-              className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-                voice.videoOn ? 'bg-white text-black' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
-              }`}
-            >
-              {voice.videoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-            </button>
-            <button
-              onClick={onToggleScreen}
-              title="Compartir pantalla"
-              className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-                voice.screenSharing ? 'bg-[#5865F2] text-white' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
-              }`}
-            >
-              <Monitor className="w-5 h-5" />
-            </button>
-            <button
-              onClick={onToggleMute}
-              title={voice.muted ? 'Activar micrófono' : 'Silenciar micrófono'}
-              className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-                voice.muted ? 'bg-white text-black' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
-              }`}
-            >
-              {voice.muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-            </button>
-            <button
-              onClick={onToggleDeafen}
-              title={voice.deafened ? 'Activar audio' : 'Ensordecer'}
-              className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-                voice.deafened ? 'bg-white text-black' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
-              }`}
-            >
-              {voice.deafened ? (
-                <HeadphoneOff className="w-5 h-5" />
-              ) : (
-                <Headphones className="w-5 h-5" />
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setExpanded(false);
-                onDisconnect();
-              }}
-              title="Colgar llamada"
-              className="w-14 h-12 rounded-full dc-btn-danger flex items-center justify-center cursor-pointer"
-            >
-              <PhoneOff className="w-5 h-5" />
-            </button>
+          <div className="space-y-3 pb-3">
+            {showSoundboard && (
+              <div className="max-w-md mx-auto rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-3.5 space-y-2.5 animate-slideUp">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Music className="w-4 h-4 text-[#5865F2]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-white">
+                      Caja de resonancia (Soundboard)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSoundboard(false)}
+                    className="text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {SOUNDBOARD_CLIPS.map((clip) => (
+                    <button
+                      key={clip.id}
+                      type="button"
+                      onClick={() => triggerClip(clip.id, clip.label, clip.emoji)}
+                      className="p-2.5 rounded-xl bg-[#26272f] hover:bg-[#31333d] border border-[#2e3035] flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform"
+                    >
+                      <span className="text-xl">{clip.emoji}</span>
+                      <span className="text-[11px] font-bold text-white">{clip.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-center gap-2.5 sm:gap-3">
+              <button
+                onClick={onToggleVideo}
+                title={voice.videoOn ? 'Apagar cámara' : 'Encender cámara'}
+                className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                  voice.videoOn ? 'bg-white text-black' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
+                }`}
+              >
+                {voice.videoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={onToggleScreen}
+                title="Compartir pantalla"
+                className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                  voice.screenSharing ? 'bg-[#5865F2] text-white' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
+                }`}
+              >
+                <Monitor className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setShowSoundboard((s) => !s)}
+                title="Caja de resonancia"
+                className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                  showSoundboard ? 'bg-[#5865F2] text-white' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
+                }`}
+              >
+                <Music className="w-5 h-5" />
+              </button>
+              <button
+                onClick={onToggleMute}
+                title={voice.muted ? 'Activar micrófono' : 'Silenciar micrófono'}
+                className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                  voice.muted ? 'bg-[#f23f43]/20 text-[#f23f43] border border-[#f23f43]/40' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
+                }`}
+              >
+                {voice.muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={onToggleDeafen}
+                title={voice.deafened ? 'Activar audio' : 'Ensordecer'}
+                className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                  voice.deafened ? 'bg-[#f23f43]/20 text-[#f23f43] border border-[#f23f43]/40' : 'bg-[#26272f] hover:bg-[#31333d] text-white'
+                }`}
+              >
+                {voice.deafened ? (
+                  <HeadphoneOff className="w-5 h-5" />
+                ) : (
+                  <Headphones className="w-5 h-5" />
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setExpanded(false);
+                  onDisconnect();
+                }}
+                title="Colgar llamada"
+                className="w-14 h-12 rounded-full bg-[#f23f43] hover:bg-[#d83337] text-white flex items-center justify-center cursor-pointer shadow-lg"
+              >
+                <PhoneOff className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1686,16 +2035,21 @@ export const DiscoverModal: React.FC<{
   const [loading, setLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
+  const onLoadServersRef = useRef(onLoadServers);
+  useEffect(() => {
+    onLoadServersRef.current = onLoadServers;
+  }, [onLoadServers]);
+
   useEffect(() => {
     if (!open) return;
     setJoinError(null);
-    if (!onLoadServers) {
+    if (!onLoadServersRef.current) {
       setServers(discoverableServers);
       return;
     }
     let cancelled = false;
     setLoading(true);
-    onLoadServers()
+    onLoadServersRef.current()
       .then((res) => {
         if (!cancelled) setServers(res);
       })
@@ -1708,7 +2062,8 @@ export const DiscoverModal: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [open, onLoadServers, discoverableServers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 
