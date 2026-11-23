@@ -537,6 +537,29 @@ export async function searchRealUsers(
     })()
   );
 
+  // 5. Fallback scan without orderBy so older profiles lacking usernameLower remain discoverable
+  tasks.push(
+    (async () => {
+      const fallbackQ = query(collection(db, path), limit(200));
+      const snap = await getDocs(fallbackQ);
+      snap.forEach((docSnap) => {
+        if (excludeUid && docSnap.id === excludeUid) return;
+        if (byId.has(docSnap.id)) return;
+        const d = docSnap.data();
+        const usernameLower = String(d.usernameLower || d.username || '').toLowerCase();
+        const displayLower = String(d.displayName || '').toLowerCase();
+        if (
+          !rawLower ||
+          usernameLower.includes(rawLower) ||
+          (normalizedHandle && usernameLower.includes(normalizedHandle)) ||
+          displayLower.includes(rawLower)
+        ) {
+          byId.set(docSnap.id, docToPublicProfile(docSnap.id, d));
+        }
+      });
+    })()
+  );
+
   const settled = await Promise.allSettled(tasks);
   let successCount = 0;
   for (const outcome of settled) {
@@ -1422,7 +1445,7 @@ export function subscribeToServerDetail(
   const startSubcollections = () => {
     if (disposed || unsubMembers || unsubChannels) return;
     unsubMembers = onSnapshot(
-      collection(db, 'servers', serverId, 'members'),
+      query(collection(db, 'servers', serverId, 'members'), limit(200)),
       (snap) => {
         const nextMembers: ServerMemberSummary[] = [];
         snap.forEach((docSnap) => {
@@ -1722,7 +1745,7 @@ export async function sendChannelMessage(params: {
   let liveMemberIds = memberUids;
   if (hasEveryone) {
     try {
-      const memSnap = await getDocs(collection(db, 'servers', serverId, 'members'));
+      const memSnap = await getDocs(query(collection(db, 'servers', serverId, 'members'), limit(200)));
       const fetchedIds: string[] = [];
       memSnap.forEach((d) => fetchedIds.push(d.id));
       if (fetchedIds.length > 0) {

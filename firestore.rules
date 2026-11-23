@@ -62,6 +62,7 @@ service cloud.firestore {
         && optStr(data, 'bannerImage', 200000)
         && optStr(data, 'serverTag', 12)
         && (!('nitroTier' in data) || data.nitroTier in ['none', 'basic', 'nitro'])
+        && (!('displayNameCustomColors' in data) || (data.displayNameCustomColors is list && data.displayNameCustomColors.size() <= 4))
         && (!('badgeIds' in data) || (data.badgeIds is list && data.badgeIds.size() <= 16));
     }
 
@@ -260,10 +261,10 @@ service cloud.firestore {
       allow get: if true;
     }
 
-    // Public searchable user profiles (no PII)
+    // Public searchable user profiles (no PII — strict query limit enforced)
     match /publicProfiles/{uid} {
       allow get: if isVerifiedUser() && isValidId(uid);
-      allow list: if isVerifiedUser() && resource.data.usernameLower is string;
+      allow list: if isVerifiedUser() && request.query.limit != null && request.query.limit <= 300;
       allow create, update: if isOwner(uid) && isValidId(uid) && isValidPublicProfile(request.resource.data, uid);
       allow delete: if false;
     }
@@ -427,7 +428,7 @@ service cloud.firestore {
 
       match /members/{memberUid} {
         allow get: if isVerifiedUser() && isValidId(memberUid);
-        allow list: if isVerifiedUser() && resource.data.uid is string;
+        allow list: if isServerMember(serverId) || isServerAdmin(serverId);
         allow create: if isVerifiedUser()
           && isValidId(memberUid)
           && isValidServerMember(request.resource.data, memberUid)
