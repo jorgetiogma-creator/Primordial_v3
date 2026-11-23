@@ -515,6 +515,24 @@ export async function searchRealUsers(
   }
 
   // 4. Expanded directory scan to support displayName & substring searches
+  const rawTokens = rawLower.split(/\s+/).filter(Boolean);
+  const matchesQuery = (usernameLower: string, displayLower: string) => {
+    if (!rawLower) return true;
+    if (
+      usernameLower.includes(rawLower) ||
+      (normalizedHandle && usernameLower.includes(normalizedHandle)) ||
+      displayLower.includes(rawLower)
+    ) {
+      return true;
+    }
+    if (rawTokens.length > 1) {
+      return rawTokens.every(
+        (tok) => displayLower.includes(tok) || usernameLower.includes(tok)
+      );
+    }
+    return false;
+  };
+
   tasks.push(
     (async () => {
       const scanQ = query(collection(db, path), orderBy('usernameLower'), limit(300));
@@ -525,12 +543,7 @@ export async function searchRealUsers(
         const d = docSnap.data();
         const usernameLower = String(d.usernameLower || d.username || '').toLowerCase();
         const displayLower = String(d.displayName || '').toLowerCase();
-        if (
-          !rawLower ||
-          usernameLower.includes(rawLower) ||
-          (normalizedHandle && usernameLower.includes(normalizedHandle)) ||
-          displayLower.includes(rawLower)
-        ) {
+        if (matchesQuery(usernameLower, displayLower)) {
           byId.set(docSnap.id, docToPublicProfile(docSnap.id, d));
         }
       });
@@ -548,12 +561,7 @@ export async function searchRealUsers(
         const d = docSnap.data();
         const usernameLower = String(d.usernameLower || d.username || '').toLowerCase();
         const displayLower = String(d.displayName || '').toLowerCase();
-        if (
-          !rawLower ||
-          usernameLower.includes(rawLower) ||
-          (normalizedHandle && usernameLower.includes(normalizedHandle)) ||
-          displayLower.includes(rawLower)
-        ) {
+        if (matchesQuery(usernameLower, displayLower)) {
           byId.set(docSnap.id, docToPublicProfile(docSnap.id, d));
         }
       });
@@ -578,12 +586,7 @@ export async function searchRealUsers(
     if (!rawLower) return true;
     const u = p.username.toLowerCase();
     const dn = p.displayName.toLowerCase();
-    return (
-      p.id === rawTrimmed ||
-      u.includes(rawLower) ||
-      (normalizedHandle ? u.includes(normalizedHandle) : false) ||
-      dn.includes(rawLower)
-    );
+    return p.id === rawTrimmed || matchesQuery(u, dn);
   });
 
   if (rawLower) {

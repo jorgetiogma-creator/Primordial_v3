@@ -28,6 +28,7 @@ import { RESERVED_OWNER_USERNAME } from '../utils/ownerAccess';
 interface AuthViewProps {
   accounts: StoredAccount[];
   onLoginAccount: (account: StoredAccount) => void;
+  onCloudLogin?: (identifier: string, password: string) => Promise<boolean>;
   onRegisterAccount: (payload: {
     contact: string;
     contactType: 'phone' | 'email';
@@ -39,21 +40,6 @@ interface AuthViewProps {
     backupCodes?: string[];
   }) => void;
   onResetPassword?: (accountId: string, newPassword: string) => void;
-  onGoogleSignIn?: () => Promise<void>;
-  googleLoading?: boolean;
-  googleError?: string | null;
-  pendingGoogleUser?: {
-    uid: string;
-    email: string | null;
-    displayName: string;
-    photoURL?: string | null;
-  } | null;
-  onCompleteGoogleProfile?: (payload: {
-    displayName: string;
-    username: string;
-    avatar: AvatarKey;
-  }) => Promise<string | null>;
-  onCancelGoogleProfile?: () => Promise<void>;
 }
 
 type AuthStep =
@@ -179,21 +165,12 @@ function buildQrMatrix(token: string): boolean[][] {
 export const AuthView: React.FC<AuthViewProps> = ({
   accounts,
   onLoginAccount,
+  onCloudLogin,
   onRegisterAccount,
   onResetPassword,
-  onGoogleSignIn,
-  googleLoading = false,
-  googleError = null,
-  pendingGoogleUser = null,
-  onCompleteGoogleProfile,
-  onCancelGoogleProfile,
 }) => {
   const [step, setStep] = useState<AuthStep>('welcome');
-  const [googleDisplayName, setGoogleDisplayName] = useState('');
-  const [googleUsername, setGoogleUsername] = useState('');
-  const [googleAvatar, setGoogleAvatar] = useState<AvatarKey>('madara');
-  const [googleSetupError, setGoogleSetupError] = useState<string | null>(null);
-  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [cloudLoginPending, setCloudLoginPending] = useState(false);
 
   // Login state
   const [loginMethod, setLoginMethod] = useState<LoginMethod>('password');
@@ -257,22 +234,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [regError, setRegError] = useState<string | null>(null);
 
   const selectedCountry = COUNTRY_CODES[countryIndex];
-
-  useEffect(() => {
-    if (pendingGoogleUser) {
-      const baseName = pendingGoogleUser.displayName?.trim() || 'Usuario';
-      setGoogleDisplayName((prev) => prev || baseName);
-      setGoogleUsername((prev) =>
-        prev ||
-        baseName
-          .toLowerCase()
-          .replace(/[^a-z0-9_.-]/g, '')
-          .slice(0, 20) ||
-        'usuario'
-      );
-      setGoogleSetupError(null);
-    }
-  }, [pendingGoogleUser]);
 
   // Countdown timers for lockout, TOTP 30s rotation, and QR expiration
   useEffect(() => {
@@ -380,7 +341,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
     setInfoBanner(null);
@@ -395,21 +356,33 @@ export const AuthView: React.FC<AuthViewProps> = ({
       return;
     }
 
-    const idClean = loginIdentifier.trim().toLowerCase();
+    const idClean = loginIdentifier.trim().toLowerCase().replace(/^@+/, '');
     if (!idClean || !loginPassword.trim()) {
-      setLoginError('Introduce tu correo/teléfono/usuario y contraseña.');
+      setLoginError('Introduce tu usuario/correo y contraseña.');
       return;
     }
 
     const found = accounts.find(
       (acc) =>
         acc.contact.toLowerCase() === idClean ||
-        acc.user.username.toLowerCase() === idClean ||
+        acc.user.username.toLowerCase().replace(/^@+/, '') === idClean ||
         acc.user.displayName.toLowerCase() === idClean
     );
 
     if (!found) {
-      registerFailedAttempt('No encontramos esa cuenta. Verifica tus datos o regístrate.');
+      if (onCloudLogin) {
+        setCloudLoginPending(true);
+        const signedIn = await onCloudLogin(loginIdentifier.trim(), loginPassword.trim()).catch(
+          () => false
+        );
+        setCloudLoginPending(false);
+        if (signedIn) {
+          setFailedAttempts(0);
+          setChallengeSolved(false);
+          return;
+        }
+      }
+      registerFailedAttempt('No encontramos esa cuenta. Verifica tus datos o créate una nueva.');
       return;
     }
 
@@ -641,12 +614,14 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
     const contact =
       contactMode === 'phone'
-        ? `${selectedCountry.dial} ${phoneNumber.trim()}`
-        : emailAddress.trim();
+        ? phoneNumber.trim()
+          ? `${selectedCountry.dial} ${phoneNumber.trim()}`
+          : `${uname}@users.primordial.app`
+        : emailAddress.trim() || `${uname}@users.primordial.app`;
 
     onRegisterAccount({
       contact,
-      contactType: contactMode,
+      contactType: emailAddress.trim() ? 'email' : contactMode,
       displayName: display,
       username: uname,
       password: regPassword.trim(),
@@ -656,137 +631,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
     });
   };
 
-  /* ---------------- 0. COMPLETE GOOGLE REAL PROFILE ---------------- */
-  if (pendingGoogleUser && onCompleteGoogleProfile) {
-    const handleGoogleProfileSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      const cleanName = googleDisplayName.trim();
-      const cleanUser = googleUsername
-        .trim()
-        .toLowerCase()
-        .replace(/^@+/, '')
-        .replace(/[^a-z0-9_.-]/g, '');
-      if (!cleanName || cleanUser.length < 2) {
-        setGoogleSetupError('Escribe tu nombre y un @usuario de al menos 2 caracteres.');
-        return;
-      }
-      if (cleanUser === RESERVED_OWNER_USERNAME && pendingGoogleUser.email?.toLowerCase() !== 'emaneriera@gmail.com') {
-        setGoogleSetupError('Ese nombre de usuario está reservado.');
-        return;
-      }
-      setGoogleSubmitting(true);
-      setGoogleSetupError(null);
-      const err = await onCompleteGoogleProfile({
-        displayName: cleanName,
-        username: cleanUser,
-        avatar: googleAvatar,
-      });
-      setGoogleSubmitting(false);
-      if (err) setGoogleSetupError(err);
-    };
 
-    return (
-      <div className="w-screen h-screen bg-[#14151a] text-white flex flex-col overflow-y-auto relative">
-        <header className="h-14 px-4 flex items-center justify-between shrink-0">
-          <button
-            type="button"
-            onClick={() => void onCancelGoogleProfile?.()}
-            className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
-            aria-label="Cerrar"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[11px] font-bold text-emerald-300">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Cuenta verificada</span>
-          </span>
-        </header>
-
-        <form
-          onSubmit={handleGoogleProfileSubmit}
-          className="flex-1 px-5 pt-2 pb-8 max-w-md mx-auto w-full space-y-4"
-        >
-          <div className="text-center space-y-1">
-            <h1 className="font-display font-bold text-[24px] text-white">
-              Elige tu @usuario único
-            </h1>
-            <p className="text-xs text-zinc-400">
-              Tus amigos te encontrarán y te enviarán mensajes reales usando este usuario.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-[13px] font-semibold text-zinc-300">Elige tu avatar</label>
-            <div className="flex items-center justify-between gap-2 bg-[#0b0c10] border border-white/[0.08] rounded-2xl p-2.5">
-              {AVATAR_CHOICES.map((av) => (
-                <button
-                  key={av.id}
-                  type="button"
-                  onClick={() => setGoogleAvatar(av.id)}
-                  className={`p-1 rounded-full transition-all cursor-pointer ${
-                    googleAvatar === av.id
-                      ? 'ring-2 ring-[#5865F2] scale-110'
-                      : 'opacity-65 hover:opacity-100'
-                  }`}
-                  title={av.label}
-                >
-                  <UserAvatar avatar={av.id} size="md" showStatus={false} />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-[13px] font-semibold text-zinc-300">
-              Nombre para mostrar
-            </label>
-            <input
-              type="text"
-              maxLength={40}
-              value={googleDisplayName}
-              onChange={(e) => setGoogleDisplayName(e.target.value)}
-              placeholder="Ej. Tu nombre"
-              className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-[13px] font-semibold text-zinc-300">
-              Usuario único (@handle)
-            </label>
-            <div className="h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] px-4 flex items-center gap-1.5 focus-within:border-[#5865F2]">
-              <span className="text-zinc-500 font-bold">@</span>
-              <input
-                type="text"
-                maxLength={32}
-                value={googleUsername}
-                onChange={(e) =>
-                  setGoogleUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))
-                }
-                placeholder="tu_usuario"
-                className="flex-1 bg-transparent text-[15px] text-white placeholder:text-zinc-600 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {googleSetupError && (
-            <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">
-              {googleSetupError}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={googleSubmitting}
-            className="w-full h-12 rounded-full bg-[#5865F2] hover:bg-[#4752C4] disabled:opacity-60 text-white font-display font-bold text-[15px] flex items-center justify-center gap-2 shadow-lg cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>{googleSubmitting ? 'Guardando perfil...' : 'Completar perfil y entrar'}</span>
-          </button>
-        </form>
-      </div>
-    );
-  }
 
   /* ---------------- 1. WELCOME COSMIC SCREEN ---------------- */
   if (step === 'welcome') {
@@ -850,54 +695,29 @@ export const AuthView: React.FC<AuthViewProps> = ({
         </div>
 
         <div className="relative z-10 px-5 pb-8 pt-4 max-w-md mx-auto w-full space-y-3">
-          {googleError && (
-            <p className="text-xs font-semibold text-rose-200 bg-rose-500/20 border border-rose-400/40 rounded-xl px-3 py-2 text-center">
-              {googleError}
-            </p>
-          )}
-
-          {onGoogleSignIn && (
-            <button
-              type="button"
-              disabled={googleLoading}
-              onClick={() => void onGoogleSignIn()}
-              className="w-full h-12 rounded-full bg-white hover:bg-zinc-100 disabled:opacity-65 text-[#0b1033] font-display font-bold text-[15.5px] shadow-xl flex items-center justify-center gap-2.5 transition-transform active:scale-[0.985] cursor-pointer"
-            >
-              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z" />
-                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z" />
-                <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z" />
-                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z" />
-              </svg>
-              <span>{googleLoading ? 'Conectando...' : 'Continuar con Google'}</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => {
               setRegError(null);
               setStep('register-contact');
             }}
-            className="w-full h-12 rounded-full bg-[#15246b]/90 hover:bg-[#1c2f85] border border-white/20 text-white font-display font-bold text-[15.5px] shadow-lg transition-transform active:scale-[0.985] cursor-pointer"
+            className="w-full h-12 rounded-full bg-white hover:bg-zinc-100 text-[#0b1033] font-display font-bold text-[15.5px] shadow-xl flex items-center justify-center gap-2 transition-transform active:scale-[0.985] cursor-pointer"
           >
-            Crear cuenta local
+            Crear cuenta
           </button>
 
-          {accounts.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setLoginError(null);
-                setInfoBanner(null);
-                setLoginMethod('password');
-                setStep('login');
-              }}
-              className="w-full h-11 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white/95 font-display font-semibold text-[14.5px] transition-transform active:scale-[0.985] cursor-pointer"
-            >
-              Iniciar sesión con cuenta guardada
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setLoginError(null);
+              setInfoBanner(null);
+              setLoginMethod('password');
+              setStep('login');
+            }}
+            className="w-full h-12 rounded-full bg-[#15246b]/90 hover:bg-[#1c2f85] border border-white/20 text-white font-display font-bold text-[15px] transition-transform active:scale-[0.985] cursor-pointer"
+          >
+            {accounts.length > 0 ? 'Iniciar sesión' : 'Ya tengo una cuenta'}
+          </button>
         </div>
       </div>
     );
@@ -1497,26 +1317,19 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
                 <button
                   type="submit"
-                  disabled={lockoutSeconds > 0}
+                  disabled={lockoutSeconds > 0 || cloudLoginPending}
                   className={`w-full h-12 rounded-full font-display font-bold text-[15px] shadow-lg transition-colors mt-1 ${
-                    lockoutSeconds > 0
+                    lockoutSeconds > 0 || cloudLoginPending
                       ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                       : 'bg-[#5865F2] hover:bg-[#4752C4] text-white cursor-pointer'
                   }`}
                 >
-                  {lockoutSeconds > 0 ? `Bloqueado (${lockoutSeconds}s)` : 'Iniciar sesión'}
+                  {lockoutSeconds > 0
+                    ? `Bloqueado (${lockoutSeconds}s)`
+                    : cloudLoginPending
+                      ? 'Conectando...'
+                      : 'Iniciar sesión'}
                 </button>
-
-                {onGoogleSignIn && (
-                  <button
-                    type="button"
-                    disabled={googleLoading}
-                    onClick={() => void onGoogleSignIn()}
-                    className="w-full h-11 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white font-display font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>{googleLoading ? 'Conectando...' : 'Continuar con Google'}</span>
-                  </button>
-                )}
               </form>
             )}
 
@@ -1795,6 +1608,17 @@ export const AuthView: React.FC<AuthViewProps> = ({
             }`}
           >
             Siguiente
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setRegError(null);
+              setStep('register-profile');
+            }}
+            className="w-full py-2 text-xs font-semibold text-indigo-300 hover:text-white transition-colors cursor-pointer"
+          >
+            Continuar solo con usuario y nombre →
           </button>
         </form>
       </div>

@@ -18,11 +18,15 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db, googleProvider } from './lib/firebase';
 import {
-  claimProfileWithUsername,
+  auth,
+  db,
+  ensureFirebaseSessionForAppAccount,
+  signInCloudAccountWithCredentials,
+} from './lib/firebase';
+import {
   createFirestoreChannel,
   createFirestoreServer,
   deleteFirestoreChannel,
@@ -31,7 +35,6 @@ import {
   fetchDiscoverableServers,
   fetchUserAccountBundle,
   getOrCreateDmThread,
-  isUsernameAvailable,
   joinFirestoreServer,
   kickFirestoreServerMember,
   leaveFirestoreServer,
@@ -377,14 +380,8 @@ export default function App() {
 
   const [firebaseUid, setFirebaseUid] = useState<string | null>(null);
   const [firebaseEmail, setFirebaseEmail] = useState<string | null>(null);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleError, setGoogleError] = useState<string | null>(null);
-  const [pendingGoogleUser, setPendingGoogleUser] = useState<{
-    uid: string;
-    email: string | null;
-    displayName: string;
-    photoURL?: string | null;
-  } | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authProviderNeedsSetup, setAuthProviderNeedsSetup] = useState(false);
   const [joinedServerIds, setJoinedServerIds] = useState<string[]>([]);
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>([]);
   const [discoverableServers, setDiscoverableServers] = useState<Server[]>([]);
@@ -479,12 +476,130 @@ export default function App() {
     accountsRef.current = accounts;
   }, [accounts]);
 
+  const activeAccountIdRef = useRef(activeAccountId);
+  useEffect(() => {
+    activeAccountIdRef.current = activeAccountId;
+  }, [activeAccountId]);
+
+  const claimingCloudRef = useRef(false);
+  const autoCloudAttemptedRef = useRef<string | null>(null);
+
+  const syncAppAccountToCloud = useCallback(
+    async (params: {
+      accountId: string;
+      localUser: UserProfile;
+      email?: string | null;
+      password?: string | null;
+      ownedBundleIds: string[];
+      wishlistIds: string[];
+      claimedQuestIds: string[];
+      joinedServerIds: string[];
+      isOwnerAccount: boolean;
+      createIfMissing?: boolean;
+    }): Promise<boolean> => {
+      claimingCloudRef.current = true;
+      try {
+        const session = await ensureFirebaseSessionForAppAccount({
+          email: params.email || params.localUser.email,
+          username: params.localUser.username,
+          password: params.password,
+          createIfMissing: params.createIfMissing,
+        });
+
+        if (session.authProviderDisabled) {
+          setAuthProviderNeedsSetup(true);
+          return false;
+        }
+
+        if (!session.uid) return false;
+
+        setAuthProviderNeedsSetup(false);
+        const uid = session.uid;
+        setFirebaseUid(uid);
+        setFirebaseEmail(session.email || null);
+
+        const existingBundle = await fetchUserAccountBundle(uid).catch(() => null);
+        if (existingBundle) {
+          const safeCloudUser = sanitizeUserShopCosmetics(
+            { ...INITIAL_USER, ...existingBundle.user, id: uid },
+            existingBundle.ownedBundleIds,
+            INITIAL_SHOP_BUNDLES,
+            existingBundle.isOwnerAccount
+          );
+          hydratedUidRef.current = uid;
+          setUser(safeCloudUser);
+          setOwnedBundleIds(existingBundle.ownedBundleIds);
+          setWishlistIds(existingBundle.wishlistIds);
+          setClaimedQuestIds(existingBundle.claimedQuestIds);
+          setQuests(
+            INITIAL_QUESTS.map((q) => ({
+              ...q,
+              claimed: existingBundle.claimedQuestIds.includes(q.id),
+            }))
+          );
+          setJoinedServerIds(existingBundle.joinedServerIds);
+        } else {
+          const syncedUser: UserProfile = {
+            ...params.localUser,
+            id: uid,
+            username:
+              normalizeUsernameHandle(params.localUser.username) ||
+              uid.slice(0, 12).toLowerCase(),
+          };
+          await syncUserAccountToFirestore(uid, syncedUser, {
+            ownedBundleIds: params.ownedBundleIds,
+            wishlistIds: params.wishlistIds,
+            claimedQuestIds: params.claimedQuestIds,
+            joinedServerIds: params.joinedServerIds,
+            isOwnerAccount: params.isOwnerAccount,
+          });
+          hydratedUidRef.current = uid;
+          setUser(syncedUser);
+        }
+
+        setAccounts((prev) => {
+          const existsTarget = prev.some((a) => a.id === uid);
+          if (existsTarget) {
+            return prev.map((a) =>
+              a.id === uid
+                ? { ...a, user: { ...a.user, id: uid } }
+                : a
+            );
+          }
+          const idx = prev.findIndex((a) => a.id === params.accountId);
+          if (idx === -1) return prev;
+          const updated = [...prev];
+          updated[idx] = {
+            ...updated[idx],
+            id: uid,
+            user: { ...updated[idx].user, id: uid },
+          };
+          return updated;
+        });
+
+        setActiveAccountId(uid);
+        try {
+          localStorage.setItem(SESSION_KEY, uid);
+        } catch {
+          /* ignore */
+        }
+        return true;
+      } catch (err) {
+        console.error('Error syncing app account to cloud:', err);
+        return false;
+      } finally {
+        claimingCloudRef.current = false;
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      setAuthReady(true);
       if (!fbUser) {
         setFirebaseUid(null);
         setFirebaseEmail(null);
-        setPendingGoogleUser(null);
         hydratedUidRef.current = null;
         setActiveAccountId((prev) => {
           if (!prev) return null;
@@ -504,7 +619,8 @@ export default function App() {
 
       setFirebaseUid(fbUser.uid);
       setFirebaseEmail(fbUser.email || null);
-      setGoogleError(null);
+
+      if (claimingCloudRef.current) return;
 
       try {
         const bundle = await fetchUserAccountBundle(fbUser.uid);
@@ -516,7 +632,6 @@ export default function App() {
             bundle.isOwnerAccount
           );
           hydratedUidRef.current = fbUser.uid;
-          setPendingGoogleUser(null);
           setUser(safeUser);
           setOwnedBundleIds(bundle.ownedBundleIds);
           setWishlistIds(bundle.wishlistIds);
@@ -537,26 +652,54 @@ export default function App() {
           } catch {
             /* ignore */
           }
-        } else {
+        } else if (!activeAccountIdRef.current) {
           hydratedUidRef.current = null;
-          setPendingGoogleUser({
-            uid: fbUser.uid,
-            email: fbUser.email,
-            displayName: fbUser.displayName || 'Usuario',
-            photoURL: fbUser.photoURL,
-          });
           setActiveAccountId(null);
         }
       } catch (err) {
         console.error('Error hydrating Firebase user:', err);
-        setGoogleError('No se pudo cargar tu perfil desde la nube. Inténtalo de nuevo.');
       }
     });
     return () => unsub();
   }, []);
 
+  // Migra automáticamente cualquier cuenta creada localmente antes de esta actualización hacia Firestore
   useEffect(() => {
-    if (!firebaseUid || hydratedUidRef.current !== firebaseUid || pendingGoogleUser) return;
+    if (!authReady || firebaseUid || !activeAccountId || claimingCloudRef.current) return;
+    if (autoCloudAttemptedRef.current === activeAccountId) return;
+    autoCloudAttemptedRef.current = activeAccountId;
+
+    const savedAcc = accounts.find((a) => a.id === activeAccountId);
+    const localProfile = savedAcc?.user || user;
+    if (!localProfile?.username) return;
+
+    void syncAppAccountToCloud({
+      accountId: activeAccountId,
+      localUser: localProfile,
+      email: savedAcc?.user.email || (savedAcc?.contact?.includes('@') ? savedAcc.contact : undefined),
+      password: savedAcc?.password,
+      ownedBundleIds: savedAcc?.ownedBundleIds || ownedBundleIds,
+      wishlistIds: savedAcc?.wishlistIds || wishlistIds,
+      claimedQuestIds,
+      joinedServerIds,
+      isOwnerAccount: Boolean(savedAcc?.isOwnerAccount),
+      createIfMissing: false,
+    });
+  }, [
+    authReady,
+    firebaseUid,
+    activeAccountId,
+    accounts,
+    user,
+    ownedBundleIds,
+    wishlistIds,
+    claimedQuestIds,
+    joinedServerIds,
+    syncAppAccountToCloud,
+  ]);
+
+  useEffect(() => {
+    if (!firebaseUid || hydratedUidRef.current !== firebaseUid) return;
     const timer = window.setTimeout(() => {
       void syncUserAccountToFirestore(firebaseUid, user, {
         ownedBundleIds,
@@ -569,7 +712,6 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [
     firebaseUid,
-    pendingGoogleUser,
     user,
     ownedBundleIds,
     wishlistIds,
@@ -579,7 +721,7 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    if (!firebaseUid || pendingGoogleUser) return;
+    if (!firebaseUid) return;
     const unsubDms = subscribeToDms(firebaseUid, (threads) => {
       setDms((prev) => {
         const msgMap = new Map(prev.map((d) => [d.id, d.messages]));
@@ -605,11 +747,11 @@ export default function App() {
       unsubNotifs();
       unsubFriendReqs();
     };
-  }, [firebaseUid, pendingGoogleUser]);
+  }, [firebaseUid]);
 
   // Conecta automáticamente cuentas reales entre @snuff y tu cuenta en la nube (sin bots)
   useEffect(() => {
-    if (!firebaseUid || pendingGoogleUser || hydratedUidRef.current !== firebaseUid) return;
+    if (!firebaseUid || hydratedUidRef.current !== firebaseUid) return;
     if (autoLinkedUidRef.current === firebaseUid) return;
     autoLinkedUidRef.current = firebaseUid;
 
@@ -629,11 +771,11 @@ export default function App() {
         targetHandle: 'owen',
       }).catch(() => undefined);
     }
-  }, [firebaseUid, pendingGoogleUser, user]);
+  }, [firebaseUid, user]);
 
   // Si @snuff recibe una solicitud de Jorge/Owen en tiempo real, acepta y abre su DM compartido
   useEffect(() => {
-    if (!firebaseUid || pendingGoogleUser || friendRequests.length === 0) return;
+    if (!firebaseUid || friendRequests.length === 0) return;
     const myHandle = normalizeUsernameHandle(user.username || '');
     if (myHandle !== 'snuff') return;
     for (const req of friendRequests) {
@@ -656,7 +798,7 @@ export default function App() {
           .catch(() => undefined);
       }
     }
-  }, [firebaseUid, pendingGoogleUser, friendRequests, user]);
+  }, [firebaseUid, friendRequests, user]);
 
   const activeDm = dms.find((d) => d.id === selectedDmId) || dms[0];
   const activeServer =
@@ -668,7 +810,6 @@ export default function App() {
   const activeDmId = activeDm?.id;
   const activeDmIsReal = Boolean(
     firebaseUid &&
-      !pendingGoogleUser &&
       activeContext.type === 'dm' &&
       activeDmId &&
       !activeDmId.startsWith('dm-grp-') &&
@@ -685,7 +826,7 @@ export default function App() {
 
   const joinedServerIdsKey = joinedServerIds.join('|');
   useEffect(() => {
-    if (!firebaseUid || pendingGoogleUser) return;
+    if (!firebaseUid) return;
     const ids = joinedServerIds.filter(Boolean);
     if (ids.length === 0) {
       setServers([]);
@@ -723,11 +864,11 @@ export default function App() {
       unsubs.forEach((u) => u());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firebaseUid, pendingGoogleUser, joinedServerIdsKey]);
+  }, [firebaseUid, joinedServerIdsKey]);
 
   const activeServerId = activeContext.type === 'server' ? activeContext.serverId : null;
   useEffect(() => {
-    if (!firebaseUid || pendingGoogleUser || !activeServerId || !selectedChannelId) return;
+    if (!firebaseUid || !activeServerId || !selectedChannelId) return;
     const unsub = subscribeToChannelMessages(activeServerId, selectedChannelId, (msgs) => {
       setServers((prev) =>
         prev.map((s) =>
@@ -743,7 +884,7 @@ export default function App() {
       );
     });
     return () => unsub();
-  }, [firebaseUid, pendingGoogleUser, activeServerId, selectedChannelId]);
+  }, [firebaseUid, activeServerId, selectedChannelId]);
 
   useEffect(() => {
     if (activeContext.type !== 'server') return;
@@ -2140,6 +2281,7 @@ export default function App() {
       owned,
       INITIAL_SHOP_BUNDLES
     );
+    autoCloudAttemptedRef.current = account.id;
     setActiveAccountId(account.id);
     setUser(safeUser);
     setOwnedBundleIds(owned);
@@ -2152,6 +2294,59 @@ export default function App() {
       /* ignore */
     }
     showToastMsg(`¡Sesión iniciada como ${safeUser.displayName}!`);
+    void syncAppAccountToCloud({
+      accountId: account.id,
+      localUser: safeUser,
+      email: safeUser.email || (account.contact.includes('@') ? account.contact : undefined),
+      password: account.password,
+      ownedBundleIds: owned,
+      wishlistIds: account.wishlistIds || [],
+      claimedQuestIds,
+      joinedServerIds,
+      isOwnerAccount: Boolean(account.isOwnerAccount),
+      createIfMissing: false,
+    });
+  };
+
+  const handleCloudLogin = async (identifier: string, password: string): Promise<boolean> => {
+    const res = await signInCloudAccountWithCredentials(identifier, password);
+    if (res.authProviderDisabled) {
+      setAuthProviderNeedsSetup(true);
+      showToastMsg('Activa Correo/Anónimo en Firebase Auth para iniciar sesión desde otro dispositivo');
+      return false;
+    }
+    if (!res.uid) return false;
+    const bundle = await fetchUserAccountBundle(res.uid).catch(() => null);
+    if (!bundle) return false;
+
+    const newAcc: StoredAccount = {
+      id: res.uid,
+      contact: identifier.trim(),
+      password,
+      isOwnerAccount: bundle.isOwnerAccount,
+      user: bundle.user,
+      ownedBundleIds: bundle.ownedBundleIds,
+      wishlistIds: bundle.wishlistIds,
+    };
+    setAccounts((prev) =>
+      prev.some((a) => a.id === res.uid) ? prev : [...prev, newAcc]
+    );
+    hydratedUidRef.current = res.uid;
+    setUser(bundle.user);
+    setOwnedBundleIds(bundle.ownedBundleIds);
+    setWishlistIds(bundle.wishlistIds);
+    setClaimedQuestIds(bundle.claimedQuestIds);
+    setJoinedServerIds(bundle.joinedServerIds);
+    setActiveAccountId(res.uid);
+    setScreen('inicio');
+    setMobileChatOpen(false);
+    try {
+      localStorage.setItem(SESSION_KEY, res.uid);
+    } catch {
+      /* ignore */
+    }
+    showToastMsg(`¡Bienvenido de vuelta, ${bundle.user.displayName}!`);
+    return true;
   };
 
   const handleRegisterAccount = (payload: {
@@ -2164,12 +2359,13 @@ export default function App() {
     twoFactorEnabled?: boolean;
     backupCodes?: string[];
   }) => {
+    const cleanHandle = normalizeUsernameHandle(payload.username) || `user${Date.now().toString().slice(-5)}`;
     const newId = `acc-${Date.now()}`;
     const newUser: UserProfile = {
       id: `me-${Date.now()}`,
       displayName: payload.displayName,
-      username: payload.username,
-      ...(payload.contactType === 'email'
+      username: cleanHandle,
+      ...(payload.contactType === 'email' && !payload.contact.endsWith('@users.primordial.app')
         ? { email: payload.contact }
         : { phone: payload.contact }),
       pronouns: '',
@@ -2202,7 +2398,7 @@ export default function App() {
     );
     const shouldPinOwner =
       !hasExistingOwner &&
-      payload.username.trim().toLowerCase() === RESERVED_OWNER_USERNAME &&
+      cleanHandle === RESERVED_OWNER_USERNAME &&
       payload.displayName.trim().toLowerCase() === 'owen';
 
     const newAccount: StoredAccount = {
@@ -2216,6 +2412,7 @@ export default function App() {
       ownedBundleIds: [],
       wishlistIds: [],
     };
+    autoCloudAttemptedRef.current = newId;
     setAccounts((prev) => normalizeSingleOwnerAccounts([...prev, newAccount]));
     setActiveAccountId(newId);
     setUser(newUser);
@@ -2230,6 +2427,18 @@ export default function App() {
       /* ignore */
     }
     showToastMsg(`¡Bienvenido a Primordial, ${payload.displayName}! (+1.200 Orbs)`);
+    void syncAppAccountToCloud({
+      accountId: newId,
+      localUser: newUser,
+      email: payload.contactType === 'email' ? payload.contact : undefined,
+      password: payload.password,
+      ownedBundleIds: [],
+      wishlistIds: [],
+      claimedQuestIds: [],
+      joinedServerIds: [],
+      isOwnerAccount: shouldPinOwner,
+      createIfMissing: true,
+    });
   };
 
   const handleResetAccountPassword = (accountId: string, newPassword: string) => {
@@ -2312,77 +2521,6 @@ export default function App() {
     showToastMsg('¡Todo desbloqueado al máximo para tu cuenta Owner!');
   };
 
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    setGoogleError(null);
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.includes('popup-closed-by-user')) {
-        setGoogleError('No se pudo completar el inicio con Google. Inténtalo de nuevo.');
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  const handleCompleteGoogleProfile = async (payload: {
-    displayName: string;
-    username: string;
-    avatar: AvatarKey;
-  }): Promise<string | null> => {
-    if (!pendingGoogleUser) return 'No hay una sesión de Google pendiente.';
-    const cleanHandle = normalizeUsernameHandle(payload.username);
-    if (cleanHandle.length < 2) {
-      return 'Tu @usuario debe tener al menos 2 caracteres válidos (letras, números, . _ -).';
-    }
-    try {
-      const available = await isUsernameAvailable(cleanHandle);
-      if (!available) {
-        return `El @usuario "${cleanHandle}" ya está ocupado por otra persona.`;
-      }
-      const bundle = await claimProfileWithUsername({
-        uid: pendingGoogleUser.uid,
-        email: pendingGoogleUser.email,
-        displayName: payload.displayName,
-        username: cleanHandle,
-        avatar: payload.avatar,
-        customAvatarUrl: pendingGoogleUser.photoURL || undefined,
-      });
-      hydratedUidRef.current = bundle.user.id;
-      setPendingGoogleUser(null);
-      setUser(bundle.user);
-      setOwnedBundleIds([]);
-      setWishlistIds([]);
-      setClaimedQuestIds([]);
-      setQuests(INITIAL_QUESTS);
-      setJoinedServerIds([]);
-      setDms([]);
-      setServers([]);
-      setNotifications([]);
-      setActiveAccountId(bundle.user.id);
-      try {
-        localStorage.setItem(SESSION_KEY, bundle.user.id);
-      } catch {
-        /* ignore */
-      }
-      showToastMsg(`¡Bienvenido a Primordial, @${bundle.user.username}!`);
-      return null;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('permission')) {
-        return `No se pudo reservar @${cleanHandle}. Es posible que ya esté en uso.`;
-      }
-      return 'Ocurrió un error creando tu cuenta. Inténtalo de nuevo.';
-    }
-  };
-
-  const handleCancelGoogleProfile = async () => {
-    setPendingGoogleUser(null);
-    await signOut(auth).catch(() => undefined);
-  };
-
   const handleLogout = () => {
     try {
       localStorage.removeItem(SESSION_KEY);
@@ -2391,7 +2529,8 @@ export default function App() {
     }
     hydratedUidRef.current = null;
     autoLinkedUidRef.current = null;
-    setPendingGoogleUser(null);
+    autoCloudAttemptedRef.current = null;
+    claimingCloudRef.current = false;
     setShowOwnerPanel(false);
     setActiveAccountId(null);
     setJoinedServerIds([]);
@@ -2644,7 +2783,11 @@ export default function App() {
       .replace(/^primordial\.gg\//i, '');
     if (!cleanId) return false;
     if (!firebaseUid) {
-      showToastMsg('Inicia sesión con Google para unirte a servidores reales');
+      showToastMsg(
+        authProviderNeedsSetup
+          ? 'Activa Correo/Anónimo en Firebase Auth para unirte a servidores en la nube'
+          : 'Conectando con la nube... Intenta de nuevo en unos segundos'
+      );
       return false;
     }
     try {
@@ -2678,7 +2821,11 @@ export default function App() {
       return;
     }
     if (!firebaseUid) {
-      showToastMsg('Inicia sesión con Google para chatear con cuentas reales');
+      showToastMsg(
+        authProviderNeedsSetup
+          ? 'Activa Correo/Anónimo en Firebase Auth para chatear en la nube'
+          : 'Conectando con la nube... Intenta de nuevo en unos segundos'
+      );
       return;
     }
     try {
@@ -3297,7 +3444,7 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!firebaseUid || pendingGoogleUser || !realDmIdsKey) {
+    if (!firebaseUid || !realDmIdsKey) {
       setIncomingCalls([]);
       return;
     }
@@ -3305,7 +3452,7 @@ export default function App() {
     return subscribeToIncomingDmCalls(ids, firebaseUid, (calls) => {
       setIncomingCalls(calls);
     });
-  }, [firebaseUid, pendingGoogleUser, realDmIdsKey]);
+  }, [firebaseUid, realDmIdsKey]);
 
   // Sincroniza participantes conectados en canales de voz del servidor
   useEffect(() => {
@@ -3527,6 +3674,28 @@ export default function App() {
           dms={dms}
           friendRequests={friendRequests}
           isCloudConnected={Boolean(firebaseUid)}
+          authProviderNeedsSetup={authProviderNeedsSetup}
+          onRetryCloudSync={() => {
+            if (!activeAccountId) return;
+            const savedAcc = accounts.find((a) => a.id === activeAccountId);
+            autoCloudAttemptedRef.current = null;
+            void syncAppAccountToCloud({
+              accountId: activeAccountId,
+              localUser: savedAcc?.user || user,
+              email: savedAcc?.user.email,
+              password: savedAcc?.password,
+              ownedBundleIds,
+              wishlistIds,
+              claimedQuestIds,
+              joinedServerIds,
+              isOwnerAccount: Boolean(savedAcc?.isOwnerAccount),
+              createIfMissing: true,
+            }).then((ok) => {
+              if (ok) {
+                showToastMsg('¡Conectado a la nube! Ya puedes buscar amigos.');
+              }
+            });
+          }}
           onBack={() => setScreen('inicio')}
           onOpenDm={handleSelectDm}
           onAddFriend={handleAddFriend}
@@ -3753,14 +3922,9 @@ export default function App() {
       <AuthView
         accounts={accounts}
         onLoginAccount={handleLoginAccount}
+        onCloudLogin={handleCloudLogin}
         onRegisterAccount={handleRegisterAccount}
         onResetPassword={handleResetAccountPassword}
-        onGoogleSignIn={handleGoogleSignIn}
-        googleLoading={googleLoading}
-        googleError={googleError}
-        pendingGoogleUser={pendingGoogleUser}
-        onCompleteGoogleProfile={handleCompleteGoogleProfile}
-        onCancelGoogleProfile={handleCancelGoogleProfile}
       />
     );
   }

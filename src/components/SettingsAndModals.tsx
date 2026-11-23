@@ -776,6 +776,8 @@ export const FriendsView: React.FC<{
   dms: DirectMessageThread[];
   friendRequests?: FriendRequestItem[];
   isCloudConnected?: boolean;
+  authProviderNeedsSetup?: boolean;
+  onRetryCloudSync?: () => void;
   onBack: () => void;
   onOpenDm: (dmId: string) => void;
   onAddFriend: (
@@ -791,6 +793,8 @@ export const FriendsView: React.FC<{
   dms,
   friendRequests = [],
   isCloudConnected = true,
+  authProviderNeedsSetup = false,
+  onRetryCloudSync,
   onBack,
   onOpenDm,
   onAddFriend,
@@ -841,12 +845,21 @@ export const FriendsView: React.FC<{
         .catch((err: unknown) => {
           if (!cancelled) {
             setRealUsers([]);
-            const msg = err instanceof Error ? err.message : '';
-            setSearchError(
-              msg
-                ? `Error al buscar en la nube: ${msg}`
-                : 'No se pudo consultar el directorio de usuarios.'
-            );
+            const raw = err instanceof Error ? err.message : '';
+            let cleanErr = 'No se pudo consultar el directorio de usuarios en la nube.';
+            if (raw.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(raw) as { error?: string };
+                if (parsed.error?.toLowerCase().includes('permission')) {
+                  cleanErr = 'Tu sesión necesita reconectarse con la nube para consultar usuarios.';
+                }
+              } catch {
+                /* ignore */
+              }
+            } else if (raw && !raw.includes('Missing or insufficient permissions')) {
+              cleanErr = `No se pudo buscar ahora mismo (${raw}).`;
+            }
+            setSearchError(cleanErr);
           }
         })
         .finally(() => {
@@ -910,7 +923,7 @@ export const FriendsView: React.FC<{
           setErrorMsg(
             multiple
               ? `Hay ${pool.length} cuentas parecidas a «${clean}». Toca «Enviar solicitud» o «Chatear» en la cuenta exacta de abajo.`
-              : `No encontramos ninguna cuenta real con «${clean}». Verifica el @usuario exacto o revisa que esa persona haya entrado con Google.`
+              : `No encontramos ninguna cuenta con «${clean}». Verifica el @usuario o nombre real exacto y asegúrate de que esa persona haya abierto su cuenta actualizada en Primordial.`
           );
           return;
         }
@@ -926,7 +939,7 @@ export const FriendsView: React.FC<{
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : '';
         setErrorMsg(
-          msg
+          msg && !msg.startsWith('{')
             ? `No se pudo añadir al usuario: ${msg}`
             : 'Ocurrió un error buscando o enviando la solicitud.'
         );
@@ -1047,8 +1060,21 @@ export const FriendsView: React.FC<{
         ) : tab === 'add' ? (
           <>
             {!isCloudConnected && (
-              <div className="rounded-2xl bg-amber-500/12 border border-amber-400/35 p-3.5 text-xs text-amber-200 font-medium leading-relaxed">
-                {t('friends.cloudRequired')}
+              <div className="rounded-2xl bg-amber-500/12 border border-amber-400/35 p-3.5 text-xs text-amber-200 font-medium leading-relaxed flex flex-col gap-2">
+                <p>
+                  {authProviderNeedsSetup
+                    ? 'Falta activar los métodos de acceso «Correo electrónico/Contraseña» y «Anónimo» en Firebase Authentication para sincronizar usuarios sin Google.'
+                    : t('friends.cloudRequired')}
+                </p>
+                {onRetryCloudSync && (
+                  <button
+                    type="button"
+                    onClick={onRetryCloudSync}
+                    className="self-start px-3 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 text-amber-100 font-bold text-[11px] cursor-pointer"
+                  >
+                    Reintentar conexión con la nube
+                  </button>
+                )}
               </div>
             )}
 
@@ -1207,7 +1233,7 @@ export const FriendsView: React.FC<{
                     {q ? `Sin cuentas reales para «${friendHandle.trim()}»` : 'Aún no hay otros usuarios registrados'}
                   </p>
                   <p className="text-xs text-zinc-400">
-                    Cuando otra persona inicie sesión con Google y cree su @usuario, aparecerá aquí al instante para chatear contigo.
+                    Cuando otra persona cree su cuenta o inicie sesión en Primordial, aparecerá aquí al instante para buscarla por su @usuario o nombre real.
                   </p>
                 </div>
               )}

@@ -1,7 +1,7 @@
 # Security Specification & Invariants — Primordial
 
 ## 1. Access Control Invariants
-- **Verified Identity Gate**: Every authenticated read/write requires `request.auth != null && request.auth.token.email_verified == true` (excluding `/test/connection` health-check `get`).
+- **Authenticated Identity Gate**: Every authenticated read/write requires `request.auth != null` (excluding `/test/connection` health-check `get`), while designated app owner privilege (`isOwnerAccount: true`) strictly requires `request.auth.token.email_verified == true && request.auth.token.email == 'emaneriera@gmail.com'`.
 - **PII & Wallet Isolation**: Sensitive data (`orbs`, `ownedBundleIds`, `wishlistIds`, `isOwnerAccount`) lives strictly under `/users/{uid}/private/account`, readable and writable only when `request.auth.uid == uid`.
 - **Single Owner Privilege Lock**: `isOwnerAccount == true` on `/users/{uid}/private/account` is enforced in rules so ONLY the designated project owner email (`emaneriera@gmail.com`) may hold `isOwnerAccount: true`.
 - **Server Ownership & Admin Enforcement**:

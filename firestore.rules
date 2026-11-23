@@ -10,15 +10,17 @@ service cloud.firestore {
     }
 
     function isVerifiedUser() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn();
     }
 
     function isOwner(userId) {
-      return isVerifiedUser() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isDesignatedAppOwner() {
-      return isVerifiedUser() && request.auth.token.email == 'emaneriera@gmail.com';
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'emaneriera@gmail.com';
     }
 
     function isValidId(id) {

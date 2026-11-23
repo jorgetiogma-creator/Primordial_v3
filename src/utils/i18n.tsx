@@ -127,7 +127,7 @@ const ES_DICT = {
   'friends.emptyAll': 'Aún no has añadido amigos.',
   'friends.searchFriendsCta': 'Buscar amigos',
   'friends.cloudRequired':
-    'Estás usando una cuenta local. Inicia sesión con Google para buscar y añadir usuarios reales en la nube.',
+    'Conectando tu cuenta con la nube para buscar amigos por @usuario o nombre real. Si tarda demasiado, revisa tu conexión o los métodos de acceso en Firebase.',
 
   // Notifications
   'notifications.title': 'Notificaciones',
@@ -268,7 +268,7 @@ const EN_DICT: Record<TranslationKey, string> = {
   'friends.emptyAll': 'You have not added any friends yet.',
   'friends.searchFriendsCta': 'Find Friends',
   'friends.cloudRequired':
-    'You are on a local account. Sign in with Google to search and add real cloud accounts.',
+    'Connecting your account to the cloud so you can search friends by @username or display name.',
   'notifications.title': 'Notifications',
   'notifications.markAllRead': 'Mark all as read',
   'notifications.tabAll': 'All',
@@ -401,7 +401,7 @@ const PT_DICT: Record<TranslationKey, string> = {
   'friends.emptyAll': 'Você ainda não adicionou amigos.',
   'friends.searchFriendsCta': 'Buscar amigos',
   'friends.cloudRequired':
-    'Você está em uma conta local. Entre com o Google para buscar usuários reais na nuvem.',
+    'Conectando sua conta à nuvem para buscar amigos por @usuário ou nome real.',
   'notifications.title': 'Notificações',
   'notifications.markAllRead': 'Marcar tudo como lido',
   'notifications.tabAll': 'Todas',
@@ -533,7 +533,7 @@ const FR_DICT: Record<TranslationKey, string> = {
   'friends.emptyAll': 'Vous n’avez pas encore ajouté d’amis.',
   'friends.searchFriendsCta': 'Trouver des amis',
   'friends.cloudRequired':
-    'Compte local actif. Connectez-vous avec Google pour rechercher de vrais comptes dans le cloud.',
+    'Connexion de votre compte au cloud pour rechercher des amis par @utilisateur ou nom réel.',
   'notifications.title': 'Notifications',
   'notifications.markAllRead': 'Tout marquer comme lu',
   'notifications.tabAll': 'Toutes',
@@ -664,7 +664,7 @@ const DE_DICT: Record<TranslationKey, string> = {
   'friends.emptyAll': 'Du hast noch keine Freunde hinzugefügt.',
   'friends.searchFriendsCta': 'Freunde suchen',
   'friends.cloudRequired':
-    'Du nutzt ein lokales Konto. Melde dich mit Google an, um echte Cloud-Nutzer zu suchen.',
+    'Konto wird mit der Cloud verbunden, um Freunde über @Benutzername oder Namen zu suchen.',
   'notifications.title': 'Mitteilungen',
   'notifications.markAllRead': 'Alle als gelesen markieren',
   'notifications.tabAll': 'Alle',
@@ -795,7 +795,7 @@ const IT_DICT: Record<TranslationKey, string> = {
   'friends.emptyAll': 'Non hai ancora aggiunto amici.',
   'friends.searchFriendsCta': 'Cerca amici',
   'friends.cloudRequired':
-    'Stai usando un account locale. Accedi con Google per cercare account reali nel cloud.',
+    'Connessione del tuo account al cloud per cercare amici per @utente o nome reale.',
   'notifications.title': 'Notifiche',
   'notifications.markAllRead': 'Segna tutto come letto',
   'notifications.tabAll': 'Tutte',
@@ -926,7 +926,7 @@ const JA_DICT: Record<TranslationKey, string> = {
   'friends.emptyAll': 'まだフレンドが追加されていません。',
   'friends.searchFriendsCta': 'フレンドを探す',
   'friends.cloudRequired':
-    'ローカルアカウントを使用中です。Googleでログインして実際のユーザーを検索してください。',
+    '@ユーザー名や表示名で友達を検索するためにクラウドへ接続しています。',
   'notifications.title': '通知',
   'notifications.markAllRead': 'すべて既読にする',
   'notifications.tabAll': 'すべて',
@@ -1057,7 +1057,7 @@ const KO_DICT: Record<TranslationKey, string> = {
   'friends.emptyAll': '아직 추가한 친구가 없습니다.',
   'friends.searchFriendsCta': '친구 찾기',
   'friends.cloudRequired':
-    '로컬 계정 사용 중입니다. Google로 로그인하여 실제 클라우드 사용자를 검색하세요.',
+    '@사용자명이나 이름으로 친구를 검색하기 위해 클라우드에 연결 중입니다.',
   'notifications.title': '알림',
   'notifications.markAllRead': '모두 읽음으로 표시',
   'notifications.tabAll': '전체',
