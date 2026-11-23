@@ -115,15 +115,30 @@ export function getDisplayNameTextPresentation(options: {
 
   const fontClass = getDisplayNameStyleClass(style);
 
-  if (!nitroUnlocked || !colorPreset || colorPreset === 'none') {
+  if (!nitroUnlocked) {
     return {
       className: `${fontClass} ${style === 'neon' && !fallbackColor ? 'text-sky-300' : ''}`.trim(),
       style: fallbackColor ? { color: fallbackColor } : {},
     };
   }
 
+  if (!colorPreset || colorPreset === 'none') {
+    return {
+      className: `${fontClass} ${style === 'neon' && !fallbackColor ? 'text-sky-300' : ''}`.trim(),
+      style: {
+        ...(fallbackColor ? { color: fallbackColor } : {}),
+        ...(glow
+          ? {
+              textShadow:
+                '0 0 12px rgba(168, 85, 247, 0.9), 0 0 24px rgba(88, 101, 242, 0.65)',
+            }
+          : {}),
+      },
+    };
+  }
+
   let pair: [string, string] = customColors;
-  let glowColor = `${customColors[1]}bb`;
+  let glowColor = `${customColors[1]}cc`;
 
   if (colorPreset !== 'custom') {
     const found = DISPLAY_NAME_COLOR_OPTIONS.find((p) => p.id === colorPreset);
@@ -136,11 +151,16 @@ export function getDisplayNameTextPresentation(options: {
   return {
     className: `${fontClass} dc-name-glow-shimmer bg-clip-text text-transparent`.trim(),
     style: {
+      display: 'inline-block',
+      maxWidth: '100%',
       backgroundImage: `linear-gradient(90deg, ${pair[0]} 0%, ${pair[1]} 55%, ${pair[0]} 100%)`,
+      backgroundClip: 'text',
       WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
       color: 'transparent',
+      textShadow: 'none',
       filter: glow
-        ? `drop-shadow(0 0 8px ${glowColor}) drop-shadow(0 1px 2px rgba(0,0,0,0.85))`
+        ? `drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 3px ${pair[0]}99) drop-shadow(0 1px 2px rgba(0,0,0,0.9))`
         : 'drop-shadow(0 1px 2px rgba(0,0,0,0.75))',
     },
   };

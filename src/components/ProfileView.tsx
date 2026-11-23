@@ -40,7 +40,6 @@ import {
 } from '../types/discord';
 import { BADGE_DEFINITIONS } from '../data/discordData';
 import { BadgeArtwork, isBadgeUnlocked } from './BadgesView';
-import { BoostGemIcon } from './ServerBoostView';
 import {
   AvatarDecorationRing,
   DiscordLogo,
@@ -87,6 +86,8 @@ interface ProfileViewProps {
   onNavigate: (screen: MainScreen) => void;
   onUpdateUser: (patch: Partial<UserProfile>) => void;
   onOpenBundle: (bundle: ShopBundle) => void;
+  onQueueNitroNameStyle?: (patch: Partial<UserProfile>) => void;
+  onShowToast?: (msg: string) => void;
 }
 
 const BANNER_PRESETS = ['#C41212', '#5865F2', '#10b981', '#dc2626', '#f59e0b', '#18181b'];
@@ -559,6 +560,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onNavigate,
   onUpdateUser,
   onOpenBundle,
+  onQueueNitroNameStyle,
+  onShowToast,
 }) => {
   const [activeTab, setActiveTab] = useState<'principal' | 'actividad' | 'deseos'>('principal');
   const [showTuneaCard, setShowTuneaCard] = useState(true);
@@ -594,7 +597,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // Draft state for editor
   const [draftName, setDraftName] = useState(user.displayName);
   const [draftNameStyle, setDraftNameStyle] = useState<DisplayNameStyle>(
-    user.displayNameStyle || 'gta'
+    user.displayNameStyle || 'default'
   );
   const [draftNameColorPreset, setDraftNameColorPreset] = useState<DisplayNameColorPreset>(
     user.displayNameColorPreset || 'none'
@@ -602,7 +605,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [draftNameCustomColors, setDraftNameCustomColors] = useState<[string, string]>(
     user.displayNameCustomColors || ['#ef233c', '#06b6d4']
   );
-  const [draftNameGlow, setDraftNameGlow] = useState<boolean>(user.displayNameGlow ?? true);
+  const [draftNameGlow, setDraftNameGlow] = useState<boolean>(
+    user.displayNameColorPreset && user.displayNameColorPreset !== 'none'
+      ? Boolean(user.displayNameGlow)
+      : true
+  );
   const [draftPronouns, setDraftPronouns] = useState(user.pronouns || '');
   const [draftBio, setDraftBio] = useState(user.bio);
   const [draftBanner, setDraftBanner] = useState(user.bannerColor);
@@ -625,7 +632,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const wishlistedBundles = shopBundles.filter((b) => wishlistIds.includes(b.id));
   const ownedCosmetics = getOwnedCosmetics(ownedBundleIds, shopBundles);
-  const nitroEffectsUnlocked = user.nitroTier !== 'none';
+  const nitroEffectsUnlocked = isOwner || user.nitroTier === 'nitro' || user.nitroTier === 'basic';
   const ownedBundles = shopBundles.filter((b) => ownedBundleIds.includes(b.id));
 
   const isDecoOwned = (id: DecorationId) =>
@@ -653,10 +660,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const syncDraftFromUser = () => {
     setDraftName(user.displayName);
-    setDraftNameStyle(user.displayNameStyle || 'gta');
+    setDraftNameStyle(user.displayNameStyle || 'default');
     setDraftNameColorPreset(user.displayNameColorPreset || 'none');
     setDraftNameCustomColors(user.displayNameCustomColors || ['#ef233c', '#06b6d4']);
-    setDraftNameGlow(user.displayNameGlow ?? true);
+    setDraftNameGlow(
+      user.displayNameColorPreset && user.displayNameColorPreset !== 'none'
+        ? Boolean(user.displayNameGlow)
+        : true
+    );
     setDraftPronouns(user.pronouns || '');
     setDraftBio(user.bio);
     setDraftBanner(user.bannerColor);
@@ -694,12 +705,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     user.profileEffect && user.profileEffect !== 'none' ? user.profileEffect : 'none';
 
   const saveProfile = () => {
+    if (!nitroEffectsUnlocked && draftNameColorPreset !== 'none') {
+      onQueueNitroNameStyle?.({
+        displayNameStyle: draftNameStyle,
+        displayNameColorPreset: draftNameColorPreset,
+        displayNameCustomColors: draftNameCustomColors,
+        displayNameGlow: draftNameGlow,
+      });
+      onShowToast?.('Activa Nitro para guardar el color con brillo en tu nombre.');
+    }
     onUpdateUser({
       displayName: draftName.trim() || user.displayName,
       displayNameStyle: draftNameStyle,
       displayNameColorPreset: nitroEffectsUnlocked ? draftNameColorPreset : 'none',
       displayNameCustomColors: draftNameCustomColors,
-      displayNameGlow: draftNameGlow,
+      displayNameGlow: nitroEffectsUnlocked ? draftNameGlow : false,
       pronouns: draftPronouns.trim(),
       bio: draftBio.slice(0, 300),
       bannerColor: draftBanner,
@@ -1104,41 +1124,44 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </button>
               )}
               {showTuneaCard && (
-                <div className="rounded-2xl bg-[var(--dc-bg-card)] border border-white/12 p-3.5 shadow-md">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[14px] font-semibold text-[var(--dc-text-primary)]">
-                      Tunea tu perfil
-                    </span>
-                    <button
-                      onClick={() => setShowTuneaCard(false)}
-                      aria-label="Cerrar tarjeta"
-                      className="w-7 h-7 rounded-full dc-btn-icon flex items-center justify-center cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => onNavigate('nitro')}
-                      className="h-10 rounded-full dc-btn-secondary text-[12.5px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap px-2"
-                    >
-                      <NitroWheelIcon className="w-4 h-4 text-[#5865F2] shrink-0" />
-                      <span>Nitro</span>
-                    </button>
-                    <button
-                      onClick={() => onNavigate('tienda')}
-                      className="h-10 rounded-full dc-btn-secondary text-[12.5px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap px-2"
-                    >
-                      <Store className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span>Tienda</span>
-                    </button>
-                    <button
-                      onClick={() => onNavigate('mejoras')}
-                      className="h-10 rounded-full dc-btn-secondary text-[12.5px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap px-2"
-                    >
-                      <BoostGemIcon className="w-4 h-4 shrink-0" />
-                      <span>Mejorar</span>
-                    </button>
+                <div className="p-[1.5px] rounded-2xl bg-gradient-to-r from-[#8b3dff] via-[#7c3aed] to-[#6d28d9] shadow-[0_8px_28px_-12px_rgba(139,61,255,0.55)]">
+                  <div className="rounded-[14.5px] bg-[#1a1b20] p-3.5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[15px] font-bold text-[#f2f3f5]">
+                        Tunea tu perfil
+                      </span>
+                      <button
+                        onClick={() => setShowTuneaCard(false)}
+                        aria-label="Cerrar tarjeta"
+                        className="w-7 h-7 rounded-full text-[#b5bac1] hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
+                      >
+                        <X className="w-4.5 h-4.5" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        onClick={() => onNavigate('nitro')}
+                        className="relative h-11 rounded-xl bg-[#2b2c34] hover:bg-[#343540] text-[#f2f3f5] text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap px-3 overflow-hidden transition-colors active:scale-[0.98]"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-0 left-[22%] w-10 -skew-x-[24deg] bg-white/[0.06]"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-0 left-[54%] w-5 -skew-x-[24deg] bg-white/[0.045]"
+                        />
+                        <NitroWheelIcon className="w-4.5 h-4.5 text-[#b5bac1] shrink-0 relative z-10" />
+                        <span className="relative z-10">Obtener Nitro</span>
+                      </button>
+                      <button
+                        onClick={() => onNavigate('tienda')}
+                        className="h-11 rounded-xl bg-[#2b2c34] hover:bg-[#343540] text-[#f2f3f5] text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap px-3 transition-colors active:scale-[0.98]"
+                      >
+                        <Store className="w-4.5 h-4.5 text-[#b5bac1] shrink-0" />
+                        <span>Tienda</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1311,43 +1334,43 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       <div className="absolute bottom-4 inset-x-0 flex justify-center px-4 pointer-events-none z-20">
         <nav
           aria-label="Accesos de perfil"
-          className="pointer-events-auto bg-[var(--dc-bg-sheet)]/95 backdrop-blur-md border border-[var(--dc-border)] rounded-3xl px-3 py-2 shadow-2xl grid grid-cols-4 gap-1 w-full max-w-[340px]"
+          className="pointer-events-auto bg-[#18191d] border border-white/[0.06] rounded-[28px] px-4 py-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.72)] grid grid-cols-4 gap-1 w-full max-w-[350px]"
         >
           <button
             onClick={() => onNavigate('misiones')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 text-[var(--dc-text-secondary)] hover:text-[var(--dc-text-primary)] transition-colors cursor-pointer relative active:scale-95"
+            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-white/[0.06] text-[#f2f3f5] transition-colors cursor-pointer relative active:scale-95"
           >
             <div className="relative">
-              <LaurelQuestIcon className="w-5 h-5" />
+              <LaurelQuestIcon className="w-6 h-6 text-[#f2f3f5]" />
               {hasUnclaimedQuests && (
-                <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-[#da373c] border-2 border-[var(--dc-bg-sheet)]" />
+                <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-[#f23f43]" />
               )}
             </div>
-            <span className="text-[11px] font-medium mt-1">Misiones</span>
+            <span className="text-[12px] font-semibold text-[#f2f3f5] mt-1">Misiones</span>
           </button>
 
           <button
             onClick={() => onNavigate('tienda')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 text-[var(--dc-text-secondary)] hover:text-[var(--dc-text-primary)] transition-colors cursor-pointer active:scale-95"
+            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-white/[0.06] text-[#f2f3f5] transition-colors cursor-pointer active:scale-95"
           >
-            <Store className="w-5 h-5" />
-            <span className="text-[11px] font-medium mt-1">Tienda</span>
+            <Store className="w-6 h-6 text-[#f2f3f5]" />
+            <span className="text-[12px] font-semibold text-[#f2f3f5] mt-1">Tienda</span>
           </button>
 
           <button
             onClick={() => onNavigate('nitro')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 text-[var(--dc-text-secondary)] hover:text-[var(--dc-text-primary)] transition-colors cursor-pointer active:scale-95"
+            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-white/[0.06] text-[#f2f3f5] transition-colors cursor-pointer active:scale-95"
           >
-            <NitroWheelIcon className="w-5 h-5" />
-            <span className="text-[11px] font-medium mt-1">Nitro</span>
+            <NitroWheelIcon className="w-6 h-6 text-[#f2f3f5]" />
+            <span className="text-[12px] font-semibold text-[#f2f3f5] mt-1">Nitro</span>
           </button>
 
           <button
             onClick={() => onNavigate('ajustes')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 text-[var(--dc-text-secondary)] hover:text-[var(--dc-text-primary)] transition-colors cursor-pointer active:scale-95"
+            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-white/[0.06] text-[#f2f3f5] transition-colors cursor-pointer active:scale-95"
           >
-            <Settings className="w-5 h-5" />
-            <span className="text-[11px] font-medium mt-1">Ajustes</span>
+            <Settings className="w-6 h-6 text-[#f2f3f5]" />
+            <span className="text-[12px] font-semibold text-[#f2f3f5] mt-1">Ajustes</span>
           </button>
         </nav>
       </div>
@@ -1547,7 +1570,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           nitroUnlocked: nitroEffectsUnlocked || nitroPreviewActive,
                         });
                         return (
-                          <h3 className={`text-[24px] text-white leading-tight ${draftPres.className}`} style={draftPres.style}>
+                          <h3
+                            className={`text-[24px] leading-tight ${
+                              effectivePreset === 'none' || !(nitroEffectsUnlocked || nitroPreviewActive)
+                                ? 'text-white'
+                                : ''
+                            } ${draftPres.className}`}
+                            style={draftPres.style}
+                          >
                             {draftName || user.displayName}
                           </h3>
                         );
@@ -1627,7 +1657,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                               ? 'crimson-cyan'
                               : draftNameColorPreset;
                           const pres = getDisplayNameTextPresentation({
-                            style: draftNameStyle === 'default' && !nitroEffectsUnlocked ? 'gta' : draftNameStyle,
+                            style: draftNameStyle,
                             colorPreset: previewPreset,
                             customColors: draftNameCustomColors,
                             glow: draftNameGlow,
@@ -1635,7 +1665,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           });
                           return (
                             <span
-                              className={`text-[28px] leading-none truncate ${pres.className}`}
+                              className={`text-[28px] leading-none truncate ${
+                                previewPreset === 'none' || !(nitroEffectsUnlocked || nitroPreviewActive)
+                                  ? 'text-white'
+                                  : ''
+                              } ${pres.className}`}
                               style={pres.style}
                             >
                               {draftName || user.displayName}
@@ -2327,19 +2361,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       <NitroWheelIcon className="w-3.5 h-3.5 text-fuchsia-400" />
                       <span>Color con brillo (Nitro)</span>
                     </p>
-                    {draftNameColorPreset !== 'none' && (
-                      <button
-                        type="button"
-                        onClick={() => setDraftNameGlow((g) => !g)}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer transition-colors ${
-                          draftNameGlow
-                            ? 'bg-fuchsia-500/20 border-fuchsia-400/50 text-fuchsia-200'
-                            : 'bg-[#1a1b22] border-white/10 text-zinc-400'
-                        }`}
-                      >
-                        {draftNameGlow ? '✨ Brillo ON' : 'Brillo OFF'}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!nitroEffectsUnlocked) setNitroPreviewActive(true);
+                        setDraftNameGlow((g) => !g);
+                      }}
+                      className={`px-3 py-1 rounded-full text-[11px] font-bold border cursor-pointer transition-colors ${
+                        draftNameGlow
+                          ? 'bg-fuchsia-500/20 border-fuchsia-400/50 text-fuchsia-200'
+                          : 'bg-[#1a1b22] border-white/10 text-zinc-400'
+                      }`}
+                    >
+                      {draftNameGlow ? '✨ Brillo ON' : 'Brillo OFF'}
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -2357,6 +2392,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           key={preset.id}
                           type="button"
                           onClick={() => {
+                            if (preset.id !== 'none') {
+                              setDraftNameGlow(true);
+                            }
                             if (!locked) {
                               setDraftNameColorPreset(preset.id);
                             } else {
@@ -2376,7 +2414,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                             </span>
                           )}
                           <span
-                            className={`text-base leading-tight truncate max-w-[85%] ${swatchPres.className}`}
+                            className={`text-base leading-tight truncate max-w-[85%] ${
+                              preset.id === 'none' ? 'text-white' : ''
+                            } ${swatchPres.className}`}
                             style={swatchPres.style}
                           >
                             {draftName || user.displayName}
@@ -2391,6 +2431,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       type="button"
                       onClick={() => {
                         if (!nitroEffectsUnlocked) setNitroPreviewActive(true);
+                        setDraftNameGlow(true);
                         setDraftNameColorPreset('custom');
                       }}
                       className={`relative px-3 py-2.5 rounded-2xl border flex flex-col items-start gap-1 cursor-pointer transition-all ${
@@ -2447,6 +2488,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     <button
                       type="button"
                       onClick={() => {
+                        onQueueNitroNameStyle?.({
+                          displayNameStyle: draftNameStyle,
+                          displayNameColorPreset:
+                            draftNameColorPreset === 'none' ? 'crimson-cyan' : draftNameColorPreset,
+                          displayNameCustomColors: draftNameCustomColors,
+                          displayNameGlow: true,
+                        });
                         setActivePickerSheet(null);
                         setShowEditProfile(false);
                         onNavigate('nitro');
@@ -2454,16 +2502,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       className="w-full h-11 rounded-full bg-gradient-to-r from-[#8b3dff] to-[#b845c9] text-white text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                     >
                       <NitroWheelIcon className="w-4 h-4" />
-                      <span>Obtener Nitro para guardar el brillo</span>
+                      <span>Obtener Nitro y equipar brillo</span>
                     </button>
                   )}
 
                   <button
                     type="button"
-                    onClick={() => setActivePickerSheet(null)}
+                    onClick={() => {
+                      if (nitroEffectsUnlocked) {
+                        onUpdateUser({
+                          displayNameStyle: draftNameStyle,
+                          displayNameColorPreset: draftNameColorPreset,
+                          displayNameCustomColors: draftNameCustomColors,
+                          displayNameGlow: draftNameGlow,
+                        });
+                        onShowToast?.('Estilo y brillo de nombre guardados');
+                      } else {
+                        onUpdateUser({
+                          displayNameStyle: draftNameStyle,
+                        });
+                        if (draftNameColorPreset !== 'none') {
+                          onShowToast?.('Fuente guardada. Activa Nitro para guardar el brillo.');
+                        }
+                      }
+                      setActivePickerSheet(null);
+                    }}
                     className="w-full h-10 rounded-full dc-btn-primary text-sm font-bold cursor-pointer"
                   >
-                    Listo
+                    {nitroEffectsUnlocked ? 'Aplicar y guardar' : 'Listo'}
                   </button>
                 </div>
               </div>

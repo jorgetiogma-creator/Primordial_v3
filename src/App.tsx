@@ -350,6 +350,9 @@ export default function App() {
     serverId?: string;
   } | null>(null);
   const [profileViewTrigger, setProfileViewTrigger] = useState(0);
+  const [pendingNitroNamePatch, setPendingNitroNamePatch] = useState<Partial<UserProfile> | null>(
+    null
+  );
   const [showOwnerPanel, setShowOwnerPanel] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
@@ -474,7 +477,8 @@ export default function App() {
           const safeUser = sanitizeUserShopCosmetics(
             { ...INITIAL_USER, ...bundle.user, id: fbUser.uid },
             bundle.ownedBundleIds,
-            INITIAL_SHOP_BUNDLES
+            INITIAL_SHOP_BUNDLES,
+            bundle.isOwnerAccount
           );
           hydratedUidRef.current = fbUser.uid;
           setPendingGoogleUser(null);
@@ -828,7 +832,7 @@ export default function App() {
           profileFrame: user.profileFrame,
           nameplate: user.nameplate,
           serverTag: user.serverTag,
-          nitroTier: user.nitroTier,
+          nitroTier: isOwner && user.nitroTier === 'none' ? 'nitro' : user.nitroTier,
           badgeIds: user.equippedBadgeIds,
           memberSince: user.memberSince,
           mutualServers: servers.map((s) => s.name),
@@ -2717,9 +2721,16 @@ export default function App() {
           onNavigate={(s) => setScreen(s)}
           onUpdateUser={(patch) =>
             setUser((prev) =>
-              sanitizeUserShopCosmetics({ ...prev, ...patch }, ownedBundleIds, INITIAL_SHOP_BUNDLES)
+              sanitizeUserShopCosmetics(
+                { ...prev, ...patch },
+                ownedBundleIds,
+                INITIAL_SHOP_BUNDLES,
+                isOwner
+              )
             )
           }
+          onQueueNitroNameStyle={(patch) => setPendingNitroNamePatch(patch)}
+          onShowToast={showToastMsg}
           onOpenBundle={(b) => {
             setSelectedShopBundle(b);
             setScreen('tienda');
@@ -2777,11 +2788,16 @@ export default function App() {
             setUser((prev) => ({
               ...prev,
               nitroTier: tier,
+              ...(pendingNitroNamePatch || {}),
               ...unlockBadgeHelper(prev, 'nitro'),
             }));
+            const appliedQueuedGlow = Boolean(pendingNitroNamePatch);
+            setPendingNitroNamePatch(null);
             playUiSound('ping', appPreferences.soundsEnabled);
             showToastMsg(
-              tier === 'nitro'
+              appliedQueuedGlow
+                ? `¡Nitro activado y brillo aplicado a tu nombre!`
+                : tier === 'nitro'
                 ? '¡Primordial Nitro ($2.00 USD/mes) activado! Cosméticos, brillo y ventajas desbloqueadas.'
                 : '¡Primordial Nitro Basic ($1.00 USD/mes) activado! Disfruta tus nuevas ventajas.'
             );

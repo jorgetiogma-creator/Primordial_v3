@@ -1369,8 +1369,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                           backgroundImage: `linear-gradient(90deg, ${authorRole.gradientColors[0]}, ${authorRole.gradientColors[1]})`,
                                           WebkitBackgroundClip: 'text',
                                           color: 'transparent',
+                                          ...(myNamePres?.style.textShadow
+                                            ? { textShadow: myNamePres.style.textShadow }
+                                            : {}),
                                         }
-                                      : { color: authorRole?.color || 'var(--dc-text-primary)' }
+                                      : {
+                                          color: authorRole?.color || 'var(--dc-text-primary)',
+                                          ...(myNamePres?.style.textShadow
+                                            ? { textShadow: myNamePres.style.textShadow }
+                                            : {}),
+                                        }
                                   }
                                 >
                                   {isMe

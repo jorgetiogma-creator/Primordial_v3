@@ -113,10 +113,11 @@ export const NITRO_EXCLUSIVE_EFFECTS: ProfileEffectId[] = [
 export function sanitizeUserShopCosmetics(
   user: UserProfile,
   ownedBundleIds: string[],
-  bundles: ShopBundle[] = INITIAL_SHOP_BUNDLES
+  bundles: ShopBundle[] = INITIAL_SHOP_BUNDLES,
+  isOwnerAccount = false
 ): UserProfile {
   const owned = getOwnedCosmetics(ownedBundleIds, bundles);
-  const hasNitro = user.nitroTier !== 'none';
+  const hasNitro = isOwnerAccount || user.nitroTier === 'nitro' || user.nitroTier === 'basic';
   const nitroUnlockedDecorations = new Set<DecorationId>(
     hasNitro ? NITRO_EXCLUSIVE_DECORATIONS : []
   );
