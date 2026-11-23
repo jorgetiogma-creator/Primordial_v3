@@ -17,7 +17,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import {
   AvatarKey,
   BadgeId,
@@ -381,6 +381,12 @@ export async function syncUserAccountToFirestore(
     updatedAt: serverTimestamp(),
   });
 
+  const verifiedCloudOwner = Boolean(
+    extras.isOwnerAccount &&
+      auth.currentUser?.emailVerified &&
+      auth.currentUser?.email?.toLowerCase() === DESIGNATED_OWNER_EMAIL
+  );
+
   const privPayload = stripUndefined({
     uid,
     orbs: Math.max(0, Math.min(999999999999999, Math.floor(user.orbs || 0))),
@@ -398,7 +404,7 @@ export async function syncUserAccountToFirestore(
     accountYears: user.accountYears || 0,
     perServerProfiles: user.perServerProfiles || {},
     joinedServerIds: extras.joinedServerIds.slice(0, 100),
-    isOwnerAccount: extras.isOwnerAccount,
+    isOwnerAccount: verifiedCloudOwner,
     updatedAt: serverTimestamp(),
   });
 

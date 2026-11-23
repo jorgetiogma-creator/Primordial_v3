@@ -594,6 +594,25 @@ export default function App() {
     []
   );
 
+  const localContextRef = useRef({
+    user,
+    ownedBundleIds,
+    wishlistIds,
+    claimedQuestIds,
+    joinedServerIds,
+    isOwner,
+  });
+  useEffect(() => {
+    localContextRef.current = {
+      user,
+      ownedBundleIds,
+      wishlistIds,
+      claimedQuestIds,
+      joinedServerIds,
+      isOwner,
+    };
+  }, [user, ownedBundleIds, wishlistIds, claimedQuestIds, joinedServerIds, isOwner]);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       setAuthReady(true);
@@ -652,7 +671,24 @@ export default function App() {
           } catch {
             /* ignore */
           }
-        } else if (!activeAccountIdRef.current) {
+        } else if (activeAccountIdRef.current) {
+          const currentLocalId = activeAccountIdRef.current;
+          const savedAcc = accountsRef.current.find((a) => a.id === currentLocalId);
+          const ctx = localContextRef.current;
+          const baseUser = savedAcc?.user || ctx.user;
+          void syncAppAccountToCloud({
+            accountId: currentLocalId,
+            localUser: { ...baseUser, status: baseUser.status || 'online' },
+            email: savedAcc?.user.email || fbUser.email || undefined,
+            password: savedAcc?.password,
+            ownedBundleIds: savedAcc?.ownedBundleIds || ctx.ownedBundleIds,
+            wishlistIds: savedAcc?.wishlistIds || ctx.wishlistIds,
+            claimedQuestIds: ctx.claimedQuestIds,
+            joinedServerIds: ctx.joinedServerIds,
+            isOwnerAccount: Boolean(savedAcc?.isOwnerAccount || ctx.isOwner),
+            createIfMissing: true,
+          });
+        } else {
           hydratedUidRef.current = null;
           setActiveAccountId(null);
         }
@@ -661,7 +697,7 @@ export default function App() {
       }
     });
     return () => unsub();
-  }, []);
+  }, [syncAppAccountToCloud]);
 
   // Migra automáticamente cualquier cuenta creada localmente antes de esta actualización hacia Firestore
   useEffect(() => {

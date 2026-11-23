@@ -1061,11 +1061,20 @@ export const FriendsView: React.FC<{
           <>
             {!isCloudConnected && (
               <div className="rounded-2xl bg-amber-500/12 border border-amber-400/35 p-3.5 text-xs text-amber-200 font-medium leading-relaxed flex flex-col gap-2">
-                <p>
-                  {authProviderNeedsSetup
-                    ? 'Falta activar los métodos de acceso «Correo electrónico/Contraseña» y «Anónimo» en Firebase Authentication para sincronizar usuarios sin Google.'
-                    : t('friends.cloudRequired')}
-                </p>
+                {authProviderNeedsSetup ? (
+                  <>
+                    <p className="font-bold text-amber-100">
+                      Activa el acceso en la nube para ver a los usuarios registrados
+                    </p>
+                    <p className="text-[11.5px] text-amber-100/90">
+                      En Firebase Console → Authentication → Sign-in method (proyecto{' '}
+                      <code className="bg-black/30 px-1 rounded">gen-lang-client-0457794873</code>), habilita{' '}
+                      <strong>Correo electrónico/Contraseña</strong> y <strong>Anónimo</strong>. Luego pulsa el botón de abajo.
+                    </p>
+                  </>
+                ) : (
+                  <p>{t('friends.cloudRequired')}</p>
+                )}
                 {onRetryCloudSync && (
                   <button
                     type="button"
@@ -1132,13 +1141,32 @@ export const FriendsView: React.FC<{
             </form>
 
             <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
-                {searching
-                  ? t('friends.searching')
-                  : q
-                    ? `${t('friends.resultsLabel')} (${realUsers.length})`
-                    : `${t('friends.registeredLabel')} (${realUsers.length})`}
-              </p>
+              <div className="flex items-center justify-between gap-2 px-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                  {searching
+                    ? t('friends.searching')
+                    : q
+                      ? `${t('friends.resultsLabel')} (${realUsers.length})`
+                      : `${t('friends.registeredLabel')} (${realUsers.length})`}
+                </p>
+                {isCloudConnected && onSearchUsers && (
+                  <button
+                    type="button"
+                    disabled={searching}
+                    onClick={() => {
+                      setSearching(true);
+                      setSearchError(null);
+                      void onSearchUsers(friendHandle)
+                        .then((res) => setRealUsers(res))
+                        .catch(() => setSearchError('No se pudo actualizar la lista ahora.'))
+                        .finally(() => setSearching(false));
+                    }}
+                    className="text-[11px] font-bold text-[#949cf7] hover:text-white cursor-pointer disabled:opacity-50"
+                  >
+                    {searching ? 'Actualizando...' : 'Actualizar'}
+                  </button>
+                )}
+              </div>
 
               {realUsers.map((person) => {
                 const existingDm = dms.find(
