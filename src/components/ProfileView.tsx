@@ -15,7 +15,6 @@ import {
   Pencil,
   Plus,
   Search,
-  Settings,
   ShoppingBag,
   Smile,
   Sparkles,
@@ -43,6 +42,8 @@ import { BadgeArtwork, isBadgeUnlocked } from './BadgesView';
 import {
   AvatarDecorationRing,
   DiscordLogo,
+  FilledSettingsIcon,
+  FilledStoreIcon,
   getNameplateArtworkUrl,
   LaurelQuestIcon,
   NameplateRowDecor,
@@ -1124,10 +1125,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </button>
               )}
               {showTuneaCard && (
-                <div className="p-[1.5px] rounded-2xl bg-gradient-to-r from-[#8b3dff] via-[#7c3aed] to-[#6d28d9] shadow-[0_8px_28px_-12px_rgba(139,61,255,0.55)]">
-                  <div className="rounded-[14.5px] bg-[#1a1b20] p-3.5">
+                <div className="p-[1.5px] rounded-2xl bg-gradient-to-r from-[#8b3dff] via-[#7c3aed] to-[#6366f1] shadow-[0_10px_28px_-14px_rgba(139,61,255,0.5)]">
+                  <div className="rounded-[14.5px] bg-[#1a1b20] px-4 py-3.5">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[15px] font-bold text-[#f2f3f5]">
+                      <span className="text-[15px] font-bold text-[#f2f3f5] tracking-[-0.01em]">
                         Tunea tu perfil
                       </span>
                       <button
@@ -1135,30 +1136,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         aria-label="Cerrar tarjeta"
                         className="w-7 h-7 rounded-full text-[#b5bac1] hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
                       >
-                        <X className="w-4.5 h-4.5" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2.5">
                       <button
                         onClick={() => onNavigate('nitro')}
-                        className="relative h-11 rounded-xl bg-[#2b2c34] hover:bg-[#343540] text-[#f2f3f5] text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap px-3 overflow-hidden transition-colors active:scale-[0.98]"
+                        className="group relative h-11 rounded-xl bg-[#2a2b34] hover:bg-[#333540] border border-white/[0.06] text-[#f2f3f5] text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap px-3 overflow-hidden transition-all active:scale-[0.98] anim-shimmer"
                       >
-                        <span
-                          aria-hidden="true"
-                          className="pointer-events-none absolute inset-y-0 left-[22%] w-10 -skew-x-[24deg] bg-white/[0.06]"
-                        />
-                        <span
-                          aria-hidden="true"
-                          className="pointer-events-none absolute inset-y-0 left-[54%] w-5 -skew-x-[24deg] bg-white/[0.045]"
-                        />
-                        <NitroWheelIcon className="w-4.5 h-4.5 text-[#b5bac1] shrink-0 relative z-10" />
+                        <span className="relative flex items-center justify-center shrink-0">
+                          <NitroWheelIcon className="w-[18px] h-[18px] text-[#e3e5ea] group-hover:text-white drop-shadow-[0_0_8px_rgba(217,70,239,0.65)] transition-colors" />
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            className="pointer-events-none absolute -top-1 -right-1.5 w-2.5 h-2.5 text-fuchsia-200 anim-twinkle"
+                            fill="currentColor"
+                          >
+                            <path d="M8 0L9.8 6.2L16 8L9.8 9.8L8 16L6.2 9.8L0 8L6.2 6.2Z" />
+                          </svg>
+                        </span>
                         <span className="relative z-10">Obtener Nitro</span>
                       </button>
                       <button
                         onClick={() => onNavigate('tienda')}
-                        className="h-11 rounded-xl bg-[#2b2c34] hover:bg-[#343540] text-[#f2f3f5] text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap px-3 transition-colors active:scale-[0.98]"
+                        className="group h-11 rounded-xl bg-[#2a2b34] hover:bg-[#333540] border border-white/[0.06] text-[#f2f3f5] text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap px-3 transition-all active:scale-[0.98]"
                       >
-                        <Store className="w-4.5 h-4.5 text-[#b5bac1] shrink-0" />
+                        <FilledStoreIcon className="w-[18px] h-[18px] text-[#c2c6ce] group-hover:text-white shrink-0 transition-colors" />
                         <span>Tienda</span>
                       </button>
                     </div>
@@ -1330,47 +1333,81 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       </div>
 
-      {/* Floating Bottom Pill Dock */}
+      {/* Floating Bottom Pill Dock (Discord Mobile Profile Capsule) */}
       <div className="absolute bottom-4 inset-x-0 flex justify-center px-4 pointer-events-none z-20">
         <nav
           aria-label="Accesos de perfil"
-          className="pointer-events-auto bg-[#18191d] border border-white/[0.06] rounded-[28px] px-4 py-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.72)] grid grid-cols-4 gap-1 w-full max-w-[350px]"
+          className="pointer-events-auto relative w-full max-w-[364px] rounded-full bg-[#1a1b20]/95 backdrop-blur-2xl border border-white/[0.08] px-3 py-2 shadow-[0_18px_40px_rgba(0,0,0,0.72),0_4px_12px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.07)] grid grid-cols-4 items-center"
         >
           <button
+            type="button"
             onClick={() => onNavigate('misiones')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-white/[0.06] text-[#f2f3f5] transition-colors cursor-pointer relative active:scale-95"
+            className="group relative flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-full transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.94] cursor-pointer"
           >
-            <div className="relative">
-              <LaurelQuestIcon className="w-6 h-6 text-[#f2f3f5]" />
+            <div className="relative w-7 h-6 flex items-center justify-center">
+              <LaurelQuestIcon className="w-[22px] h-[22px] text-[#e6e8ec] group-hover:text-white transition-colors" />
               {hasUnclaimedQuests && (
-                <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-[#f23f43]" />
+                <span className="absolute -top-0.5 right-0 w-2.5 h-2.5 rounded-full bg-[#f23f43] ring-2 ring-[#1a1b20]" />
               )}
             </div>
-            <span className="text-[12px] font-semibold text-[#f2f3f5] mt-1">Misiones</span>
+            <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
+              Misiones
+            </span>
           </button>
 
           <button
+            type="button"
             onClick={() => onNavigate('tienda')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-white/[0.06] text-[#f2f3f5] transition-colors cursor-pointer active:scale-95"
+            className="group relative flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-full transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.94] cursor-pointer"
           >
-            <Store className="w-6 h-6 text-[#f2f3f5]" />
-            <span className="text-[12px] font-semibold text-[#f2f3f5] mt-1">Tienda</span>
+            <div className="relative w-7 h-6 flex items-center justify-center">
+              <FilledStoreIcon className="w-[21px] h-[21px] text-[#e6e8ec] group-hover:text-white transition-colors" />
+            </div>
+            <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
+              Tienda
+            </span>
           </button>
 
           <button
+            type="button"
             onClick={() => onNavigate('nitro')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-white/[0.06] text-[#f2f3f5] transition-colors cursor-pointer active:scale-95"
+            className="group relative flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-full transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.94] cursor-pointer"
           >
-            <NitroWheelIcon className="w-6 h-6 text-[#f2f3f5]" />
-            <span className="text-[12px] font-semibold text-[#f2f3f5] mt-1">Nitro</span>
+            <div className="relative w-7 h-6 flex items-center justify-center">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute w-8 h-8 rounded-full bg-[radial-gradient(circle,rgba(232,121,249,0.34)_0%,rgba(168,85,247,0.14)_52%,transparent_75%)]"
+              />
+              <NitroWheelIcon className="relative z-10 w-[22px] h-[22px] text-white drop-shadow-[0_0_8px_rgba(232,121,249,0.72)] transition-transform duration-200 group-hover:scale-105" />
+              <svg
+                viewBox="0 0 16 16"
+                aria-hidden="true"
+                className="pointer-events-none absolute -top-0.5 -right-0.5 z-20 w-2.5 h-2.5 text-fuchsia-200 anim-twinkle drop-shadow-[0_0_4px_rgba(255,255,255,0.95)]"
+                fill="currentColor"
+              >
+                <path d="M8 0L9.8 6.2L16 8L9.8 9.8L8 16L6.2 9.8L0 8L6.2 6.2Z" />
+              </svg>
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-0 left-0 z-20 w-1 h-1 rounded-full bg-white/90 anim-twinkle"
+              />
+            </div>
+            <span className="relative z-10 text-[11.5px] font-semibold leading-none tracking-[-0.01em] bg-gradient-to-r from-white via-fuchsia-200 to-white bg-clip-text text-transparent dc-name-glow-shimmer drop-shadow-[0_0_6px_rgba(232,121,249,0.45)]">
+              Nitro
+            </span>
           </button>
 
           <button
+            type="button"
             onClick={() => onNavigate('ajustes')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl hover:bg-white/[0.06] text-[#f2f3f5] transition-colors cursor-pointer active:scale-95"
+            className="group relative flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-full transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.94] cursor-pointer"
           >
-            <Settings className="w-6 h-6 text-[#f2f3f5]" />
-            <span className="text-[12px] font-semibold text-[#f2f3f5] mt-1">Ajustes</span>
+            <div className="relative w-7 h-6 flex items-center justify-center">
+              <FilledSettingsIcon className="w-[21px] h-[21px] text-[#e6e8ec] group-hover:text-white transition-colors" />
+            </div>
+            <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
+              Ajustes
+            </span>
           </button>
         </nav>
       </div>

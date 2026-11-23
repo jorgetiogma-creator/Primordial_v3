@@ -135,9 +135,15 @@ export const DiscordLogo: React.FC<{ className?: string }> = ({ className = 'w-6
 
 export const NitroWheelIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15.5c-3.04 0-5.5-2.46-5.5-5.5S8.96 6.5 12 6.5s5.5 2.46 5.5 5.5-2.46 5.5-5.5 5.5z" />
-    <circle cx="12" cy="12" r="2.6" />
-    <path d="M2.5 8.5h4l1.5 2.5H2.1zM1.8 12.5h4.2l1.2 2H2.2z" opacity="0.85" />
+    {/* Speed wing bars cleanly merged to the wheel without overlapping the hollow center */}
+    <path d="M3.2 5.2h9.2v2.4H4.6a1.2 1.2 0 0 1-1.4-2.4ZM1.8 9.2h6.8v2.2H3a1.1 1.1 0 0 1-1.2-2.2ZM4.4 13h3.9v2H5.4a1 1 0 0 1-1-2Z" />
+    {/* Precision hollow wheel + center hub */}
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M14.2 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+    />
+    <circle cx="14.2" cy="12" r="1.95" />
   </svg>
 );
 
@@ -166,9 +172,45 @@ export const OrbsCrystalIcon: React.FC<{ className?: string; colored?: boolean }
 
 export const LaurelQuestIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-    <path d="M7.1 5.2c-1.8.6-3.1 2.2-3.4 4.1-.2 1.2 0 2.4.6 3.5l1.8-.9c-.4-.7-.5-1.5-.4-2.3.2-1.2 1-2.2 2.1-2.6l-.7-1.8zM4.6 13.7c.7 2.2 2.4 3.9 4.6 4.7l.7-1.9c-1.6-.6-2.8-1.8-3.4-3.4l-1.9.6zM16.9 5.2l-.7 1.8c1.1.4 1.9 1.4 2.1 2.6.1.8 0 1.6-.4 2.3l1.8.9c.6-1.1.8-2.3.6-3.5-.3-1.9-1.6-3.5-3.4-4.1zM19.4 13.7l-1.9-.6c-.6 1.6-1.8 2.8-3.4 3.4l.7 1.9c2.2-.8 3.9-2.5 4.6-4.7z" />
-    <path d="M5.5 7.5c.8 0 1.5-.6 1.7-1.4-.9.1-1.6.6-1.7 1.4zm13 0c-.1-.8-.8-1.3-1.7-1.4.2.8.9 1.4 1.7 1.4zM4 11.4c.8.2 1.6-.2 2-.9-.9-.1-1.7.2-2 .9zm16 0c-.3-.7-1.1-1-2-.9.4.7 1.2 1.1 2 .9zM5.6 15.2c.7.4 1.6.3 2.2-.3-.8-.3-1.6-.2-2.2.3zm12.8 0c-.6-.5-1.4-.6-2.2-.3.6.6 1.5.7 2.2.3z" />
-    <path d="M9.5 19.3h5a1 1 0 0 1 0 2h-5a1 1 0 0 1 0-2z" />
+    {/* Symmetrical Left Wreath Branch */}
+    <path d="M11.1 19.3C7.1 18.8 4.4 15.6 4.4 11.4c0-2.5.9-4.7 2.5-6.4.4-.4 1-.3 1.2.2.3.9-.1 2-.9 2.6-.9.7-1.4 1.9-1.4 3.4 0 3.3 2.2 5.9 5.5 6.4.4.1.7.5.6.9-.1.5-.4.9-.8.8Z" />
+    <path d="M7.1 8.4c-1.5-.1-2.8-1-3.2-2.3-.1-.4.2-.8.6-.7 1.3.2 2.4 1.2 2.9 2.5.1.3-.1.6-.3.5Z" />
+    <path d="M5.6 12.1c-1.5.2-2.9-.5-3.6-1.8-.2-.4.1-.8.5-.8 1.3 0 2.5.8 3.3 2 .2.3 0 .6-.2.6Z" />
+    <path d="M6.4 15.6c-1.4.6-3 .3-4-.8-.3-.3-.1-.8.3-.9 1.3-.3 2.7.2 3.8 1.2.2.2.1.4-.1.5Z" />
+    <path d="M8.9 18.2c-1.1 1-2.7 1.2-4 .5-.4-.2-.3-.7.1-.9 1.2-.6 2.6-.5 3.8.1.3.1.3.3.1.3Z" />
+
+    {/* Symmetrical Right Wreath Branch (mirrored around x = 12) */}
+    <path d="M12.9 19.3c4-.5 6.7-3.7 6.7-7.9 0-2.5-.9-4.7-2.5-6.4-.4-.4-1-.3-1.2.2-.3.9.1 2 .9 2.6.9.7 1.4 1.9 1.4 3.4 0 3.3-2.2 5.9-5.5 6.4-.4.1-.7.5-.6.9.1.5.4.9.8.8Z" />
+    <path d="M16.9 8.4c1.5-.1 2.8-1 3.2-2.3.1-.4-.2-.8-.6-.7-1.3.2-2.4 1.2-2.9 2.5-.1.3.1.6.3.5Z" />
+    <path d="M18.4 12.1c1.5.2 2.9-.5 3.6-1.8.2-.4-.1-.8-.5-.8-1.3 0-2.5.8-3.3 2-.2.3 0 .6.2.6Z" />
+    <path d="M17.6 15.6c1.4.6 3 .3 4-.8.3-.3.1-.8-.3-.9-1.3-.3-2.7.2-3.8 1.2-.2.2-.1.4.1.5Z" />
+    <path d="M15.1 18.2c1.1 1 2.7 1.2 4 .5.4-.2.3-.7-.1-.9-1.2-.6-2.6-.5-3.8.1-.3.1-.3.3-.1.3Z" />
+
+    {/* Clean Joined Stem Base */}
+    <path d="M9.4 20.1c1.7.7 3.5.7 5.2 0a.75.75 0 0 0-.56-1.39c-1.34.54-2.74.54-4.08 0a.75.75 0 0 0-.56 1.39Z" />
+  </svg>
+);
+
+export const FilledStoreIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+    {/* Symmetrical 4-Scallop Storefront Awning (centered at x=12, width 18: 3..21) */}
+    <path d="M5.2 3.6h13.6Q20.1 3.6 20.4 4.8L21 8.8a2.25 2.25 0 0 1-4.5 0 2.25 2.25 0 0 1-4.5 0 2.25 2.25 0 0 1-4.5 0 2.25 2.25 0 0 1-4.5 0l.6-4Q3.9 3.6 5.2 3.6Z" />
+    {/* Symmetrical Store Facade with Clean Arched Doorway Cutout */}
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M4.5 12.2h15v6.3a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-6.3Zm5.3 8.3v-4.2a2.2 2.2 0 0 1 4.4 0v4.2H9.8Z"
+    />
+  </svg>
+);
+
+export const FilledSettingsIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M10.56 2.35a1.5 1.5 0 0 1 2.88 0l.4 1.48c.5.14.98.34 1.43.59l1.33-.76a1.5 1.5 0 0 1 2.04.56l1.44 2.5a1.5 1.5 0 0 1-.55 2.04l-1.3.76c.07.5.07 1.02 0 1.52l1.3.76a1.5 1.5 0 0 1 .55 2.04l-1.44 2.5a1.5 1.5 0 0 1-2.04.56l-1.33-.76c-.45.25-.93.45-1.43.59l-.4 1.48a1.5 1.5 0 0 1-2.88 0l-.4-1.48a6.8 6.8 0 0 1-1.43-.59l-1.33.76a1.5 1.5 0 0 1-2.04-.56l-1.44-2.5a1.5 1.5 0 0 1 .55-2.04l1.3-.76a6.7 6.7 0 0 1 0-1.52l-1.3-.76a1.5 1.5 0 0 1-.55-2.04l1.44-2.5a1.5 1.5 0 0 1 2.04-.56l1.33.76c.45-.25.93-.45 1.43-.59l.4-1.48ZM12 8.75a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Z"
+    />
   </svg>
 );
 

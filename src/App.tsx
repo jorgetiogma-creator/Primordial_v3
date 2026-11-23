@@ -3403,6 +3403,7 @@ export default function App() {
               ].map((item) => {
                 const Icon = item.icon;
                 const active = screen === item.id;
+                const isNitroBtn = item.id === 'nitro';
                 return (
                   <button
                     key={item.id}
@@ -3411,13 +3412,21 @@ export default function App() {
                       if (item.id === 'tu') setProfileViewTrigger((k) => k + 1);
                       setScreen(item.id);
                     }}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
+                    className={`relative overflow-hidden inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
                       active
                         ? 'dc-btn-primary'
+                        : isNitroBtn
+                        ? 'anim-shimmer bg-gradient-to-r from-fuchsia-500/15 to-violet-500/15 border border-fuchsia-400/35 text-fuchsia-100 hover:brightness-110 shadow-[0_0_12px_-3px_rgba(217,70,239,0.55)] transition-all'
                         : 'text-[var(--dc-text-secondary)] hover:bg-black/5 dark:hover:bg-white/10 hover:text-[var(--dc-text-primary)] transition-colors'
                     }`}
                   >
-                    {Icon && <Icon className="w-3.5 h-3.5" />}
+                    {Icon && (
+                      <Icon
+                        className={`w-3.5 h-3.5 ${
+                          isNitroBtn ? 'text-fuchsia-300 drop-shadow-[0_0_6px_rgba(217,70,239,0.8)]' : ''
+                        }`}
+                      />
+                    )}
                     <span>{item.label}</span>
                   </button>
                 );
