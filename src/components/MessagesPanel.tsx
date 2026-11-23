@@ -1227,6 +1227,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                     ) : (
                       <UserAvatar
                         avatar={dm.avatar}
+                        customAvatarUrl={dm.customAvatarUrl}
                         status={dm.status}
                         decoration={dm.decoration || 'none'}
                         size="md"

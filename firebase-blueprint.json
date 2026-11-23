@@ -266,6 +266,61 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["fromUid", "toUid", "fromDisplayName", "fromUsername", "fromAvatar", "status", "createdAt"]
+    },
+    "RtcCallSession": {
+      "title": "RtcCallSession",
+      "description": "WebRTC offer/answer and screen-share state for real-time DM audio/video/screen calls",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "callId": { "type": "string" },
+        "callerUid": { "type": "string" },
+        "callerName": { "type": "string" },
+        "callerAvatar": { "type": "string" },
+        "calleeUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["ringing", "connected", "ended"] },
+        "active": { "type": "boolean" },
+        "videoOn": { "type": "boolean" },
+        "screenSharing": { "type": "boolean" },
+        "callerVideoOn": { "type": "boolean" },
+        "callerScreenSharing": { "type": "boolean" },
+        "calleeVideoOn": { "type": "boolean" },
+        "calleeScreenSharing": { "type": "boolean" },
+        "offer": { "type": "object" },
+        "answer": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "callId", "callerUid", "status", "active", "updatedAt"]
+    },
+    "RtcIceCandidate": {
+      "title": "RtcIceCandidate",
+      "description": "ICE candidate for WebRTC peer connection signaling",
+      "type": "object",
+      "properties": {
+        "callId": { "type": "string" },
+        "uid": { "type": "string" },
+        "candidate": { "type": "string" },
+        "sdpMid": { "type": "string" },
+        "sdpMLineIndex": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["callId", "uid", "candidate", "createdAt"]
+    },
+    "VoicePresence": {
+      "title": "VoicePresence",
+      "description": "Real-time voice channel participant presence and screen-share status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "avatar": { "type": "string" },
+        "customAvatarUrl": { "type": "string" },
+        "muted": { "type": "boolean" },
+        "videoOn": { "type": "boolean" },
+        "screenSharing": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "avatar", "muted", "videoOn", "screenSharing", "updatedAt"]
     }
   },
   "firestore": {
@@ -320,6 +375,22 @@
     "/servers/{serverId}/channels/{channelId}/messages/{messageId}/threads/{replyId}": {
       "schema": { "$ref": "#/entities/ThreadMessage" },
       "description": "Dedicated sub-chat replies inside a channel message thread"
+    },
+    "/dms/{dmId}/rtc/{rtcDocId}": {
+      "schema": { "$ref": "#/entities/RtcCallSession" },
+      "description": "Active WebRTC call session and offer/answer signaling for a DM thread"
+    },
+    "/dms/{dmId}/rtc/{rtcDocId}/callerCandidates/{candId}": {
+      "schema": { "$ref": "#/entities/RtcIceCandidate" },
+      "description": "Caller ICE candidates for DM WebRTC signaling"
+    },
+    "/dms/{dmId}/rtc/{rtcDocId}/calleeCandidates/{candId}": {
+      "schema": { "$ref": "#/entities/RtcIceCandidate" },
+      "description": "Callee ICE candidates for DM WebRTC signaling"
+    },
+    "/servers/{serverId}/channels/{channelId}/rtc/{memberUid}": {
+      "schema": { "$ref": "#/entities/VoicePresence" },
+      "description": "Active voice channel participants and screen-share presence"
     }
   }
 }

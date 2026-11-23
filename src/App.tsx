@@ -6,6 +6,8 @@ import {
   Compass,
   Home,
   Moon,
+  PhoneCall,
+  PhoneOff,
   Plus,
   Search,
   Settings,
@@ -13,16 +15,19 @@ import {
   Sun,
   Upload,
   UserPlus,
+  Video,
   X,
 } from 'lucide-react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleProvider } from './lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db, googleProvider } from './lib/firebase';
 import {
   claimProfileWithUsername,
   createFirestoreChannel,
   createFirestoreServer,
   deleteFirestoreChannel,
   deleteFirestoreMessage,
+  ensureRealConnectionByUsername,
   fetchDiscoverableServers,
   fetchUserAccountBundle,
   getOrCreateDmThread,
@@ -34,6 +39,7 @@ import {
   markDmThreadRead,
   markNotificationReadInFirestore,
   normalizeUsernameHandle,
+  removeVoiceChannelPresence,
   respondFriendRequest,
   searchRealUsers,
   sendChannelMessage,
@@ -45,13 +51,24 @@ import {
   subscribeToFriendRequests,
   subscribeToNotifications,
   subscribeToServerDetail,
+  subscribeToVoiceChannelPresence,
   syncUserAccountToFirestore,
   toggleServerMemberAdmin,
   updateFirestoreChannel,
   updateFirestoreMessage,
   updateFirestoreServer,
   updateServerMemberRolesInFirestore,
+  upsertVoiceChannelPresence,
 } from './services/firestoreService';
+import {
+  captureLocalAudio,
+  captureLocalCamera,
+  captureLocalScreen,
+  DmWebRtcController,
+  IncomingDmCall,
+  rejectDmIncomingCall,
+  subscribeToIncomingDmCalls,
+} from './services/rtcService';
 import {
   BADGE_DEFINITIONS,
   INITIAL_ACTIVITIES,
@@ -434,6 +451,19 @@ export default function App() {
     connectedSeconds: 0,
     participants: [],
   });
+  const voiceSessionRef = useRef(voiceSession);
+  useEffect(() => {
+    voiceSessionRef.current = voiceSession;
+  }, [voiceSession]);
+
+  const rtcControllerRef = useRef<DmWebRtcController | null>(null);
+  const localAudioStreamRef = useRef<MediaStream | null>(null);
+  const localVideoStreamRef = useRef<MediaStream | null>(null);
+  const [localVideoStream, setLocalVideoStream] = useState<MediaStream | null>(null);
+  const [remoteVideoStream, setRemoteVideoStream] = useState<MediaStream | null>(null);
+  const [remoteAudioStream, setRemoteAudioStream] = useState<MediaStream | null>(null);
+  const [incomingCalls, setIncomingCalls] = useState<IncomingDmCall[]>([]);
+  const autoLinkedUidRef = useRef<string | null>(null);
 
   useEffect(() => {
     try {
@@ -576,6 +606,57 @@ export default function App() {
       unsubFriendReqs();
     };
   }, [firebaseUid, pendingGoogleUser]);
+
+  // Conecta automáticamente cuentas reales entre @snuff y tu cuenta en la nube (sin bots)
+  useEffect(() => {
+    if (!firebaseUid || pendingGoogleUser || hydratedUidRef.current !== firebaseUid) return;
+    if (autoLinkedUidRef.current === firebaseUid) return;
+    autoLinkedUidRef.current = firebaseUid;
+
+    const myHandle = normalizeUsernameHandle(user.username || '');
+    if (myHandle !== 'snuff') {
+      void ensureRealConnectionByUsername({
+        currentUser: user,
+        targetHandle: 'snuff',
+      }).catch(() => undefined);
+    } else {
+      void ensureRealConnectionByUsername({
+        currentUser: user,
+        targetHandle: 'jorge',
+      }).catch(() => undefined);
+      void ensureRealConnectionByUsername({
+        currentUser: user,
+        targetHandle: 'owen',
+      }).catch(() => undefined);
+    }
+  }, [firebaseUid, pendingGoogleUser, user]);
+
+  // Si @snuff recibe una solicitud de Jorge/Owen en tiempo real, acepta y abre su DM compartido
+  useEffect(() => {
+    if (!firebaseUid || pendingGoogleUser || friendRequests.length === 0) return;
+    const myHandle = normalizeUsernameHandle(user.username || '');
+    if (myHandle !== 'snuff') return;
+    for (const req of friendRequests) {
+      const fromHandle = normalizeUsernameHandle(req.fromUsername || req.fromDisplayName);
+      if (fromHandle.includes('jorge') || fromHandle.includes('owen')) {
+        void respondFriendRequest({ uid: firebaseUid, fromUid: req.fromUid, accept: true })
+          .then(() =>
+            getOrCreateDmThread(user, {
+              id: req.fromUid,
+              displayName: req.fromDisplayName,
+              username: req.fromUsername,
+              avatar: req.fromAvatar,
+              customAvatarUrl: req.fromCustomAvatarUrl,
+              status: 'online',
+              bio: '',
+              bannerColor: '#5865F2',
+              memberSince: 'Nov 2026',
+            })
+          )
+          .catch(() => undefined);
+      }
+    }
+  }, [firebaseUid, pendingGoogleUser, friendRequests, user]);
 
   const activeDm = dms.find((d) => d.id === selectedDmId) || dms[0];
   const activeServer =
@@ -888,7 +969,10 @@ export default function App() {
         displayName: matchingMember?.displayName || baseProfile.displayName,
         username: matchingMember?.username || baseProfile.username,
         avatar: matchingMember?.avatar || baseProfile.avatar,
-        customAvatarUrl: matchingMember?.customAvatarUrl || baseProfile.customAvatarUrl,
+        customAvatarUrl:
+          matchingMember?.customAvatarUrl ||
+          matchingDm?.customAvatarUrl ||
+          baseProfile.customAvatarUrl,
         decoration: matchingDm?.decoration || giftedCosmetics.decoration || baseProfile.decoration,
         nameplate: matchingDm?.nameplate || giftedCosmetics.nameplate || baseProfile.nameplate,
       },
@@ -2306,6 +2390,7 @@ export default function App() {
       /* ignore */
     }
     hydratedUidRef.current = null;
+    autoLinkedUidRef.current = null;
     setPendingGoogleUser(null);
     setShowOwnerPanel(false);
     setActiveAccountId(null);
@@ -2314,6 +2399,7 @@ export default function App() {
     setServers([]);
     setNotifications([]);
     setFriendRequests([]);
+    setIncomingCalls([]);
     setScreen('inicio');
     setMobileChatOpen(false);
     void signOut(auth).catch(() => undefined);
@@ -2718,6 +2804,561 @@ export default function App() {
     showToastMsg('Busca cuentas reales por su @usuario en la pestaña Amigos');
   };
 
+  const stopStreamTracks = useCallback((stream: MediaStream | null) => {
+    if (!stream) return;
+    stream.getTracks().forEach((t) => {
+      try {
+        t.stop();
+      } catch {
+        /* ignore */
+      }
+    });
+  }, []);
+
+  const cleanupVoiceCall = useCallback(
+    async (notifyRemote = true) => {
+      const prevSession = voiceSessionRef.current;
+      if (rtcControllerRef.current) {
+        const ctrl = rtcControllerRef.current;
+        rtcControllerRef.current = null;
+        await ctrl.hangup(notifyRemote);
+      }
+      stopStreamTracks(localAudioStreamRef.current);
+      stopStreamTracks(localVideoStreamRef.current);
+      localAudioStreamRef.current = null;
+      localVideoStreamRef.current = null;
+      setLocalVideoStream(null);
+      setRemoteVideoStream(null);
+      setRemoteAudioStream(null);
+
+      if (prevSession.serverId && prevSession.channelId && firebaseUid) {
+        void removeVoiceChannelPresence(prevSession.serverId, prevSession.channelId, firebaseUid);
+      }
+
+      setVoiceSession({
+        active: false,
+        channelName: '',
+        contextName: '',
+        muted: false,
+        deafened: false,
+        videoOn: false,
+        screenSharing: false,
+        connectedSeconds: 0,
+        participants: [],
+      });
+    },
+    [firebaseUid, stopStreamTracks]
+  );
+
+  const attachScreenEndedListener = useCallback(
+    (stream: MediaStream) => {
+      const track = stream.getVideoTracks()[0];
+      if (!track) return;
+      track.onended = () => {
+        stopStreamTracks(localVideoStreamRef.current);
+        localVideoStreamRef.current = null;
+        setLocalVideoStream(null);
+        setVoiceSession((v) => ({ ...v, screenSharing: false }));
+        void rtcControllerRef.current?.setVideoTrack(null);
+        void rtcControllerRef.current?.updateMediaFlags({ screenSharing: false });
+      };
+    },
+    [stopStreamTracks]
+  );
+
+  const handleRemoteStreamUpdate = useCallback((stream: MediaStream | null) => {
+    if (!stream) {
+      setRemoteAudioStream(null);
+      setRemoteVideoStream(null);
+      return;
+    }
+    const audioTracks = stream.getAudioTracks();
+    const videoTracks = stream.getVideoTracks();
+    setRemoteAudioStream(audioTracks.length > 0 ? new MediaStream(audioTracks) : null);
+    setRemoteVideoStream(videoTracks.length > 0 ? new MediaStream(videoTracks) : null);
+  }, []);
+
+  const startCallSession = useCallback(
+    async (params: {
+      dm?: DirectMessageThread;
+      serverId?: string;
+      channelId?: string;
+      channelName?: string;
+      contextName?: string;
+      participantProfile?: PublicUserProfile;
+      video: boolean;
+      screen?: boolean;
+    }) => {
+      await cleanupVoiceCall(true);
+      playUiSound('voiceJoin', appPreferences.soundsEnabled);
+      triggerHaptic(14);
+
+      const audioStream = await captureLocalAudio();
+      localAudioStreamRef.current = audioStream;
+
+      let videoStream: MediaStream | null = null;
+      let screenActive = false;
+      let cameraActive = false;
+
+      if (params.screen) {
+        try {
+          videoStream = await captureLocalScreen();
+          if (videoStream) {
+            screenActive = true;
+            attachScreenEndedListener(videoStream);
+            handleLogStreamHour();
+          } else {
+            showToastMsg('No se inició la pantalla compartida. Puedes activarla desde la llamada.');
+          }
+        } catch (err: unknown) {
+          showToastMsg(
+            err instanceof Error
+              ? err.message
+              : 'Este dispositivo/navegador no permite compartir pantalla.'
+          );
+        }
+      } else if (params.video) {
+        videoStream = await captureLocalCamera();
+        cameraActive = Boolean(videoStream);
+        if (!videoStream) {
+          showToastMsg('No se pudo acceder a la cámara; llamada iniciada solo con voz.');
+        }
+      }
+
+      localVideoStreamRef.current = videoStream;
+      setLocalVideoStream(videoStream);
+
+      const audioTrack = audioStream?.getAudioTracks()[0] || null;
+      const videoTrack = videoStream?.getVideoTracks()[0] || null;
+
+      if (params.serverId && params.channelId) {
+        setVoiceSession({
+          active: true,
+          callNonce: Date.now(),
+          serverId: params.serverId,
+          channelId: params.channelId,
+          callStatus: 'connected',
+          channelName: params.channelName || 'Canal de voz',
+          contextName: params.contextName || 'Servidor',
+          muted: !audioTrack,
+          deafened: false,
+          videoOn: cameraActive,
+          screenSharing: screenActive,
+          connectedSeconds: 0,
+          participants: [],
+        });
+        if (firebaseUid) {
+          void upsertVoiceChannelPresence({
+            serverId: params.serverId,
+            channelId: params.channelId,
+            currentUser: user,
+            muted: !audioTrack,
+            videoOn: cameraActive,
+            screenSharing: screenActive,
+          });
+        }
+        return;
+      }
+
+      let targetDmId = params.dm && !params.dm.id.startsWith('dm-grp-') ? params.dm.id : undefined;
+      if (!targetDmId && firebaseUid && params.participantProfile?.id) {
+        try {
+          targetDmId = await getOrCreateDmThread(user, params.participantProfile);
+        } catch {
+          targetDmId = undefined;
+        }
+      }
+
+      const peerId = params.dm?.otherUid || params.participantProfile?.id || params.dm?.id || 'peer';
+      const peerName = params.dm?.name || params.participantProfile?.displayName || 'Llamada';
+      const peerAvatar = params.dm?.avatar || params.participantProfile?.avatar || 'madara';
+      const peerCustomAvatar =
+        params.dm?.customAvatarUrl || params.participantProfile?.customAvatarUrl;
+
+      setVoiceSession({
+        active: true,
+        callNonce: Date.now(),
+        dmId: targetDmId,
+        callStatus: targetDmId && firebaseUid ? 'ringing' : 'connected',
+        channelName: peerName,
+        contextName: params.contextName || 'Mensaje directo',
+        muted: !audioTrack,
+        deafened: false,
+        videoOn: cameraActive,
+        screenSharing: screenActive,
+        connectedSeconds: 0,
+        participants: [
+          {
+            id: peerId,
+            name: peerName,
+            avatar: peerAvatar,
+            customAvatarUrl: peerCustomAvatar,
+            speaking: false,
+            videoOn: false,
+            screenSharing: false,
+          },
+        ],
+      });
+
+      if (targetDmId && firebaseUid) {
+        const controller = new DmWebRtcController({
+          dmId: targetDmId,
+          myUid: firebaseUid,
+          role: 'caller',
+          callbacks: {
+            onRemoteStream: handleRemoteStreamUpdate,
+            onRemoteState: ({ status, remoteVideoOn, remoteScreenSharing }) => {
+              setVoiceSession((prev) => ({
+                ...prev,
+                callStatus: status === 'ended' ? 'idle' : status,
+                participants: prev.participants.map((p, idx) =>
+                  idx === 0
+                    ? {
+                        ...p,
+                        speaking: status === 'connected',
+                        videoOn: remoteVideoOn,
+                        screenSharing: remoteScreenSharing,
+                      }
+                    : p
+                ),
+              }));
+            },
+            onRemoteEnded: () => {
+              showToastMsg('La llamada ha finalizado');
+              void cleanupVoiceCall(false);
+            },
+          },
+        });
+        rtcControllerRef.current = controller;
+        await controller
+          .startAsCaller({
+            currentUser: user,
+            calleeUid: params.dm?.otherUid || params.participantProfile?.id,
+            audioTrack,
+            videoTrack,
+            videoOn: cameraActive,
+            screenSharing: screenActive,
+          })
+          .catch(() => {
+            showToastMsg('No se pudo conectar la señalización WebRTC.');
+          });
+      }
+    },
+    [
+      appPreferences.soundsEnabled,
+      attachScreenEndedListener,
+      cleanupVoiceCall,
+      firebaseUid,
+      handleRemoteStreamUpdate,
+      user,
+    ]
+  );
+
+  const answerIncomingCall = useCallback(
+    async (call: IncomingDmCall, mode: 'audio' | 'video') => {
+      if (!firebaseUid) return;
+      try {
+        const snap = await getDoc(doc(db, 'dms', call.dmId, 'rtc', 'active'));
+        if (!snap.exists()) {
+          showToastMsg('La llamada ya expiró');
+          return;
+        }
+        const d = snap.data();
+        if (!d.active || !d.offer?.sdp) {
+          showToastMsg('La llamada ya fue cancelada');
+          return;
+        }
+
+        await cleanupVoiceCall(true);
+        playUiSound('voiceJoin', appPreferences.soundsEnabled);
+        triggerHaptic(16);
+
+        const audioStream = await captureLocalAudio();
+        localAudioStreamRef.current = audioStream;
+        const videoStream = mode === 'video' ? await captureLocalCamera() : null;
+        localVideoStreamRef.current = videoStream;
+        setLocalVideoStream(videoStream);
+
+        const dmThread = dms.find((item) => item.id === call.dmId);
+        setVoiceSession({
+          active: true,
+          callNonce: Date.now(),
+          dmId: call.dmId,
+          callStatus: 'connected',
+          channelName: dmThread?.name || call.callerName,
+          contextName: 'Mensaje directo',
+          muted: !audioStream,
+          deafened: false,
+          videoOn: Boolean(videoStream),
+          screenSharing: false,
+          connectedSeconds: 0,
+          participants: [
+            {
+              id: call.callerUid,
+              name: dmThread?.name || call.callerName,
+              avatar: dmThread?.avatar || call.callerAvatar,
+              customAvatarUrl: dmThread?.customAvatarUrl,
+              speaking: true,
+              videoOn: call.videoOn,
+              screenSharing: call.screenSharing,
+            },
+          ],
+        });
+
+        const controller = new DmWebRtcController({
+          dmId: call.dmId,
+          myUid: firebaseUid,
+          role: 'callee',
+          callId: call.callId,
+          callbacks: {
+            onRemoteStream: handleRemoteStreamUpdate,
+            onRemoteState: ({ status, remoteVideoOn, remoteScreenSharing }) => {
+              setVoiceSession((prev) => ({
+                ...prev,
+                callStatus: status === 'ended' ? 'idle' : status,
+                participants: prev.participants.map((p, idx) =>
+                  idx === 0
+                    ? {
+                        ...p,
+                        speaking: status === 'connected',
+                        videoOn: remoteVideoOn,
+                        screenSharing: remoteScreenSharing,
+                      }
+                    : p
+                ),
+              }));
+            },
+            onRemoteEnded: () => {
+              showToastMsg('La llamada ha finalizado');
+              void cleanupVoiceCall(false);
+            },
+          },
+        });
+        rtcControllerRef.current = controller;
+        await controller.answerAsCallee({
+          audioTrack: audioStream?.getAudioTracks()[0] || null,
+          videoTrack: videoStream?.getVideoTracks()[0] || null,
+          videoOn: Boolean(videoStream),
+          screenSharing: false,
+          offer: {
+            type: d.offer.type,
+            sdp: d.offer.sdp,
+          },
+        });
+      } catch {
+        showToastMsg('No se pudo contestar la llamada');
+      }
+    },
+    [appPreferences.soundsEnabled, cleanupVoiceCall, dms, firebaseUid, handleRemoteStreamUpdate]
+  );
+
+  const handleToggleVoiceMute = useCallback(() => {
+    setVoiceSession((v) => {
+      const nextMuted = !v.muted;
+      playUiSound(nextMuted ? 'mute' : 'unmute', appPreferences.soundsEnabled);
+      triggerHaptic(10);
+      localAudioStreamRef.current?.getAudioTracks().forEach((t) => {
+        t.enabled = !nextMuted;
+      });
+      if (v.serverId && v.channelId && firebaseUid) {
+        void upsertVoiceChannelPresence({
+          serverId: v.serverId,
+          channelId: v.channelId,
+          currentUser: user,
+          muted: nextMuted,
+          videoOn: v.videoOn,
+          screenSharing: v.screenSharing,
+        });
+      }
+      return { ...v, muted: nextMuted };
+    });
+  }, [appPreferences.soundsEnabled, firebaseUid, user]);
+
+  const handleToggleVoiceDeafen = useCallback(() => {
+    setVoiceSession((v) => ({ ...v, deafened: !v.deafened }));
+  }, []);
+
+  const handleToggleVoiceVideo = useCallback(async () => {
+    const current = voiceSessionRef.current;
+    if (current.videoOn) {
+      stopStreamTracks(localVideoStreamRef.current);
+      localVideoStreamRef.current = null;
+      setLocalVideoStream(null);
+      setVoiceSession((v) => ({ ...v, videoOn: false }));
+      await rtcControllerRef.current?.setVideoTrack(null);
+      await rtcControllerRef.current?.updateMediaFlags({ videoOn: false });
+      if (current.serverId && current.channelId && firebaseUid) {
+        void upsertVoiceChannelPresence({
+          serverId: current.serverId,
+          channelId: current.channelId,
+          currentUser: user,
+          muted: current.muted,
+          videoOn: false,
+          screenSharing: current.screenSharing,
+        });
+      }
+      return;
+    }
+
+    const camStream = await captureLocalCamera();
+    if (!camStream) {
+      showToastMsg('No se pudo acceder a la cámara en este dispositivo');
+      return;
+    }
+    stopStreamTracks(localVideoStreamRef.current);
+    localVideoStreamRef.current = camStream;
+    setLocalVideoStream(camStream);
+    setVoiceSession((v) => ({ ...v, videoOn: true, screenSharing: false }));
+    const track = camStream.getVideoTracks()[0] || null;
+    await rtcControllerRef.current?.setVideoTrack(track);
+    await rtcControllerRef.current?.updateMediaFlags({ videoOn: true, screenSharing: false });
+    if (current.serverId && current.channelId && firebaseUid) {
+      void upsertVoiceChannelPresence({
+        serverId: current.serverId,
+        channelId: current.channelId,
+        currentUser: user,
+        muted: current.muted,
+        videoOn: true,
+        screenSharing: false,
+      });
+    }
+  }, [firebaseUid, stopStreamTracks, user]);
+
+  const handleToggleVoiceScreen = useCallback(async () => {
+    const current = voiceSessionRef.current;
+    if (current.screenSharing) {
+      stopStreamTracks(localVideoStreamRef.current);
+      localVideoStreamRef.current = null;
+      setLocalVideoStream(null);
+      setVoiceSession((v) => ({ ...v, screenSharing: false }));
+      await rtcControllerRef.current?.setVideoTrack(null);
+      await rtcControllerRef.current?.updateMediaFlags({ screenSharing: false });
+      if (current.serverId && current.channelId && firebaseUid) {
+        void upsertVoiceChannelPresence({
+          serverId: current.serverId,
+          channelId: current.channelId,
+          currentUser: user,
+          muted: current.muted,
+          videoOn: current.videoOn,
+          screenSharing: false,
+        });
+      }
+      return;
+    }
+
+    try {
+      const scrStream = await captureLocalScreen();
+      if (!scrStream) {
+        showToastMsg('Captura de pantalla cancelada');
+        return;
+      }
+      stopStreamTracks(localVideoStreamRef.current);
+      localVideoStreamRef.current = scrStream;
+      setLocalVideoStream(scrStream);
+      attachScreenEndedListener(scrStream);
+      handleLogStreamHour();
+      setVoiceSession((v) => ({ ...v, screenSharing: true, videoOn: false }));
+      const track = scrStream.getVideoTracks()[0] || null;
+      await rtcControllerRef.current?.setVideoTrack(track);
+      await rtcControllerRef.current?.updateMediaFlags({ screenSharing: true, videoOn: false });
+      if (current.serverId && current.channelId && firebaseUid) {
+        void upsertVoiceChannelPresence({
+          serverId: current.serverId,
+          channelId: current.channelId,
+          currentUser: user,
+          muted: current.muted,
+          videoOn: false,
+          screenSharing: true,
+        });
+      }
+    } catch (err: unknown) {
+      showToastMsg(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo compartir pantalla en este navegador.'
+      );
+    }
+  }, [attachScreenEndedListener, firebaseUid, stopStreamTracks, user]);
+
+  const handleDisconnectVoice = useCallback(() => {
+    playUiSound('voiceLeave', appPreferences.soundsEnabled);
+    triggerHaptic(12);
+    void cleanupVoiceCall(true);
+  }, [appPreferences.soundsEnabled, cleanupVoiceCall]);
+
+  // Escucha llamadas entrantes en los DMs reales del usuario
+  const realDmIdsKey = useMemo(
+    () =>
+      dms
+        .filter((d) => !d.id.startsWith('dm-grp-'))
+        .map((d) => d.id)
+        .join('|'),
+    [dms]
+  );
+
+  useEffect(() => {
+    if (!firebaseUid || pendingGoogleUser || !realDmIdsKey) {
+      setIncomingCalls([]);
+      return;
+    }
+    const ids = realDmIdsKey.split('|').filter(Boolean);
+    return subscribeToIncomingDmCalls(ids, firebaseUid, (calls) => {
+      setIncomingCalls(calls);
+    });
+  }, [firebaseUid, pendingGoogleUser, realDmIdsKey]);
+
+  // Sincroniza participantes conectados en canales de voz del servidor
+  useEffect(() => {
+    if (
+      !voiceSession.active ||
+      !voiceSession.serverId ||
+      !voiceSession.channelId ||
+      !firebaseUid
+    ) {
+      return;
+    }
+    const srvId = voiceSession.serverId;
+    const chId = voiceSession.channelId;
+    return subscribeToVoiceChannelPresence(srvId, chId, (participants) => {
+      const others = participants.filter((p) => p.id !== firebaseUid);
+      setVoiceSession((prev) => ({
+        ...prev,
+        participants: others.map((p) => ({
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar,
+          customAvatarUrl: p.customAvatarUrl,
+          speaking: !p.muted,
+          muted: p.muted,
+          videoOn: p.videoOn,
+          screenSharing: p.screenSharing,
+        })),
+      }));
+      setServers((prev) =>
+        prev.map((s) =>
+          s.id === srvId
+            ? {
+                ...s,
+                channels: s.channels.map((c) =>
+                  c.id === chId
+                    ? {
+                        ...c,
+                        voiceParticipants: participants.map((p) => ({
+                          id: p.id,
+                          name: p.name,
+                          avatar: p.avatar,
+                          speaking: !p.muted,
+                        })),
+                      }
+                    : c
+                ),
+              }
+            : s
+        )
+      );
+    });
+  }, [voiceSession.active, voiceSession.serverId, voiceSession.channelId, firebaseUid]);
+
   const renderDesktopWorkspace = () => {
     if (screen === 'tu') {
       return (
@@ -3068,26 +3709,19 @@ export default function App() {
         onToggleDmFavorite={() => activeDm && handleToggleDmFavorite(activeDm.id)}
         onToggleDmMute={() => activeDm && handleToggleDmMute(activeDm.id)}
         onToggleReaction={handleToggleReaction}
-        onStartCall={(video) => {
-          playUiSound('voiceJoin', appPreferences.soundsEnabled);
-          triggerHaptic(14);
-          setVoiceSession({
-            active: true,
-            callNonce: Date.now(),
+        onStartCall={(video, screen) => {
+          void startCallSession({
+            dm: activeContext.type === 'dm' ? activeDm : undefined,
+            serverId: activeContext.type === 'server' ? activeServer?.id : undefined,
+            channelId: activeContext.type === 'server' ? activeChannelObj?.id : undefined,
             channelName:
               activeContext.type === 'server'
                 ? activeChannelObj?.name || 'Canal de voz'
                 : activeDm?.name || 'Llamada',
             contextName:
               activeContext.type === 'server' ? activeServer?.name || '' : 'Mensaje directo',
-            muted: false,
-            deafened: false,
-            videoOn: video,
-            screenSharing: false,
-            connectedSeconds: 0,
-            participants: activeDm
-              ? [{ id: activeDm.otherUid || activeDm.id, name: activeDm.name, avatar: activeDm.avatar, speaking: false }]
-              : [],
+            video,
+            screen,
           });
         }}
         onJoinInviteServer={(url) => {
@@ -3142,6 +3776,62 @@ export default function App() {
           {toast}
         </div>
       )}
+
+      {incomingCalls.filter((c) => c.dmId !== voiceSession.dmId).length > 0 && (() => {
+        const ring = incomingCalls.filter((c) => c.dmId !== voiceSession.dmId)[0];
+        const dmMatch = dms.find((d) => d.id === ring.dmId);
+        return (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[75] w-[calc(100%-2rem)] max-w-md rounded-2xl bg-[#1c1d22]/95 backdrop-blur-md border border-[#23a55a]/50 p-3.5 shadow-2xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <UserAvatar
+                avatar={dmMatch?.avatar || ring.callerAvatar}
+                customAvatarUrl={dmMatch?.customAvatarUrl}
+                status="online"
+                size="md"
+                borderColor="#1c1d22"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white truncate">
+                  {dmMatch?.name || ring.callerName}
+                </p>
+                <p className="text-[11.5px] font-semibold text-[#3dd67d] animate-pulse truncate">
+                  {ring.screenSharing
+                    ? 'Compartiendo pantalla · Llamada entrante'
+                    : ring.videoOn
+                    ? 'Videollamada entrante...'
+                    : 'Llamada de voz entrante...'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => void answerIncomingCall(ring, 'audio')}
+                title="Contestar con voz"
+                className="w-10 h-10 rounded-full bg-[#23a55a] hover:bg-[#1e934e] text-white flex items-center justify-center cursor-pointer shadow-md"
+              >
+                <PhoneCall className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void answerIncomingCall(ring, 'video')}
+                title="Contestar con video"
+                className="w-10 h-10 rounded-full bg-[#5865F2] hover:bg-[#4752c4] text-white flex items-center justify-center cursor-pointer shadow-md"
+              >
+                <Video className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void rejectDmIncomingCall(ring.dmId)}
+                title="Rechazar"
+                className="w-10 h-10 rounded-full bg-[#f23f43] hover:bg-[#d83337] text-white flex items-center justify-center cursor-pointer shadow-md"
+              >
+                <PhoneOff className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Left Server Rail + Sidebar */}
@@ -3241,20 +3931,13 @@ export default function App() {
                 pendingFriendRequestsCount={friendRequests.length}
                 onSelectDm={handleSelectDm}
                 onSelectChannel={handleSelectChannel}
-                onJoinVoice={(_srvId, _chId, chName, srvName) => {
-                  playUiSound('voiceJoin', appPreferences.soundsEnabled);
-                  triggerHaptic(14);
-                  setVoiceSession({
-                    active: true,
-                    callNonce: Date.now(),
+                onJoinVoice={(srvId, chId, chName, srvName) => {
+                  void startCallSession({
+                    serverId: srvId,
+                    channelId: chId,
                     channelName: chName,
                     contextName: srvName,
-                    muted: false,
-                    deafened: false,
-                    videoOn: false,
-                    screenSharing: false,
-                    connectedSeconds: 0,
-                    participants: [],
+                    video: false,
                   });
                 }}
                 onOpenFriends={() => setScreen('amigos')}
@@ -3303,27 +3986,14 @@ export default function App() {
               voice={voiceSession}
               currentUser={user}
               soundsEnabled={appPreferences.soundsEnabled}
-              onToggleMute={() =>
-                setVoiceSession((v) => {
-                  const nextMuted = !v.muted;
-                  playUiSound(nextMuted ? 'mute' : 'unmute', appPreferences.soundsEnabled);
-                  triggerHaptic(10);
-                  return { ...v, muted: nextMuted };
-                })
-              }
-              onToggleDeafen={() => setVoiceSession((v) => ({ ...v, deafened: !v.deafened }))}
-              onToggleVideo={() => setVoiceSession((v) => ({ ...v, videoOn: !v.videoOn }))}
-              onToggleScreen={() => {
-                if (!voiceSession.screenSharing) {
-                  handleLogStreamHour();
-                }
-                setVoiceSession((v) => ({ ...v, screenSharing: !v.screenSharing }));
-              }}
-              onDisconnect={() => {
-                playUiSound('voiceLeave', appPreferences.soundsEnabled);
-                triggerHaptic(12);
-                setVoiceSession((v) => ({ ...v, active: false }));
-              }}
+              localVideoStream={localVideoStream}
+              remoteVideoStream={remoteVideoStream}
+              remoteAudioStream={remoteAudioStream}
+              onToggleMute={handleToggleVoiceMute}
+              onToggleDeafen={handleToggleVoiceDeafen}
+              onToggleVideo={() => void handleToggleVoiceVideo()}
+              onToggleScreen={() => void handleToggleVoiceScreen()}
+              onDisconnect={handleDisconnectVoice}
             />
 
             {/* Mobile Bottom Primary Tabs — 3 Clean Centered Tabs */}
@@ -3852,21 +4522,18 @@ export default function App() {
           void handleSendDmFromProfile(prof, initialMsg);
         }}
         onStartCall={(prof, video) => {
-          playUiSound('voiceJoin', appPreferences.soundsEnabled);
-          triggerHaptic(14);
-          setVoiceSession({
-            active: true,
-            callNonce: Date.now(),
+          const matchingDm = dms.find(
+            (d) =>
+              d.otherUid === prof.id ||
+              d.id === prof.id ||
+              (d.username && prof.username && d.username.toLowerCase() === prof.username.toLowerCase())
+          );
+          void startCallSession({
+            dm: matchingDm,
+            participantProfile: prof,
             channelName: prof.displayName,
             contextName: 'Mensaje directo',
-            muted: false,
-            deafened: false,
-            videoOn: video,
-            screenSharing: false,
-            connectedSeconds: 0,
-            participants: [
-              { id: prof.id, name: prof.displayName, avatar: prof.avatar, speaking: true },
-            ],
+            video,
           });
         }}
         onToggleFriend={(prof) => {

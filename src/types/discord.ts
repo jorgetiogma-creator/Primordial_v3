@@ -473,6 +473,7 @@ export interface DirectMessageThread {
   name: string;
   username?: string;
   avatar: AvatarKey;
+  customAvatarUrl?: string;
   secondaryAvatar?: AvatarKey;
   isGroup?: boolean;
   isBot?: boolean;
@@ -750,6 +751,10 @@ export interface NotificationItem {
 export interface VoiceSession {
   active: boolean;
   callNonce?: number;
+  dmId?: string;
+  serverId?: string;
+  channelId?: string;
+  callStatus?: 'idle' | 'ringing' | 'connecting' | 'connected';
   channelName: string;
   contextName: string;
   muted: boolean;
@@ -761,8 +766,11 @@ export interface VoiceSession {
     id: string;
     name: string;
     avatar: AvatarKey;
+    customAvatarUrl?: string;
     speaking?: boolean;
     muted?: boolean;
+    videoOn?: boolean;
+    screenSharing?: boolean;
   }[];
 }
 

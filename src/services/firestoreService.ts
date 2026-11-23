@@ -612,24 +612,26 @@ export async function getOrCreateDmThread(
     const dmRef = doc(db, 'dms', dmId);
     const existing = await getDoc(dmRef);
     const participantProfiles = {
-      [currentUser.id]: {
+      [currentUser.id]: stripUndefined({
         displayName: clampStr(currentUser.displayName, 40) || currentUser.username,
         username: clampStr(currentUser.username, 32),
         avatar: currentUser.avatar || 'madara',
+        customAvatarUrl: safeMedia200k(currentUser.customAvatarUrl),
         status: currentUser.status || 'online',
         decoration: currentUser.decoration || 'none',
         nameplate: currentUser.nameplate || 'none',
         serverTag: clampStr(currentUser.serverTag, 12),
-      },
-      [target.id]: {
+      }),
+      [target.id]: stripUndefined({
         displayName: clampStr(target.displayName, 40) || target.username,
         username: clampStr(target.username, 32),
         avatar: target.avatar || 'madara',
+        customAvatarUrl: safeMedia200k(target.customAvatarUrl),
         status: target.status || 'online',
         decoration: target.decoration || 'none',
         nameplate: target.nameplate || 'none',
         serverTag: clampStr(target.serverTag, 12),
-      },
+      }),
     };
 
     if (!existing.exists()) {
@@ -676,6 +678,7 @@ export function subscribeToDms(
             displayName?: string;
             username?: string;
             avatar?: AvatarKey;
+            customAvatarUrl?: string;
             status?: PresenceStatus;
             decoration?: UserProfile['decoration'];
             nameplate?: UserProfile['nameplate'];
@@ -693,6 +696,9 @@ export function subscribeToDms(
             : String(otherProfile.displayName || otherProfile.username || 'Usuario'),
           username: d.isGroup ? undefined : otherProfile.username,
           avatar: (otherProfile.avatar as AvatarKey) || 'madara',
+          customAvatarUrl: d.isGroup
+            ? undefined
+            : sanitizeMediaUrl(otherProfile.customAvatarUrl),
           isGroup: Boolean(d.isGroup),
           isBot: false,
           status: (otherProfile.status as PresenceStatus) || 'online',
@@ -756,7 +762,7 @@ export function subscribeToDmMessages(
   onData: (messages: ChatMessage[]) => void
 ): Unsubscribe {
   const path = `dms/${dmId}/messages`;
-  const q = query(collection(db, 'dms', dmId, 'messages'), orderBy('createdAt', 'asc'), limit(150));
+  const q = query(collection(db, 'dms', dmId, 'messages'), orderBy('createdAt', 'desc'), limit(150));
   return onSnapshot(
     q,
     (snapshot) => {
@@ -764,6 +770,8 @@ export function subscribeToDmMessages(
       snapshot.forEach((docSnap) => {
         msgs.push(docToChatMessage(docSnap.id, docSnap.data()));
       });
+      msgs.reverse();
+      msgs.sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0));
       onData(msgs);
     },
     (error) => {
@@ -1686,7 +1694,7 @@ export function subscribeToChannelMessages(
   const path = `servers/${serverId}/channels/${channelId}/messages`;
   const q = query(
     collection(db, 'servers', serverId, 'channels', channelId, 'messages'),
-    orderBy('createdAt', 'asc'),
+    orderBy('createdAt', 'desc'),
     limit(150)
   );
   return onSnapshot(
@@ -1696,6 +1704,8 @@ export function subscribeToChannelMessages(
       snapshot.forEach((docSnap) => {
         msgs.push(docToChatMessage(docSnap.id, docSnap.data()));
       });
+      msgs.reverse();
+      msgs.sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0));
       onData(msgs);
     },
     (error) => {
@@ -1979,5 +1989,119 @@ export async function respondFriendRequest(params: {
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
+}
+
+export async function ensureRealConnectionByUsername(params: {
+  currentUser: UserProfile;
+  targetHandle: string;
+}): Promise<string | null> {
+  const { currentUser, targetHandle } = params;
+  const cleanTarget = normalizeUsernameHandle(targetHandle);
+  if (!cleanTarget || !currentUser.id) return null;
+  if (normalizeUsernameHandle(currentUser.username) === cleanTarget) return null;
+
+  try {
+    const matches = await searchRealUsers(cleanTarget, currentUser.id);
+    const exact =
+      matches.find(
+        (m) =>
+          normalizeUsernameHandle(m.username) === cleanTarget ||
+          m.displayName.trim().toLowerCase() === cleanTarget
+      ) || matches[0];
+    if (!exact || exact.id === currentUser.id) return null;
+
+    const dmId = await getOrCreateDmThread(currentUser, exact);
+    await sendFriendRequest({ fromUser: currentUser, toUid: exact.id }).catch(() => undefined);
+    return dmId;
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertVoiceChannelPresence(params: {
+  serverId: string;
+  channelId: string;
+  currentUser: UserProfile;
+  muted: boolean;
+  videoOn: boolean;
+  screenSharing: boolean;
+}): Promise<void> {
+  const { serverId, channelId, currentUser, muted, videoOn, screenSharing } = params;
+  if (!serverId || !channelId || !currentUser.id) return;
+  try {
+    await setDoc(
+      doc(db, 'servers', serverId, 'channels', channelId, 'rtc', currentUser.id),
+      stripUndefined({
+        uid: currentUser.id,
+        displayName: clampStr(currentUser.displayName, 40) || currentUser.username || 'Usuario',
+        avatar: clampStr(currentUser.avatar, 32) || 'madara',
+        customAvatarUrl: safeMedia200k(currentUser.customAvatarUrl),
+        muted,
+        videoOn,
+        screenSharing,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  } catch {
+    /* ignore transient voice presence sync errors */
+  }
+}
+
+export async function removeVoiceChannelPresence(
+  serverId: string,
+  channelId: string,
+  uid: string
+): Promise<void> {
+  if (!serverId || !channelId || !uid) return;
+  try {
+    await deleteDoc(doc(db, 'servers', serverId, 'channels', channelId, 'rtc', uid));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function subscribeToVoiceChannelPresence(
+  serverId: string,
+  channelId: string,
+  onData: (
+    participants: {
+      id: string;
+      name: string;
+      avatar: AvatarKey;
+      customAvatarUrl?: string;
+      muted: boolean;
+      videoOn: boolean;
+      screenSharing: boolean;
+    }[]
+  ) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'servers', serverId, 'channels', channelId, 'rtc'), limit(50)),
+    (snap) => {
+      const list: {
+        id: string;
+        name: string;
+        avatar: AvatarKey;
+        customAvatarUrl?: string;
+        muted: boolean;
+        videoOn: boolean;
+        screenSharing: boolean;
+      }[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: String(d.uid || docSnap.id),
+          name: String(d.displayName || 'Usuario'),
+          avatar: (d.avatar as AvatarKey) || 'madara',
+          customAvatarUrl: sanitizeMediaUrl(d.customAvatarUrl as string | undefined),
+          muted: Boolean(d.muted),
+          videoOn: Boolean(d.videoOn),
+          screenSharing: Boolean(d.screenSharing),
+        });
+      });
+      onData(list);
+    },
+    () => undefined
+  );
 }
 

@@ -14,6 +14,7 @@ import {
   Languages,
   Megaphone,
   Mic,
+  Monitor,
   MoreHorizontal,
   Palette,
   Pause,
@@ -97,7 +98,7 @@ interface ChatViewProps {
   onToggleDmFavorite?: () => void;
   onToggleDmMute?: () => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
-  onStartCall: (video: boolean) => void;
+  onStartCall: (video: boolean, screen?: boolean) => void;
   onJoinInviteServer?: (url: string) => void;
   onOpenNitro?: () => void;
   onOpenServerSettings?: (serverId: string, section?: ServerSettingsSection) => void;
@@ -881,6 +882,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     displayName: dm.name,
                     username: dm.username || dm.name.toLowerCase().replace(/\s+/g, ''),
                     avatar: dm.avatar,
+                    customAvatarUrl: dm.customAvatarUrl,
                     status: dm.status,
                     decoration: dm.decoration,
                     nameplate: dm.nameplate,
@@ -906,6 +908,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 ) : (
                   <UserAvatar
                     avatar={dm.avatar}
+                    customAvatarUrl={dm.customAvatarUrl}
                     status={dm.status}
                     decoration={dm.decoration || 'none'}
                     size="sm"
@@ -981,6 +984,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
               className="w-9 h-9 rounded-full dc-btn-icon flex items-center justify-center cursor-pointer"
             >
               <Video className="w-[18px] h-[18px]" />
+            </button>
+            <button
+              onClick={() => onStartCall(false, true)}
+              title="Compartir pantalla"
+              className="w-9 h-9 rounded-full dc-btn-icon flex items-center justify-center cursor-pointer"
+            >
+              <Monitor className="w-[17px] h-[17px]" />
             </button>
             <button
               onClick={() => setShowPinnedDrawer((p) => !p)}

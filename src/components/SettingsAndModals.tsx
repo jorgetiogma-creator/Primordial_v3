@@ -1223,6 +1223,7 @@ export const FriendsView: React.FC<{
                     displayName: f.name,
                     username: f.username || f.name.toLowerCase().replace(/\s+/g, ''),
                     avatar: f.avatar,
+                    customAvatarUrl: f.customAvatarUrl,
                     status: f.status,
                     decoration: f.decoration,
                     nameplate: f.nameplate,
@@ -1234,6 +1235,7 @@ export const FriendsView: React.FC<{
                 <div className="flex items-center gap-3 min-w-0">
                   <UserAvatar
                     avatar={f.avatar}
+                    customAvatarUrl={f.customAvatarUrl}
                     status={f.status}
                     decoration={f.decoration || 'none'}
                     size="md"
@@ -1406,6 +1408,9 @@ export const VoiceOverlay: React.FC<{
   voice: VoiceSession;
   currentUser: UserProfile;
   soundsEnabled?: boolean;
+  localVideoStream?: MediaStream | null;
+  remoteVideoStream?: MediaStream | null;
+  remoteAudioStream?: MediaStream | null;
   onToggleMute: () => void;
   onToggleDeafen: () => void;
   onToggleVideo: () => void;
@@ -1415,6 +1420,9 @@ export const VoiceOverlay: React.FC<{
   voice,
   currentUser,
   soundsEnabled = true,
+  localVideoStream = null,
+  remoteVideoStream = null,
+  remoteAudioStream = null,
   onToggleMute,
   onToggleDeafen,
   onToggleVideo,
@@ -1424,6 +1432,16 @@ export const VoiceOverlay: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const [showSoundboard, setShowSoundboard] = useState(false);
   const [activeClipLabel, setActiveClipLabel] = useState<string | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const hasLocalVideo = Boolean(
+    localVideoStream && localVideoStream.getVideoTracks().some((t) => t.readyState === 'live')
+  );
+  const hasRemoteVideo = Boolean(
+    remoteVideoStream && remoteVideoStream.getVideoTracks().some((t) => t.readyState === 'live')
+  );
 
   useEffect(() => {
     if (voice.active && voice.callNonce) {
@@ -1435,11 +1453,50 @@ export const VoiceOverlay: React.FC<{
     }
   }, [voice.active, voice.callNonce]);
 
+  useEffect(() => {
+    const el = localVideoRef.current;
+    if (!el) return;
+    if (hasLocalVideo && localVideoStream) {
+      el.srcObject = localVideoStream;
+      void el.play().catch(() => undefined);
+    } else {
+      el.srcObject = null;
+    }
+  }, [localVideoStream, hasLocalVideo, expanded]);
+
+  useEffect(() => {
+    const el = remoteVideoRef.current;
+    if (!el) return;
+    if (hasRemoteVideo && remoteVideoStream) {
+      el.srcObject = remoteVideoStream;
+      void el.play().catch(() => undefined);
+    } else {
+      el.srcObject = null;
+    }
+  }, [remoteVideoStream, hasRemoteVideo, expanded]);
+
+  useEffect(() => {
+    const el = remoteAudioRef.current;
+    if (!el) return;
+    if (voice.active && remoteAudioStream) {
+      el.srcObject = remoteAudioStream;
+      el.muted = voice.deafened;
+      void el.play().catch(() => undefined);
+    } else {
+      el.srcObject = null;
+    }
+  }, [voice.active, remoteAudioStream, voice.deafened]);
+
   if (!voice.active) return null;
 
   const mins = String(Math.floor(voice.connectedSeconds / 60)).padStart(2, '0');
   const secs = String(voice.connectedSeconds % 60).padStart(2, '0');
-  const isRinging = voice.connectedSeconds < 2;
+  const isRinging = voice.callStatus === 'ringing';
+  const statusSubtitle = voice.screenSharing
+    ? `Compartiendo pantalla · ${mins}:${secs}`
+    : isRinging
+    ? 'Llamando...'
+    : `${voice.contextName} · ${mins}:${secs}`;
 
   const triggerClip = (clipId: SoundboardClipId, label: string, emoji: string) => {
     playSoundboardClip(clipId, soundsEnabled);
@@ -1449,15 +1506,25 @@ export const VoiceOverlay: React.FC<{
   };
 
   const selfTint = getAvatarBackdrop(currentUser.avatar);
+  const anyRemoteScreen = voice.participants.some((p) => p.screenSharing);
 
   return (
     <>
+      <audio ref={remoteAudioRef} autoPlay playsInline muted={voice.deafened} className="hidden" />
+
       <div className="bg-[#1c1d22] border-t border-[#23a55a]/40 px-3 py-2 flex items-center justify-between gap-2 shrink-0 text-white shadow-xl">
         <button onClick={() => setExpanded(true)} className="text-left min-w-0 flex-1 cursor-pointer">
           <p className="text-xs font-bold text-[#23a55a] flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#23a55a] animate-pulse" />
             <span>
-              {voice.videoOn ? 'Videollamada' : 'Voz conectada'} · {mins}:{secs}
+              {voice.screenSharing
+                ? 'Pantalla compartida'
+                : voice.videoOn
+                ? 'Videollamada'
+                : isRinging
+                ? 'Llamando'
+                : 'Voz conectada'}{' '}
+              · {mins}:{secs}
             </span>
           </p>
           <p className="text-[11.5px] text-zinc-300 truncate">
@@ -1466,6 +1533,15 @@ export const VoiceOverlay: React.FC<{
         </button>
 
         <div className="flex items-center gap-1">
+          <button
+            onClick={onToggleScreen}
+            aria-label="Compartir pantalla"
+            className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer ${
+              voice.screenSharing ? 'bg-[#5865F2] text-white' : 'hover:bg-white/10 text-white'
+            }`}
+          >
+            <Monitor className="w-4 h-4" />
+          </button>
           <button
             onClick={onToggleVideo}
             aria-label="Alternar cámara"
@@ -1508,18 +1584,24 @@ export const VoiceOverlay: React.FC<{
       </div>
 
       {expanded && (
-        <div className="fixed inset-0 z-50 bg-[#111214] flex flex-col justify-between p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-2">
+        <div className="fixed inset-0 z-50 bg-[#111214] flex flex-col justify-between p-4 sm:p-5 overflow-y-auto">
+          <div className="flex items-center justify-between gap-2 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 rounded-full bg-[#23a55a]/20 text-[#23a55a] flex items-center justify-center shrink-0">
-                {voice.videoOn ? <Video className="w-4.5 h-4.5" /> : <Volume2 className="w-4.5 h-4.5" />}
+                {voice.screenSharing ? (
+                  <Monitor className="w-4.5 h-4.5" />
+                ) : voice.videoOn ? (
+                  <Video className="w-4.5 h-4.5" />
+                ) : (
+                  <Volume2 className="w-4.5 h-4.5" />
+                )}
               </div>
               <div className="min-w-0">
                 <h3 className="font-display font-bold text-lg text-white leading-tight truncate">
                   {voice.channelName}
                 </h3>
                 <p className="text-xs text-[#23a55a] font-semibold tabular-nums truncate">
-                  {isRinging ? 'Conectando sala de voz...' : `${voice.contextName} · ${mins}:${secs}`}
+                  {statusSubtitle}
                 </p>
               </div>
             </div>
@@ -1539,12 +1621,16 @@ export const VoiceOverlay: React.FC<{
           </div>
 
           <div
-            className={`grid gap-3.5 max-w-3xl mx-auto w-full my-auto ${
+            className={`grid gap-3.5 max-w-4xl mx-auto w-full my-auto py-3 ${
               voice.participants.length <= 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'
             }`}
           >
             <div
-              className={`aspect-video sm:aspect-square rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
+              className={`rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
+                voice.screenSharing && !anyRemoteScreen
+                  ? 'col-span-full aspect-video max-h-[52vh]'
+                  : 'aspect-video sm:aspect-square'
+              } ${
                 !voice.muted
                   ? 'border-[#23a55a]/70 shadow-[0_0_24px_rgba(35,165,90,0.22)]'
                   : 'border-[#2e3035]'
@@ -1553,34 +1639,51 @@ export const VoiceOverlay: React.FC<{
                 background: `radial-gradient(circle at 50% 42%, ${selfTint}66 0%, #1c1d22 72%, #111214 100%)`,
               }}
             >
-              {voice.videoOn && (
-                <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/60 border border-white/15 text-[10.5px] font-bold text-[#23a55a] flex items-center gap-1">
+              {hasLocalVideo && (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`absolute inset-0 w-full h-full ${
+                    voice.screenSharing ? 'object-contain bg-black' : 'object-cover -scale-x-100'
+                  }`}
+                />
+              )}
+              {voice.videoOn && !voice.screenSharing && (
+                <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full bg-black/65 border border-white/15 text-[10.5px] font-bold text-[#23a55a] flex items-center gap-1">
                   <Video className="w-3 h-3" />
                   <span>Cámara activa</span>
                 </div>
               )}
               {voice.screenSharing && (
-                <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-[#5865F2] text-[10.5px] font-bold text-white flex items-center gap-1">
+                <div className="absolute top-3 right-3 z-10 px-2.5 py-0.5 rounded-full bg-[#5865F2] text-[10.5px] font-bold text-white flex items-center gap-1 shadow">
                   <Monitor className="w-3 h-3" />
-                  <span>Pantalla</span>
+                  <span>Compartiendo pantalla</span>
+                </div>
+              )}
+              {!hasLocalVideo && (
+                <div
+                  className={`rounded-full p-1 transition-all ${
+                    !voice.muted && !voice.deafened
+                      ? 'ring-3 ring-[#23a55a] shadow-[0_0_22px_rgba(35,165,90,0.65)]'
+                      : ''
+                  }`}
+                >
+                  <UserAvatar
+                    avatar={currentUser.avatar}
+                    customAvatarUrl={currentUser.customAvatarUrl}
+                    size="xl"
+                    showStatus={false}
+                  />
                 </div>
               )}
               <div
-                className={`rounded-full p-1 transition-all ${
-                  !voice.muted && !voice.deafened
-                    ? 'ring-3 ring-[#23a55a] shadow-[0_0_22px_rgba(35,165,90,0.65)]'
-                    : ''
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 z-10 ${
+                  hasLocalVideo ? 'absolute bottom-3 left-3' : ''
                 }`}
               >
-                <UserAvatar
-                  avatar={currentUser.avatar}
-                  customAvatarUrl={currentUser.customAvatarUrl}
-                  size="xl"
-                  showStatus={false}
-                />
-              </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/45">
-                <span className="text-sm font-bold text-white">{currentUser.displayName}</span>
+                <span className="text-sm font-bold text-white">{currentUser.displayName} (Tú)</span>
                 {voice.muted && <MicOff className="w-3.5 h-3.5 text-[#f23f43]" />}
                 {voice.deafened && <HeadphoneOff className="w-3.5 h-3.5 text-[#f23f43]" />}
               </div>
@@ -1589,10 +1692,14 @@ export const VoiceOverlay: React.FC<{
             {voice.participants.map((p, idx) => {
               const pTint = getAvatarBackdrop(p.avatar);
               const isSpeaking = Boolean(p.speaking && !p.muted);
+              const showRemoteVideoHere = idx === 0 && hasRemoteVideo;
+              const spotlightRemote = idx === 0 && (Boolean(p.screenSharing) || (hasRemoteVideo && !voice.screenSharing));
               return (
                 <div
                   key={p.id}
-                  className={`aspect-video sm:aspect-square rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
+                  className={`rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
+                    spotlightRemote ? 'col-span-full aspect-video max-h-[56vh]' : 'aspect-video sm:aspect-square'
+                  } ${
                     isSpeaking
                       ? 'border-[#23a55a]/75 shadow-[0_0_24px_rgba(35,165,90,0.25)]'
                       : 'border-[#2e3035]'
@@ -1601,20 +1708,48 @@ export const VoiceOverlay: React.FC<{
                     background: `radial-gradient(circle at 50% 42%, ${pTint}66 0%, #1c1d22 72%, #111214 100%)`,
                   }}
                 >
-                  {voice.videoOn && idx === 0 && (
-                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/55 border border-white/15 text-[10.5px] font-bold text-sky-300 flex items-center gap-1">
+                  {showRemoteVideoHere && (
+                    <video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className={`absolute inset-0 w-full h-full ${
+                        p.screenSharing ? 'object-contain bg-black' : 'object-cover'
+                      }`}
+                    />
+                  )}
+                  {p.screenSharing && (
+                    <div className="absolute top-3 right-3 z-10 px-2.5 py-0.5 rounded-full bg-[#5865F2] text-[10.5px] font-bold text-white flex items-center gap-1 shadow">
+                      <Monitor className="w-3 h-3" />
+                      <span>Pantalla en vivo</span>
+                    </div>
+                  )}
+                  {p.videoOn && !p.screenSharing && (
+                    <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full bg-black/65 border border-white/15 text-[10.5px] font-bold text-sky-300 flex items-center gap-1">
                       <Video className="w-3 h-3" />
-                      <span>Video activo</span>
+                      <span>Video en vivo</span>
+                    </div>
+                  )}
+                  {!showRemoteVideoHere && (
+                    <div
+                      className={`rounded-full p-1 transition-all ${
+                        isSpeaking ? 'ring-3 ring-[#23a55a] shadow-[0_0_22px_rgba(35,165,90,0.65)]' : ''
+                      }`}
+                    >
+                      <UserAvatar
+                        avatar={p.avatar}
+                        customAvatarUrl={p.customAvatarUrl}
+                        size="xl"
+                        showStatus={false}
+                      />
                     </div>
                   )}
                   <div
-                    className={`rounded-full p-1 transition-all ${
-                      isSpeaking ? 'ring-3 ring-[#23a55a] shadow-[0_0_22px_rgba(35,165,90,0.65)]' : ''
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 z-10 ${
+                      showRemoteVideoHere ? 'absolute bottom-3 left-3' : ''
                     }`}
                   >
-                    <UserAvatar avatar={p.avatar} size="xl" showStatus={false} />
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/45">
                     <span className="text-sm font-bold text-white">{p.name}</span>
                     {p.muted && <MicOff className="w-3.5 h-3.5 text-[#f23f43]" />}
                   </div>

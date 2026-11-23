@@ -252,6 +252,59 @@ service cloud.firestore {
         && (!('updatedAt' in data) || isRecentTimestamp(data.updatedAt));
     }
 
+    function isValidSdpDesc(desc) {
+      return desc is map
+        && desc.keys().hasAll(['type', 'sdp', 'seq'])
+        && desc.keys().hasOnly(['type', 'sdp', 'seq'])
+        && desc.type is string && desc.type.size() <= 16
+        && desc.sdp is string && desc.sdp.size() <= 40000
+        && desc.seq is int && desc.seq >= 0 && desc.seq <= 10000;
+    }
+
+    function isValidRtcSession(data, rtcDocId) {
+      return data.keys().hasAll(['id', 'callId', 'callerUid', 'status', 'active', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'callId', 'callerUid', 'callerName', 'callerAvatar', 'calleeUid',
+          'status', 'active', 'videoOn', 'screenSharing',
+          'callerVideoOn', 'callerScreenSharing', 'calleeVideoOn', 'calleeScreenSharing',
+          'offer', 'answer', 'updatedAt'
+        ])
+        && data.id == rtcDocId
+        && isValidId(data.callId)
+        && isValidId(data.callerUid)
+        && optStr(data, 'callerName', 40)
+        && optStr(data, 'callerAvatar', 32)
+        && data.status in ['ringing', 'connected', 'ended']
+        && data.active is bool
+        && (!('offer' in data) || data.offer == null || isValidSdpDesc(data.offer))
+        && (!('answer' in data) || data.answer == null || isValidSdpDesc(data.answer))
+        && isRecentTimestamp(data.updatedAt);
+    }
+
+    function isValidRtcCandidate(data) {
+      return data.keys().hasAll(['callId', 'uid', 'candidate', 'createdAt'])
+        && data.keys().hasOnly(['callId', 'uid', 'candidate', 'sdpMid', 'sdpMLineIndex', 'createdAt'])
+        && isValidId(data.callId)
+        && data.uid == request.auth.uid
+        && data.candidate is string && data.candidate.size() <= 2000
+        && optStr(data, 'sdpMid', 64)
+        && (!('sdpMLineIndex' in data) || data.sdpMLineIndex == null || data.sdpMLineIndex is int)
+        && isRecentTimestamp(data.createdAt);
+    }
+
+    function isValidVoicePresence(data, memberUid) {
+      return data.keys().hasAll(['uid', 'displayName', 'avatar', 'muted', 'videoOn', 'screenSharing', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'avatar', 'customAvatarUrl', 'muted', 'videoOn', 'screenSharing', 'updatedAt'])
+        && data.uid == memberUid
+        && nonEmptyStr(data.displayName, 40)
+        && nonEmptyStr(data.avatar, 32)
+        && optStr(data, 'customAvatarUrl', 200000)
+        && data.muted is bool
+        && data.videoOn is bool
+        && data.screenSharing is bool
+        && isRecentTimestamp(data.updatedAt);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -401,6 +454,35 @@ service cloud.firestore {
           allow delete: if isDmParticipant(dmId) && isValidId(replyId) && resource.data.authorId == request.auth.uid;
         }
       }
+
+      match /rtc/{rtcDocId} {
+        allow get: if isDmParticipant(dmId) && isValidId(rtcDocId);
+        allow list: if isDmParticipant(dmId);
+        allow create, update: if isDmParticipant(dmId)
+          && isValidId(rtcDocId)
+          && isValidRtcSession(request.resource.data, rtcDocId);
+        allow delete: if isDmParticipant(dmId) && isValidId(rtcDocId);
+
+        match /callerCandidates/{candId} {
+          allow get: if isDmParticipant(dmId) && isValidId(candId);
+          allow list: if isDmParticipant(dmId);
+          allow create: if isDmParticipant(dmId)
+            && isValidId(candId)
+            && isValidRtcCandidate(request.resource.data);
+          allow update: if false;
+          allow delete: if isDmParticipant(dmId) && isValidId(candId);
+        }
+
+        match /calleeCandidates/{candId} {
+          allow get: if isDmParticipant(dmId) && isValidId(candId);
+          allow list: if isDmParticipant(dmId);
+          allow create: if isDmParticipant(dmId)
+            && isValidId(candId)
+            && isValidRtcCandidate(request.resource.data);
+          allow update: if false;
+          allow delete: if isDmParticipant(dmId) && isValidId(candId);
+        }
+      }
     }
 
     // Servers with strict Owner / Admin permission enforcement
@@ -524,6 +606,18 @@ service cloud.firestore {
               && isValidId(replyId)
               && (resource.data.authorId == request.auth.uid || isServerAdmin(serverId));
           }
+        }
+
+        match /rtc/{memberUid} {
+          allow get: if isServerMember(serverId) && isValidId(memberUid);
+          allow list: if isServerMember(serverId);
+          allow create, update: if isServerMember(serverId)
+            && isValidId(memberUid)
+            && memberUid == request.auth.uid
+            && isValidVoicePresence(request.resource.data, memberUid);
+          allow delete: if isServerMember(serverId)
+            && isValidId(memberUid)
+            && (memberUid == request.auth.uid || isServerAdmin(serverId));
         }
       }
     }
