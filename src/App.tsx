@@ -126,6 +126,7 @@ import {
   VoiceOverlay,
 } from './components/SettingsAndModals';
 import { OfflineIndicator, PWAInstallButton } from './components/PWAPrompts';
+import { I18nProvider, translateAppText, TranslationKey } from './utils/i18n';
 
 const STORAGE_KEY = 'discord_full_app_state_v2';
 const ACCOUNTS_KEY = 'discord_accounts_v1';
@@ -381,6 +382,8 @@ export default function App() {
           chatFontSize: parsed.chatFontSize || 'standard',
           compactMode: Boolean(parsed.compactMode),
           typingIndicatorEnabled: parsed.typingIndicatorEnabled ?? true,
+          language: parsed.language || 'es',
+          autoTranslateMessages: Boolean(parsed.autoTranslateMessages),
         };
       }
     } catch {
@@ -391,6 +394,8 @@ export default function App() {
       chatFontSize: 'standard',
       compactMode: false,
       typingIndicatorEnabled: true,
+      language: 'es',
+      autoTranslateMessages: false,
     };
   });
   const [customServerOrder, setCustomServerOrder] = useState<string[]>(() => {
@@ -722,6 +727,15 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme !== 'light');
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.lang = appPreferences.language || 'es';
+  }, [appPreferences.language]);
+
+  const tApp = useCallback(
+    (key: TranslationKey) => translateAppText(appPreferences.language || 'es', key),
+    [appPreferences.language]
+  );
 
   useEffect(() => {
     if (!voiceSession.active) return;
@@ -2564,11 +2578,7 @@ export default function App() {
 
   const handleSearchUsers = async (q: string): Promise<PublicUserProfile[]> => {
     if (!firebaseUid) return [];
-    try {
-      return await searchRealUsers(q, firebaseUid);
-    } catch {
-      return [];
-    }
+    return await searchRealUsers(q, firebaseUid);
   };
 
   const handleAddRealUser = async (profile: PublicUserProfile): Promise<void> => {
@@ -2597,10 +2607,17 @@ export default function App() {
   const handleSendFriendRequest = async (profile: PublicUserProfile): Promise<void> => {
     if (!firebaseUid || !profile.id || profile.id === user.id) return;
     try {
-      await sendFriendRequest({ fromUser: user, toUid: profile.id });
-      showToastMsg(`Solicitud de amistad enviada a @${profile.username || profile.displayName}`);
-    } catch {
+      const status = await sendFriendRequest({ fromUser: user, toUid: profile.id });
+      if (status === 'already-friends') {
+        showToastMsg(`@${profile.username || profile.displayName} ya está en tu lista de amigos`);
+      } else if (status === 'already-pending') {
+        showToastMsg(`Ya hay una solicitud pendiente para @${profile.username || profile.displayName}`);
+      } else {
+        showToastMsg(`Solicitud de amistad enviada a @${profile.username || profile.displayName}`);
+      }
+    } catch (err) {
       showToastMsg('No se pudo enviar la solicitud de amistad');
+      throw err;
     }
   };
 
@@ -2859,6 +2876,7 @@ export default function App() {
           }}
           onOpenBadges={() => setScreen('insignias')}
           onLogout={handleLogout}
+          onNotify={showToastMsg}
         />
       );
     }
@@ -2867,6 +2885,7 @@ export default function App() {
         <FriendsView
           dms={dms}
           friendRequests={friendRequests}
+          isCloudConnected={Boolean(firebaseUid)}
           onBack={() => setScreen('inicio')}
           onOpenDm={handleSelectDm}
           onAddFriend={handleAddFriend}
@@ -3113,6 +3132,7 @@ export default function App() {
   }
 
   return (
+    <I18nProvider language={appPreferences.language || 'es'}>
     <MotionConfig reducedMotion="user">
     <div
       className={`w-screen h-screen flex flex-col bg-[var(--dc-bg-rail)] text-[var(--dc-text-primary)] overflow-hidden ${themeClass}`}
@@ -3218,6 +3238,7 @@ export default function App() {
                 voiceSession={voiceSession}
                 currentUser={user}
                 typingDmIds={typingMap}
+                pendingFriendRequestsCount={friendRequests.length}
                 onSelectDm={handleSelectDm}
                 onSelectChannel={handleSelectChannel}
                 onJoinVoice={(_srvId, _chId, chName, srvName) => {
@@ -3323,7 +3344,7 @@ export default function App() {
                   }`}
                 >
                   <Home className={`w-5 h-5 ${screen === 'inicio' ? 'text-[#5865F2]' : ''}`} />
-                  <span>Inicio</span>
+                  <span>{tApp('nav.home')}</span>
                 </button>
 
                 <button
@@ -3345,7 +3366,7 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  <span>Notificaciones</span>
+                  <span>{tApp('nav.notifications')}</span>
                 </button>
 
                 <button
@@ -3373,7 +3394,7 @@ export default function App() {
                       showStatus={true}
                     />
                   </div>
-                  <span>Tú</span>
+                  <span>{tApp('nav.you')}</span>
                 </button>
               </div>
             </nav>
@@ -3390,16 +3411,16 @@ export default function App() {
           <div className="hidden md:flex h-11 px-4 bg-[var(--dc-bg-rail)] border-b border-[var(--dc-border)] items-center justify-between gap-4 shrink-0">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               {[
-                { id: 'inicio' as const, label: 'Chat', icon: Home },
-                { id: 'notificaciones' as const, label: 'Notificaciones', icon: Bell },
-                { id: 'amigos' as const, label: 'Amigos', icon: UserPlus },
-                { id: 'misiones' as const, label: 'Misiones', icon: LaurelQuestIcon },
-                { id: 'tienda' as const, label: 'Tienda', icon: Store },
-                { id: 'insignias' as const, label: 'Insignias', icon: Award },
-                { id: 'mejoras' as const, label: 'Mejoras', icon: BoostGemIcon },
-                { id: 'nitro' as const, label: 'Nitro', icon: NitroWheelIcon },
-                { id: 'ajustes' as const, label: 'Ajustes', icon: Settings },
-                { id: 'tu' as const, label: 'Mi Perfil (Tú)', icon: null },
+                { id: 'inicio' as const, label: tApp('nav.chat'), icon: Home },
+                { id: 'notificaciones' as const, label: tApp('nav.notifications'), icon: Bell },
+                { id: 'amigos' as const, label: tApp('nav.friends'), icon: UserPlus },
+                { id: 'misiones' as const, label: tApp('nav.quests'), icon: LaurelQuestIcon },
+                { id: 'tienda' as const, label: tApp('nav.shop'), icon: Store },
+                { id: 'insignias' as const, label: tApp('nav.badges'), icon: Award },
+                { id: 'mejoras' as const, label: tApp('nav.boosts'), icon: BoostGemIcon },
+                { id: 'nitro' as const, label: tApp('nav.nitro'), icon: NitroWheelIcon },
+                { id: 'ajustes' as const, label: tApp('nav.settings'), icon: Settings },
+                { id: 'tu' as const, label: tApp('nav.myProfile'), icon: null },
               ].map((item) => {
                 const Icon = item.icon;
                 const active = screen === item.id;
@@ -3440,7 +3461,7 @@ export default function App() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full dc-btn-secondary text-xs font-semibold cursor-pointer"
               >
                 {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
-                <span>{theme === 'light' ? 'Onyx' : 'Claro'}</span>
+                <span>{theme === 'light' ? tApp('theme.onyx') : tApp('theme.light')}</span>
               </button>
               <button
                 onClick={() => setScreen('misiones')}
@@ -3859,7 +3880,9 @@ export default function App() {
           if (existing) {
             showToastMsg(`${prof.displayName} ya está en tu lista de chats/amigos`);
           } else {
-            void handleSendFriendRequest(prof).then(() => handleAddRealUser(prof));
+            void handleSendFriendRequest(prof)
+              .then(() => handleAddRealUser(prof))
+              .catch(() => undefined);
           }
         }}
       />
@@ -3881,5 +3904,6 @@ export default function App() {
       <OfflineIndicator />
     </div>
     </MotionConfig>
+    </I18nProvider>
   );
 }

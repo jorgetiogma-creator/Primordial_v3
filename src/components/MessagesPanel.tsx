@@ -49,6 +49,7 @@ import {
 import { BoostGemIcon } from './ServerBoostView';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
 import { getServerPermissions } from '../utils/ownerAccess';
+import { useTranslation } from '../utils/i18n';
 
 interface MessagesPanelProps {
   dms: DirectMessageThread[];
@@ -64,6 +65,7 @@ interface MessagesPanelProps {
   voiceSession: VoiceSession;
   currentUser: UserProfile;
   typingDmIds?: Record<string, string | null>;
+  pendingFriendRequestsCount?: number;
   onSelectDm: (dmId: string) => void;
   onSelectChannel: (serverId: string, channelId: string) => void;
   onJoinVoice: (serverId: string, channelId: string, channelName: string, serverName: string) => void;
@@ -97,6 +99,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
   voiceSession,
   currentUser,
   typingDmIds = {},
+  pendingFriendRequestsCount = 0,
   onSelectDm,
   onSelectChannel,
   onJoinVoice,
@@ -119,6 +122,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
   onCloseDm,
   onNotify,
 }) => {
+  const { t } = useTranslation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
@@ -972,11 +976,11 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
       <div className="px-4 pt-3.5 pb-2 shrink-0">
         <div className="flex items-center justify-between">
           <h1 className="font-display font-extrabold text-[22px] tracking-tight text-[var(--dc-text-primary)]">
-            {activeContext.type === 'favorites' ? 'Favoritos' : 'Mensajes'}
+            {activeContext.type === 'favorites' ? t('messages.favorites') : t('messages.title')}
           </h1>
           {unreadDmCount > 0 && activeContext.type === 'dm' && (
             <span className="px-2 py-0.5 rounded-full bg-[#5865F2]/20 text-[#9aa4ff] text-[11px] font-bold tabular-nums">
-              {unreadDmCount} sin leer
+              {unreadDmCount} {t('messages.unreadCount')}
             </span>
           )}
         </div>
@@ -990,7 +994,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                 autoFocus
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar conversaciones..."
+                placeholder={t('messages.searchPlaceholder')}
                 className="flex-1 bg-transparent text-sm text-[var(--dc-text-primary)] placeholder:text-[var(--dc-text-muted)] focus:outline-none min-w-0"
               />
               <button
@@ -1023,7 +1027,12 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                 className="flex-1 h-10 rounded-full dc-btn-secondary text-[14px] font-semibold flex items-center justify-center gap-2 px-4 cursor-pointer whitespace-nowrap"
               >
                 <UserPlus className="w-[17px] h-[17px] text-[var(--dc-text-secondary)]" />
-                <span>Añadir amigos</span>
+                <span>{t('messages.addFriends')}</span>
+                {pendingFriendRequestsCount > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1.5 rounded-full bg-[#da373c] text-white text-[10.5px] font-bold tabular-nums flex items-center justify-center">
+                    {pendingFriendRequestsCount}
+                  </span>
+                )}
               </button>
 
               <button
@@ -1043,9 +1052,9 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
           <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto no-scrollbar">
             {(
               [
-                { id: 'all', label: 'Todos', count: dms.length },
-                { id: 'unread', label: 'No leídos', count: unreadDmCount },
-                { id: 'groups', label: 'Grupos', count: groupsDmCount },
+                { id: 'all', label: t('messages.all'), count: dms.length },
+                { id: 'unread', label: t('messages.unread'), count: unreadDmCount },
+                { id: 'groups', label: t('messages.groups'), count: groupsDmCount },
               ] as const
             ).map((tab) => (
               <button
@@ -1417,7 +1426,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                   className="px-5 py-2.5 rounded-full bg-[#5865F2] hover:bg-[#4752c4] active:scale-[0.98] text-white text-xs font-bold inline-flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-[#5865F2]/25"
                 >
                   <UserPlus className="w-4 h-4" />
-                  <span>Buscar amigos</span>
+                  <span>{t('friends.searchFriendsCta')}</span>
                 </button>
               </div>
             </div>

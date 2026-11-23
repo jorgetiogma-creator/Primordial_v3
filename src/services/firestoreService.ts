@@ -305,6 +305,39 @@ export async function claimProfileWithUsername(params: {
   };
 }
 
+const syncedUsernameHandles = new Set<string>();
+
+function docToPublicProfile(id: string, d: Record<string, unknown>): PublicUserProfile {
+  return {
+    id,
+    displayName: String(d.displayName || d.username || 'Usuario'),
+    username: String(d.username || ''),
+    displayNameStyle: d.displayNameStyle as PublicUserProfile['displayNameStyle'],
+    displayNameColorPreset: d.displayNameColorPreset as PublicUserProfile['displayNameColorPreset'],
+    displayNameCustomColors: Array.isArray(d.displayNameCustomColors)
+      ? (d.displayNameCustomColors as [string, string])
+      : undefined,
+    displayNameGlow: Boolean(d.displayNameGlow),
+    avatar: (d.avatar as AvatarKey) || 'madara',
+    customAvatarUrl: sanitizeMediaUrl(d.customAvatarUrl as string | undefined),
+    status: (d.status as PresenceStatus) || 'online',
+    customStatus: d.customStatus ? String(d.customStatus) : undefined,
+    bio: String(d.bio || 'Miembro real de Primordial.'),
+    bannerColor: String(d.bannerColor || '#5865F2'),
+    bannerImage: sanitizeMediaUrl(d.bannerImage as string | undefined),
+    decoration: d.decoration as PublicUserProfile['decoration'],
+    profileEffect: d.profileEffect as PublicUserProfile['profileEffect'],
+    profileFrame: d.profileFrame as PublicUserProfile['profileFrame'],
+    nameplate: d.nameplate as PublicUserProfile['nameplate'],
+    serverTag: d.serverTag ? String(d.serverTag) : undefined,
+    nitroTier: d.nitroTier as PublicUserProfile['nitroTier'],
+    badgeIds: Array.isArray(d.badgeIds) ? (d.badgeIds as BadgeId[]) : [],
+    memberSince: String(d.memberSince || 'Noviembre 2026'),
+    isBot: false,
+    mutualServers: [],
+  };
+}
+
 export async function syncUserAccountToFirestore(
   uid: string,
   user: UserProfile,
@@ -319,10 +352,11 @@ export async function syncUserAccountToFirestore(
   const cleanHandle = normalizeUsernameHandle(user.username) || uid.slice(0, 12).toLowerCase();
   const safeCustomAvatar = safeMedia200k(user.customAvatarUrl);
   const safeBanner = safeMedia200k(user.bannerImage);
+  const safeDisplayName = clampStr(user.displayName, 40) || cleanHandle;
 
   const pubPayload = stripUndefined({
     uid,
-    displayName: clampStr(user.displayName, 40) || cleanHandle,
+    displayName: safeDisplayName,
     username: cleanHandle,
     usernameLower: cleanHandle,
     avatar: clampStr(user.avatar, 32) || 'madara',
@@ -376,6 +410,25 @@ export async function syncUserAccountToFirestore(
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${uid}/private/account`);
   }
+
+  // Ensure /usernames/{cleanHandle} index exists so exact handle lookups always find this user
+  if (cleanHandle.length >= 2 && !syncedUsernameHandles.has(cleanHandle)) {
+    try {
+      const unameRef = doc(db, 'usernames', cleanHandle);
+      const unameSnap = await getDoc(unameRef);
+      if (!unameSnap.exists()) {
+        await setDoc(unameRef, {
+          uid,
+          username: cleanHandle,
+          displayName: safeDisplayName,
+          createdAt: serverTimestamp(),
+        });
+      }
+      syncedUsernameHandles.add(cleanHandle);
+    } catch {
+      /* ignore handle backfill conflicts */
+    }
+  }
 }
 
 export async function searchRealUsers(
@@ -383,53 +436,146 @@ export async function searchRealUsers(
   excludeUid?: string
 ): Promise<PublicUserProfile[]> {
   const path = 'publicProfiles';
-  const cleaned = rawQuery.trim().toLowerCase().replace(/^@+/, '');
-  try {
-    const q = query(collection(db, path), orderBy('usernameLower'), limit(50));
-    const snap = await getDocs(q);
-    const results: PublicUserProfile[] = [];
-    snap.forEach((docSnap) => {
-      if (excludeUid && docSnap.id === excludeUid) return;
-      const d = docSnap.data();
-      const usernameLower = String(d.usernameLower || d.username || '').toLowerCase();
-      const displayLower = String(d.displayName || '').toLowerCase();
-      if (
-        !cleaned ||
-        usernameLower.includes(cleaned) ||
-        displayLower.includes(cleaned)
-      ) {
-        results.push({
-          id: docSnap.id,
-          displayName: String(d.displayName || d.username || 'Usuario'),
-          username: String(d.username || ''),
-          displayNameStyle: d.displayNameStyle,
-          displayNameColorPreset: d.displayNameColorPreset,
-          displayNameCustomColors: d.displayNameCustomColors,
-          displayNameGlow: Boolean(d.displayNameGlow),
-          avatar: (d.avatar as AvatarKey) || 'madara',
-          customAvatarUrl: sanitizeMediaUrl(d.customAvatarUrl as string | undefined),
-          status: (d.status as PresenceStatus) || 'online',
-          customStatus: d.customStatus ? String(d.customStatus) : undefined,
-          bio: String(d.bio || 'Miembro real de Primordial.'),
-          bannerColor: String(d.bannerColor || '#5865F2'),
-          bannerImage: sanitizeMediaUrl(d.bannerImage as string | undefined),
-          decoration: d.decoration,
-          profileEffect: d.profileEffect,
-          profileFrame: d.profileFrame,
-          nameplate: d.nameplate,
-          serverTag: d.serverTag ? String(d.serverTag) : undefined,
-          nitroTier: d.nitroTier,
-          badgeIds: Array.isArray(d.badgeIds) ? (d.badgeIds as BadgeId[]) : [],
-          memberSince: String(d.memberSince || 'Noviembre 2026'),
+  const rawTrimmed = rawQuery.trim().replace(/^@+/, '');
+  const rawLower = rawTrimmed.toLowerCase();
+  const normalizedHandle = normalizeUsernameHandle(rawQuery);
+  const byId = new Map<string, PublicUserProfile>();
+  const errors: unknown[] = [];
+
+  const tasks: Promise<void>[] = [];
+
+  // 1. Direct exact handle lookup via /usernames/{handle} -> /publicProfiles/{uid}
+  const exactHandleCandidates = Array.from(
+    new Set(
+      [normalizedHandle, rawLower].filter(
+        (h) => h.length >= 2 && h.length <= 32 && /^[a-z0-9_.-]+$/.test(h)
+      )
+    )
+  );
+  for (const handle of exactHandleCandidates) {
+    tasks.push(
+      (async () => {
+        const unameSnap = await getDoc(doc(db, 'usernames', handle));
+        if (!unameSnap.exists()) return;
+        const unameData = unameSnap.data();
+        const targetUid = String(unameData.uid || '').trim();
+        if (!targetUid || (excludeUid && targetUid === excludeUid)) return;
+        if (/^[a-zA-Z0-9_.-]{1,128}$/.test(targetUid)) {
+          const profSnap = await getDoc(doc(db, path, targetUid));
+          if (profSnap.exists()) {
+            byId.set(profSnap.id, docToPublicProfile(profSnap.id, profSnap.data()));
+            return;
+          }
+        }
+        byId.set(targetUid, {
+          id: targetUid,
+          displayName: String(unameData.displayName || unameData.username || handle),
+          username: String(unameData.username || handle),
+          avatar: 'madara',
+          status: 'online',
+          bio: 'Miembro real de Primordial.',
+          bannerColor: '#5865F2',
+          memberSince: 'Noviembre 2026',
           isBot: false,
           mutualServers: [],
         });
-      }
-    });
-    return results;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, path);
+      })()
+    );
   }
+
+  // 2. Direct UID lookup when user pastes a full user ID
+  if (/^[a-zA-Z0-9_.-]{16,128}$/.test(rawTrimmed) && rawTrimmed !== excludeUid) {
+    tasks.push(
+      (async () => {
+        const profSnap = await getDoc(doc(db, path, rawTrimmed));
+        if (profSnap.exists()) {
+          byId.set(profSnap.id, docToPublicProfile(profSnap.id, profSnap.data()));
+        }
+      })()
+    );
+  }
+
+  // 3. Indexed usernameLower prefix range query (bypasses global alphabetical 50-doc cutoff)
+  if (normalizedHandle.length >= 1) {
+    tasks.push(
+      (async () => {
+        const prefixQ = query(
+          collection(db, path),
+          where('usernameLower', '>=', normalizedHandle),
+          where('usernameLower', '<=', `${normalizedHandle}\uf8ff`),
+          limit(50)
+        );
+        const snap = await getDocs(prefixQ);
+        snap.forEach((docSnap) => {
+          if (excludeUid && docSnap.id === excludeUid) return;
+          byId.set(docSnap.id, docToPublicProfile(docSnap.id, docSnap.data()));
+        });
+      })()
+    );
+  }
+
+  // 4. Expanded directory scan to support displayName & substring searches
+  tasks.push(
+    (async () => {
+      const scanQ = query(collection(db, path), orderBy('usernameLower'), limit(300));
+      const snap = await getDocs(scanQ);
+      snap.forEach((docSnap) => {
+        if (excludeUid && docSnap.id === excludeUid) return;
+        if (byId.has(docSnap.id)) return;
+        const d = docSnap.data();
+        const usernameLower = String(d.usernameLower || d.username || '').toLowerCase();
+        const displayLower = String(d.displayName || '').toLowerCase();
+        if (
+          !rawLower ||
+          usernameLower.includes(rawLower) ||
+          (normalizedHandle && usernameLower.includes(normalizedHandle)) ||
+          displayLower.includes(rawLower)
+        ) {
+          byId.set(docSnap.id, docToPublicProfile(docSnap.id, d));
+        }
+      });
+    })()
+  );
+
+  const settled = await Promise.allSettled(tasks);
+  let successCount = 0;
+  for (const outcome of settled) {
+    if (outcome.status === 'fulfilled') {
+      successCount += 1;
+    } else {
+      errors.push(outcome.reason);
+    }
+  }
+
+  if (successCount === 0 && errors.length > 0) {
+    handleFirestoreError(errors[0], OperationType.LIST, path);
+  }
+
+  const results = Array.from(byId.values()).filter((p) => {
+    if (!rawLower) return true;
+    const u = p.username.toLowerCase();
+    const dn = p.displayName.toLowerCase();
+    return (
+      p.id === rawTrimmed ||
+      u.includes(rawLower) ||
+      (normalizedHandle ? u.includes(normalizedHandle) : false) ||
+      dn.includes(rawLower)
+    );
+  });
+
+  if (rawLower) {
+    const scoreProfile = (p: PublicUserProfile) => {
+      const u = p.username.toLowerCase();
+      const dn = p.displayName.toLowerCase();
+      if (u === normalizedHandle || u === rawLower || p.id === rawTrimmed) return 4;
+      if (dn === rawLower) return 3;
+      if (u.startsWith(normalizedHandle || rawLower) || dn.startsWith(rawLower)) return 2;
+      return 1;
+    };
+    results.sort((a, b) => scoreProfile(b) - scoreProfile(a));
+  }
+
+  return results;
 }
 
 export async function getOrCreateDmThread(
@@ -1760,13 +1906,24 @@ export function subscribeToFriendRequests(
 export async function sendFriendRequest(params: {
   fromUser: UserProfile;
   toUid: string;
-}): Promise<void> {
+}): Promise<'sent' | 'already-pending' | 'already-friends'> {
   const { fromUser, toUid } = params;
-  if (!toUid || toUid === fromUser.id) return;
+  if (!toUid || toUid === fromUser.id) return 'already-pending';
   const path = `users/${toUid}/friendRequests/${fromUser.id}`;
+  const reqRef = doc(db, 'users', toUid, 'friendRequests', fromUser.id);
   try {
+    const existing = await getDoc(reqRef);
+    if (existing.exists()) {
+      const currentStatus = String(existing.data()?.status || 'pending');
+      if (currentStatus === 'pending') return 'already-pending';
+      if (currentStatus === 'accepted') return 'already-friends';
+      if (currentStatus === 'declined') {
+        await deleteDoc(reqRef);
+      }
+    }
+
     await setDoc(
-      doc(db, 'users', toUid, 'friendRequests', fromUser.id),
+      reqRef,
       stripUndefined({
         fromUid: fromUser.id,
         toUid,
@@ -1778,6 +1935,7 @@ export async function sendFriendRequest(params: {
         createdAt: serverTimestamp(),
       })
     );
+    return 'sent';
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }

@@ -11,6 +11,7 @@ import {
   Gift,
   Hash,
   ImagePlus,
+  Languages,
   Megaphone,
   Mic,
   MoreHorizontal,
@@ -53,6 +54,7 @@ import { BoostGemIcon } from './ServerBoostView';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
 import { getServerPermissions } from '../utils/ownerAccess';
 import { sendThreadReply, subscribeToMessageThreads } from '../services/firestoreService';
+import { getLanguageOption, translateChatMessageText } from '../utils/i18n';
 
 export interface RichMessagePayload {
   content: string;
@@ -301,6 +303,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [audioProgress, setAudioProgress] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [translatedMsgs, setTranslatedMsgs] = useState<
+    Record<string, { text: string; lang: string }>
+  >({});
+  const [translatingMsgId, setTranslatingMsgId] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -335,6 +341,32 @@ export const ChatView: React.FC<ChatViewProps> = ({
         ? 'text-[16px]'
         : 'text-[15px]';
   const compactChat = Boolean(appPreferences?.compactMode);
+  const targetAppLang = appPreferences?.language || 'es';
+  const showQuickTranslateAction = Boolean(appPreferences?.autoTranslateMessages);
+
+  const handleTranslateMessage = async (msg: ChatMessage) => {
+    if (!msg.content?.trim()) return;
+    if (translatedMsgs[msg.id]?.lang === targetAppLang) {
+      setTranslatedMsgs((prev) => {
+        const next = { ...prev };
+        delete next[msg.id];
+        return next;
+      });
+      return;
+    }
+    setTranslatingMsgId(msg.id);
+    try {
+      const res = await translateChatMessageText(msg.content, targetAppLang);
+      if (res.translated) {
+        setTranslatedMsgs((prev) => ({
+          ...prev,
+          [msg.id]: { text: res.translated, lang: targetAppLang },
+        }));
+      }
+    } finally {
+      setTranslatingMsgId((cur) => (cur === msg.id ? null : cur));
+    }
+  };
 
   const getMemberRoles = (memberId: string): ServerRole[] => {
     if (!server?.roles) return [];
@@ -1459,14 +1491,41 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         </form>
                       ) : (
                         msg.content && (
-                          <p className={`${fontSizeClass} leading-relaxed text-[var(--dc-text-primary)]/95 whitespace-pre-wrap break-words mt-0.5`}>
-                            {renderInlineSegment(msg.content, msg.id)}
-                            {msg.edited && (
-                              <span className="text-[10.5px] text-[var(--dc-text-muted)] ml-1.5">
-                                (editado)
-                              </span>
+                          <div>
+                            <p className={`${fontSizeClass} leading-relaxed text-[var(--dc-text-primary)]/95 whitespace-pre-wrap break-words mt-0.5`}>
+                              {renderInlineSegment(msg.content, msg.id)}
+                              {msg.edited && (
+                                <span className="text-[10.5px] text-[var(--dc-text-muted)] ml-1.5">
+                                  (editado)
+                                </span>
+                              )}
+                            </p>
+                            {translatedMsgs[msg.id] && (
+                              <div className="mt-1.5 px-2.5 py-1.5 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/25 text-xs text-[#e0e4ff] flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#9aa4ff] inline-flex items-center gap-1 mr-1.5">
+                                    <Languages className="w-3 h-3" />
+                                    {getLanguageOption(targetAppLang).nativeName}:
+                                  </span>
+                                  <span className="break-words">{translatedMsgs[msg.id].text}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTranslatedMsgs((prev) => {
+                                      const next = { ...prev };
+                                      delete next[msg.id];
+                                      return next;
+                                    })
+                                  }
+                                  className="text-[#9aa4ff] hover:text-white shrink-0 cursor-pointer"
+                                  title="Ocultar traducción"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             )}
-                          </p>
+                          </div>
                         )
                       )}
 
@@ -1738,6 +1797,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           className="hidden sm:flex p-1.5 rounded-lg hover:bg-white/10 text-[var(--dc-text-secondary)] hover:text-white cursor-pointer"
                         >
                           <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {showQuickTranslateAction && msg.content && (
+                        <button
+                          type="button"
+                          onClick={() => void handleTranslateMessage(msg)}
+                          title={`Traducir a ${getLanguageOption(targetAppLang).nativeName}`}
+                          className={`p-1.5 rounded-lg hover:bg-white/10 cursor-pointer ${
+                            translatedMsgs[msg.id]
+                              ? 'text-[#7b85ff]'
+                              : 'text-[var(--dc-text-secondary)] hover:text-white'
+                          }`}
+                        >
+                          <Languages className={`w-4 h-4 ${translatingMsgId === msg.id ? 'animate-pulse' : ''}`} />
                         </button>
                       )}
                       <button
@@ -2776,6 +2849,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   <Forward className="w-4 h-4 text-[#b5bac1]" />
                   <span>Reenviar</span>
                 </button>
+
+                {target.content && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleTranslateMessage(target);
+                      setMenuMessageId(null);
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-[#f2f3f5] hover:bg-white/5 text-left cursor-pointer"
+                  >
+                    <Languages className="w-4 h-4 text-[#7b85ff]" />
+                    <span>
+                      {translatedMsgs[target.id]
+                        ? 'Ocultar traducción'
+                        : `Traducir (${getLanguageOption(targetAppLang).nativeName})`}
+                    </span>
+                  </button>
+                )}
 
                 {target.content && (
                   <button

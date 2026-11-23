@@ -457,11 +457,15 @@ export interface FriendRequestItem {
   createdAt?: string;
 }
 
+export type AppLanguage = 'es' | 'en' | 'pt' | 'fr' | 'de' | 'it' | 'ja' | 'ko';
+
 export interface AppPreferences {
   soundsEnabled: boolean;
   chatFontSize: 'small' | 'standard' | 'large';
   compactMode: boolean;
   typingIndicatorEnabled: boolean;
+  language: AppLanguage;
+  autoTranslateMessages?: boolean;
 }
 
 export interface DirectMessageThread {

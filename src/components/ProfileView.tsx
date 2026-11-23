@@ -69,6 +69,7 @@ import {
   getDisplayNameStyleClass,
   getDisplayNameTextPresentation,
 } from '../utils/displayNameStyle';
+import { useTranslation } from '../utils/i18n';
 
 interface ProfileViewProps {
   user: UserProfile;
@@ -564,6 +565,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onQueueNitroNameStyle,
   onShowToast,
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'principal' | 'actividad' | 'deseos'>('principal');
   const [showTuneaCard, setShowTuneaCard] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -900,7 +902,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   <Plus className="w-3.5 h-3.5 text-[var(--dc-text-primary)]" />
                 </span>
                 <span className="text-[13px] italic text-[var(--dc-text-secondary)] line-clamp-2 leading-tight">
-                  {user.customStatus || 'Añadir estado'}
+                  {user.customStatus || t('profile.addStatus')}
                 </span>
               </button>
             </div>
@@ -964,10 +966,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
                 {(
                   [
-                    { id: 'online', label: 'En línea' },
-                    { id: 'idle', label: 'Ausente' },
-                    { id: 'dnd', label: 'No molestar' },
-                    { id: 'offline', label: 'Invisible' },
+                    { id: 'online', label: t('profile.status.online') },
+                    { id: 'idle', label: t('profile.status.idle') },
+                    { id: 'dnd', label: t('profile.status.dnd') },
+                    { id: 'offline', label: t('profile.status.offline') },
                   ] as { id: PresenceStatus; label: string }[]
                 ).map((st) => {
                   const active = user.status === st.id;
@@ -997,7 +999,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <div className="mt-3 rounded-2xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] p-3.5">
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
-                    Sobre mí (Biografía)
+                    {t('profile.bioTitle')}
                   </span>
                   {!editingInlineBio && (
                     <button
@@ -1009,7 +1011,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       className="inline-flex items-center gap-1 text-xs font-semibold text-[#7b85ff] hover:text-white cursor-pointer"
                     >
                       <Pencil className="w-3 h-3" />
-                      <span>Editar</span>
+                      <span>{t('profile.edit')}</span>
                     </button>
                   )}
                 </div>
@@ -1035,7 +1037,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           onClick={() => setEditingInlineBio(false)}
                           className="px-3 py-1 rounded-full dc-btn-secondary text-xs font-semibold cursor-pointer"
                         >
-                          Cancelar
+                          {t('profile.cancel')}
                         </button>
                         <button
                           type="button"
@@ -1045,7 +1047,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           }}
                           className="px-3.5 py-1 rounded-full dc-btn-primary text-xs font-bold cursor-pointer"
                         >
-                          Guardar
+                          {t('profile.save')}
                         </button>
                       </div>
                     </div>
@@ -1064,7 +1066,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               className="w-full mt-4 h-11 rounded-full dc-btn-primary font-semibold text-[15px] flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
             >
               <Pencil className="w-4 h-4" />
-              <span>Editar perfil completo</span>
+              <span>{t('profile.editFull')}</span>
             </button>
           </div>
         </div>
@@ -1074,9 +1076,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="grid grid-cols-3 border-b border-[var(--dc-border)] mt-4">
             {(
               [
-                { id: 'principal', label: 'Principal' },
-                { id: 'actividad', label: 'Actividad' },
-                { id: 'deseos', label: 'Lista de deseos' },
+                { id: 'principal', label: t('profile.tab.principal') },
+                { id: 'actividad', label: t('profile.tab.activity') },
+                { id: 'deseos', label: t('profile.tab.wishlist') },
               ] as const
             ).map((tab) => {
               const active = activeTab === tab.id;
@@ -1129,7 +1131,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   <div className="rounded-[14.5px] bg-[#1a1b20] px-4 py-3.5">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[15px] font-bold text-[#f2f3f5] tracking-[-0.01em]">
-                        Tunea tu perfil
+                        {t('profile.tuneCard')}
                       </span>
                       <button
                         onClick={() => setShowTuneaCard(false)}
@@ -1155,14 +1157,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                             <path d="M8 0L9.8 6.2L16 8L9.8 9.8L8 16L6.2 9.8L0 8L6.2 6.2Z" />
                           </svg>
                         </span>
-                        <span className="relative z-10">Obtener Nitro</span>
+                        <span className="relative z-10">{t('profile.getNitro')}</span>
                       </button>
                       <button
                         onClick={() => onNavigate('tienda')}
                         className="group h-11 rounded-xl bg-[#2a2b34] hover:bg-[#333540] border border-white/[0.06] text-[#f2f3f5] text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap px-3 transition-all active:scale-[0.98]"
                       >
                         <FilledStoreIcon className="w-[18px] h-[18px] text-[#c2c6ce] group-hover:text-white shrink-0 transition-colors" />
-                        <span>Tienda</span>
+                        <span>{t('nav.shop')}</span>
                       </button>
                     </div>
                   </div>
@@ -1180,7 +1182,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[14.5px] font-semibold text-[var(--dc-text-primary)]">
-                      Tus insignias
+                      {t('profile.yourBadges')}
                     </p>
                     <p className="text-xs text-[var(--dc-text-muted)]">
                       {BADGE_DEFINITIONS.filter((b) => isBadgeUnlocked(b.id, user)).length}/
@@ -1214,7 +1216,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 className="w-full rounded-2xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] p-4 flex items-center justify-between transition-colors cursor-pointer"
               >
                 <span className="text-[14.5px] font-semibold text-[var(--dc-text-secondary)]">
-                  Saldo de Orbs
+                  {t('profile.orbsBalance')}
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--dc-bg-elevated)] text-[var(--dc-text-primary)] text-[14px] font-bold tabular-nums">
                   <OrbsCrystalIcon className="w-4 h-4" />
@@ -1224,7 +1226,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
               <div className="rounded-2xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] p-4 space-y-2">
                 <p className="text-[13.5px] font-semibold text-[var(--dc-text-secondary)]">
-                  Miembro desde
+                  {t('profile.memberSince')}
                 </p>
                 <div className="flex items-center gap-2 text-[14px] text-[var(--dc-text-primary)]">
                   <DiscordLogo className="w-4 h-4 text-[var(--dc-text-secondary)]" />
@@ -1237,7 +1239,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 className="w-full rounded-2xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] p-4 flex items-center justify-between transition-colors cursor-pointer"
               >
                 <span className="text-[14.5px] font-semibold text-[var(--dc-text-secondary)]">
-                  Amigos
+                  {t('nav.friends')}
                 </span>
                 <div className="flex items-center gap-2 text-xs text-[var(--dc-text-muted)]">
                   <span>Ver usuarios</span>
@@ -1252,7 +1254,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-semibold text-[var(--dc-text-secondary)]">
-                      Nota (solo es visible para ti)
+                      {t('profile.noteTitle')}
                     </p>
                     {editingNote ? (
                       <input
@@ -1302,13 +1304,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <div className="rounded-2xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] p-6 text-center">
                   <Heart className="w-8 h-8 text-[var(--dc-text-muted)] mx-auto mb-2" />
                   <p className="text-sm font-semibold text-[var(--dc-text-primary)]">
-                    Tu lista de deseos está vacía
+                    {t('profile.wishlistEmpty')}
                   </p>
                   <button
                     onClick={() => onNavigate('tienda')}
                     className="mt-3 px-5 py-2.5 rounded-full dc-btn-primary text-xs font-bold cursor-pointer whitespace-nowrap"
                   >
-                    Ir a la Tienda
+                    {t('profile.goToShop')}
                   </button>
                 </div>
               ) : (
@@ -1351,7 +1353,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               )}
             </div>
             <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
-              Misiones
+              {t('nav.quests')}
             </span>
           </button>
 
@@ -1364,7 +1366,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <FilledStoreIcon className="w-[21px] h-[21px] text-[#e6e8ec] group-hover:text-white transition-colors" />
             </div>
             <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
-              Tienda
+              {t('nav.shop')}
             </span>
           </button>
 
@@ -1393,7 +1395,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               />
             </div>
             <span className="relative z-10 text-[11.5px] font-semibold leading-none tracking-[-0.01em] bg-gradient-to-r from-white via-fuchsia-200 to-white bg-clip-text text-transparent dc-name-glow-shimmer drop-shadow-[0_0_6px_rgba(232,121,249,0.45)]">
-              Nitro
+              {t('nav.nitro')}
             </span>
           </button>
 
@@ -1406,7 +1408,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <FilledSettingsIcon className="w-[21px] h-[21px] text-[#e6e8ec] group-hover:text-white transition-colors" />
             </div>
             <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
-              Ajustes
+              {t('nav.settings')}
             </span>
           </button>
         </nav>

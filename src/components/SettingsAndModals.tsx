@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, AtSign, Award, Bell, Check, CheckCheck, ChevronRight, Clapperboard, Clock, Gamepad2, Globe, Headphones, HeadphoneOff, HelpCircle, Info, Link2, LogOut, MessageSquare, MessageSquareMore, Mic, MicOff, Monitor, Music, Palette, PhoneCall, PhoneOff, Plus, QrCode, Search, Settings, Shield, Smartphone, Sparkles, Store, Trash2, Upload, User, UserCheck, UserPlus, Users, Video, VideoOff, Volume2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, AtSign, Award, Bell, Check, CheckCheck, ChevronRight, Clapperboard, Clock, Gamepad2, Globe, Headphones, HeadphoneOff, HelpCircle, Info, Languages, Link2, LogOut, MessageSquare, MessageSquareMore, Mic, MicOff, Monitor, Music, Palette, PhoneCall, PhoneOff, Plus, QrCode, Search, Settings, Shield, Smartphone, Sparkles, Store, Trash2, Upload, User, UserCheck, UserPlus, Users, Video, VideoOff, Volume2, X } from 'lucide-react';
 import {
+  AppLanguage,
   AppPreferences,
   AvatarKey,
   CreateServerPayload,
@@ -26,6 +27,7 @@ import {
 import { BoostGemIcon } from './ServerBoostView';
 import { PWAInstallButton } from './PWAPrompts';
 import { playSoundboardClip, SOUNDBOARD_CLIPS, SoundboardClipId, triggerHaptic } from '../utils/soundEffects';
+import { APP_LANGUAGES, translateAppText, useTranslation } from '../utils/i18n';
 
 const AVATAR_DOMINANT_COLORS: Record<string, string> = {
   madara: '#7f1d1d',
@@ -68,6 +70,7 @@ export const SettingsView: React.FC<{
   onOpenServerBoost: () => void;
   onOpenBadges: () => void;
   onLogout: () => void;
+  onNotify?: (msg: string) => void;
 }> = ({
   user,
   theme,
@@ -76,6 +79,8 @@ export const SettingsView: React.FC<{
     chatFontSize: 'standard',
     compactMode: false,
     typingIndicatorEnabled: true,
+    language: 'es',
+    autoTranslateMessages: false,
   },
   onUpdateAppPreferences,
   onChangeTheme,
@@ -86,55 +91,95 @@ export const SettingsView: React.FC<{
   onOpenServerBoost,
   onOpenBadges,
   onLogout,
+  onNotify,
 }) => {
+  const { language, languageOption, t } = useTranslation();
   const [search, setSearch] = useState('');
+  const [languageSearch, setLanguageSearch] = useState('');
   const [activeSubPanel, setActiveSubPanel] = useState<string | null>(null);
   const [pushNotifs, setPushNotifs] = useState(true);
   const typingIndicator = appPreferences.typingIndicatorEnabled;
 
   const q = search.trim().toLowerCase();
 
-  const matches = (label: string) => !q || label.toLowerCase().includes(q);
+  const matches = (label: string, extraKeywords = '') =>
+    !q || label.toLowerCase().includes(q) || extraKeywords.toLowerCase().includes(q);
 
   const accountRows = [
-    { id: 'nitro', label: 'Obtener Nitro', icon: NitroWheelIcon, badge: 'DESCUENTO', action: onOpenNitro },
-    { id: 'cuenta', label: 'Cuenta', icon: User, action: () => setActiveSubPanel('Cuenta') },
-    { id: 'contenido', label: 'Contenido y social', icon: Users, action: () => setActiveSubPanel('Contenido y social') },
-    { id: 'privacidad', label: 'Datos y privacidad', icon: Shield, action: () => setActiveSubPanel('Datos y privacidad') },
-    { id: 'familia', label: 'Centro familiar', icon: Users, action: () => setActiveSubPanel('Centro familiar') },
-    { id: 'dispositivos', label: 'Dispositivos', icon: Smartphone, action: () => setActiveSubPanel('Dispositivos') },
-    { id: 'apps', label: 'Aplicaciones conectadas', icon: Link2, action: () => setActiveSubPanel('Aplicaciones conectadas') },
-    { id: 'clips', label: 'Clips', icon: Clapperboard, action: () => setActiveSubPanel('Clips') },
-    { id: 'qr', label: 'Escanear código QR', icon: QrCode, action: () => setActiveSubPanel('Escanear código QR') },
-  ].filter((r) => matches(r.label));
+    { id: 'nitro', label: t('settings.row.getNitro'), keywords: 'nitro', icon: NitroWheelIcon, badge: t('settings.row.discount'), action: onOpenNitro },
+    { id: 'cuenta', label: t('settings.row.account'), keywords: 'cuenta account', icon: User, action: () => setActiveSubPanel('Cuenta') },
+    { id: 'contenido', label: t('settings.row.contentSocial'), keywords: 'social', icon: Users, action: () => setActiveSubPanel('Contenido y social') },
+    { id: 'privacidad', label: t('settings.row.privacy'), keywords: 'privacidad privacy', icon: Shield, action: () => setActiveSubPanel('Datos y privacidad') },
+    { id: 'familia', label: t('settings.row.family'), keywords: 'familia family', icon: Users, action: () => setActiveSubPanel('Centro familiar') },
+    { id: 'dispositivos', label: t('settings.row.devices'), keywords: 'dispositivos devices', icon: Smartphone, action: () => setActiveSubPanel('Dispositivos') },
+    { id: 'apps', label: t('settings.row.connections'), keywords: 'apps connections', icon: Link2, action: () => setActiveSubPanel('Aplicaciones conectadas') },
+    { id: 'clips', label: t('settings.row.clips'), keywords: 'clips', icon: Clapperboard, action: () => setActiveSubPanel('Clips') },
+    { id: 'qr', label: t('settings.row.qr'), keywords: 'qr', icon: QrCode, action: () => setActiveSubPanel('Escanear código QR') },
+  ].filter((r) => matches(r.label, r.keywords));
 
   const billingRows = [
-    { id: 'tienda', label: 'Tienda', icon: Store, action: onOpenShop },
-    { id: 'misiones', label: 'Misiones', icon: LaurelQuestIcon, action: onOpenQuests },
-    { id: 'insignias', label: 'Tus insignias', icon: Award, action: onOpenBadges },
-    { id: 'mejora', label: 'Mejora del servidor', icon: BoostGemIcon, action: onOpenServerBoost },
-  ].filter((r) => matches(r.label));
+    { id: 'tienda', label: t('settings.row.shop'), keywords: 'tienda shop', icon: Store, action: onOpenShop },
+    { id: 'misiones', label: t('settings.row.quests'), keywords: 'misiones quests', icon: LaurelQuestIcon, action: onOpenQuests },
+    { id: 'insignias', label: t('settings.row.badges'), keywords: 'insignias badges', icon: Award, action: onOpenBadges },
+    { id: 'mejora', label: t('settings.row.boost'), keywords: 'boost mejora', icon: BoostGemIcon, action: onOpenServerBoost },
+  ].filter((r) => matches(r.label, r.keywords));
 
   const appRows = [
-    { id: 'apariencia', label: 'Apariencia', icon: Palette, action: () => setActiveSubPanel('Apariencia') },
-    { id: 'chat', label: 'Chat', icon: MessageSquare, action: () => setActiveSubPanel('Chat') },
-    { id: 'escribiendo', label: 'Indicador de escritura', icon: MessageSquareMore, action: () => setActiveSubPanel('Indicador de escritura') },
-    { id: 'navegador', label: 'Navegador web', icon: Globe, action: () => setActiveSubPanel('Navegador web') },
-    { id: 'notificaciones', label: 'Notificaciones', icon: Bell, action: () => setActiveSubPanel('Notificaciones') },
-    { id: 'icono', label: 'Icono de la aplicación', icon: PrimordialRowIcon, action: () => setActiveSubPanel('Icono de la aplicación') },
-    { id: 'avanzado', label: 'Avanzado', icon: Settings, action: () => setActiveSubPanel('Avanzado') },
-  ].filter((r) => matches(r.label));
+    { id: 'apariencia', label: t('settings.row.appearance'), keywords: 'apariencia theme tema appearance', icon: Palette, action: () => setActiveSubPanel('Apariencia') },
+    {
+      id: 'idioma',
+      label: t('settings.row.language'),
+      keywords: 'idioma idiomas language translation traduccion traducción español english',
+      icon: Languages,
+      action: () => {
+        setLanguageSearch('');
+        setActiveSubPanel('Idioma');
+      },
+    },
+    { id: 'chat', label: t('settings.row.chat'), keywords: 'chat font fuente', icon: MessageSquare, action: () => setActiveSubPanel('Chat') },
+    { id: 'escribiendo', label: t('settings.row.typing'), keywords: 'escritura typing', icon: MessageSquareMore, action: () => setActiveSubPanel('Indicador de escritura') },
+    { id: 'navegador', label: t('settings.row.browser'), keywords: 'navegador browser', icon: Globe, action: () => setActiveSubPanel('Navegador web') },
+    { id: 'notificaciones', label: t('settings.row.notifications'), keywords: 'notificaciones notifications', icon: Bell, action: () => setActiveSubPanel('Notificaciones') },
+    { id: 'icono', label: t('settings.row.appIcon'), keywords: 'icono icon', icon: PrimordialRowIcon, action: () => setActiveSubPanel('Icono de la aplicación') },
+    { id: 'avanzado', label: t('settings.row.advanced'), keywords: 'avanzado advanced', icon: Settings, action: () => setActiveSubPanel('Avanzado') },
+  ].filter((r) => matches(r.label, r.keywords));
 
   const supportRows = [
-    { id: 'soporte', label: 'Soporte técnico', icon: HelpCircle, action: () => setActiveSubPanel('Soporte técnico') },
+    { id: 'soporte', label: t('settings.row.support'), keywords: 'soporte support', icon: HelpCircle, action: () => setActiveSubPanel('Soporte técnico') },
     {
       id: 'registros',
-      label: 'Subir registros de depuración al soporte técnico de Discord',
+      label: t('settings.row.debugLogs'),
+      keywords: 'debug logs registros',
       icon: Info,
       action: () => setActiveSubPanel('Registros de depuración'),
     },
-    { id: 'agradecimientos', label: 'Agradecimientos', icon: Info, action: () => setActiveSubPanel('Agradecimientos') },
-  ].filter((r) => matches(r.label));
+    { id: 'agradecimientos', label: t('settings.row.acknowledgements'), keywords: 'agradecimientos', icon: Info, action: () => setActiveSubPanel('Agradecimientos') },
+  ].filter((r) => matches(r.label, r.keywords));
+
+  const getHeaderTitle = () => {
+    if (!activeSubPanel) return t('settings.title');
+    if (activeSubPanel === 'Idioma') return t('settings.languagePanelTitle');
+    if (activeSubPanel === 'Apariencia') return t('settings.row.appearance');
+    if (activeSubPanel === 'Cuenta') return t('settings.row.account');
+    if (activeSubPanel === 'Chat') return t('settings.row.chat');
+    if (activeSubPanel === 'Notificaciones') return t('settings.row.notifications');
+    return activeSubPanel;
+  };
+
+  const langQuery = languageSearch.trim().toLowerCase();
+  const filteredLanguages = APP_LANGUAGES.filter(
+    (opt) =>
+      !langQuery ||
+      opt.nativeName.toLowerCase().includes(langQuery) ||
+      opt.localizedName.toLowerCase().includes(langQuery) ||
+      opt.region.toLowerCase().includes(langQuery) ||
+      opt.id.toLowerCase().includes(langQuery)
+  );
+
+  const handleSelectLanguage = (nextLang: AppLanguage, nativeName: string) => {
+    onUpdateAppPreferences?.({ language: nextLang });
+    onNotify?.(`${translateAppText(nextLang, 'settings.languageChangedToast')} ${nativeName}`);
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[var(--dc-bg-sidebar)] text-[var(--dc-text-primary)] overflow-hidden">
@@ -147,42 +192,151 @@ export const SettingsView: React.FC<{
           {activeSubPanel ? <ArrowLeft className="w-6 h-6" /> : <X className="w-6 h-6" />}
         </button>
         <h1 className="font-display font-bold text-[19px]">
-          {activeSubPanel || 'Ajustes'}
+          {getHeaderTitle()}
         </h1>
       </header>
 
-      {activeSubPanel === 'Apariencia' ? (
+      {activeSubPanel === 'Idioma' ? (
+        <div className="flex-1 overflow-y-auto px-4 py-3 pb-10 max-w-xl mx-auto w-full space-y-4">
+          <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#5865F2]/20 text-[#9aa4ff] flex items-center justify-center shrink-0">
+                <Languages className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-display font-bold text-[16px] text-[var(--dc-text-primary)]">
+                  {t('settings.languagePanelTitle')}
+                </p>
+                <p className="text-xs text-[var(--dc-text-muted)] mt-0.5 leading-relaxed">
+                  {t('settings.languagePanelSubtitle')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-[var(--dc-bg-card)] border border-[var(--dc-border)] rounded-xl px-3 h-10">
+              <Search className="w-4 h-4 text-[var(--dc-text-muted)] shrink-0" />
+              <input
+                type="text"
+                value={languageSearch}
+                onChange={(e) => setLanguageSearch(e.target.value)}
+                placeholder={t('settings.languageSearch')}
+                className="flex-1 bg-transparent text-sm text-[var(--dc-text-primary)] placeholder:text-[var(--dc-text-muted)] focus:outline-none"
+              />
+              {languageSearch && (
+                <button
+                  type="button"
+                  onClick={() => setLanguageSearch('')}
+                  className="text-[var(--dc-text-muted)] hover:text-[var(--dc-text-primary)] cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Chat Translation Toggle */}
+          <label className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] p-4 flex items-center justify-between gap-3 cursor-pointer">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--dc-text-primary)]">
+                {t('settings.languageAutoTranslate')}
+              </p>
+              <p className="text-xs text-[var(--dc-text-muted)] mt-0.5">
+                {t('settings.languageAutoTranslateDesc')} ({languageOption.nativeName})
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={Boolean(appPreferences.autoTranslateMessages)}
+              onChange={(e) =>
+                onUpdateAppPreferences?.({ autoTranslateMessages: e.target.checked })
+              }
+              className="w-5 h-5 accent-[#5865F2] shrink-0"
+            />
+          </label>
+
+          {/* Language List */}
+          <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] divide-y divide-[var(--dc-border)] overflow-hidden">
+            {filteredLanguages.map((opt) => {
+              const selected = language === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleSelectLanguage(opt.id, opt.nativeName)}
+                  className={`w-full px-4 py-3.5 flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                    selected
+                      ? 'bg-[#5865F2]/12 hover:bg-[#5865F2]/18'
+                      : 'hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5 min-w-0 text-left">
+                    <span className="text-2xl leading-none shrink-0" aria-hidden="true">
+                      {opt.flag}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-bold text-[var(--dc-text-primary)] truncate">
+                        {opt.nativeName}
+                      </p>
+                      <p className="text-xs text-[var(--dc-text-muted)] truncate">
+                        {opt.localizedName} · {opt.region}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {selected ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#5865F2] text-white text-[11px] font-bold">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>{t('settings.languageActive')}</span>
+                      </span>
+                    ) : (
+                      <span className="w-5 h-5 rounded-full border-2 border-[var(--dc-border)]" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubPanel(null)}
+            className="w-full h-11 rounded-full dc-btn-primary text-sm font-bold cursor-pointer"
+          >
+            {t('settings.done')}
+          </button>
+        </div>
+      ) : activeSubPanel === 'Apariencia' ? (
         <div className="flex-1 overflow-y-auto px-4 py-3 max-w-xl mx-auto w-full space-y-4">
           <p className="text-xs font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
-            Tema de Discord
+            {t('settings.row.appearance')}
           </p>
           <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] p-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {(
               [
-                { id: 'light', label: 'Claro', swatch: '#ffffff' },
-                { id: 'onyx', label: 'Onyx', swatch: '#0e0e11' },
-                { id: 'dark', label: 'Oscuro', swatch: '#313338' },
-                { id: 'vice-city', label: 'Vice City', swatch: '#361c4d' },
+                { id: 'light', label: t('theme.light'), swatch: '#ffffff' },
+                { id: 'onyx', label: t('theme.onyx'), swatch: '#0e0e11' },
+                { id: 'dark', label: t('theme.dark'), swatch: '#313338' },
+                { id: 'vice-city', label: t('theme.viceCity'), swatch: '#361c4d' },
               ] as { id: ThemeMode; label: string; swatch: string }[]
-            ).map((t) => (
+            ).map((tItem) => (
               <button
-                key={t.id}
-                onClick={() => onChangeTheme(t.id)}
+                key={tItem.id}
+                onClick={() => onChangeTheme(tItem.id)}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                  theme === t.id
+                  theme === tItem.id
                     ? 'border-[#5865F2] bg-[#5865F2]/15'
                     : 'border-[var(--dc-border)] bg-[var(--dc-bg-card)]'
                 }`}
               >
                 <div
                   className="w-8 h-8 rounded-full border border-black/15 dark:border-white/20 mb-2 flex items-center justify-center"
-                  style={{ backgroundColor: t.swatch }}
+                  style={{ backgroundColor: tItem.swatch }}
                 >
-                  {theme === t.id && (
-                    <Check className={`w-4 h-4 ${t.id === 'light' ? 'text-black' : 'text-white'}`} />
+                  {theme === tItem.id && (
+                    <Check className={`w-4 h-4 ${tItem.id === 'light' ? 'text-black' : 'text-white'}`} />
                   )}
                 </div>
-                <span className="text-xs font-bold">{t.label}</span>
+                <span className="text-xs font-bold">{tItem.label}</span>
               </button>
             ))}
           </div>
@@ -215,7 +369,7 @@ export const SettingsView: React.FC<{
                 </span>
               </div>
               <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
-                <span className="text-[var(--dc-text-muted)]">Saldo de Orbs</span>
+                <span className="text-[var(--dc-text-muted)]">{t('profile.orbsBalance')}</span>
                 <span className="inline-flex items-center gap-1 font-bold text-indigo-400 tabular-nums">
                   <OrbsCrystalIcon className="w-3.5 h-3.5" />
                   {user.orbs.toLocaleString('es-ES')}
@@ -229,13 +383,13 @@ export const SettingsView: React.FC<{
                 className="flex-1 h-10 rounded-full dc-btn-danger text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Cerrar sesión / Cambiar cuenta</span>
+                <span>{t('settings.logoutSwitch')}</span>
               </button>
               <button
                 onClick={() => setActiveSubPanel(null)}
                 className="px-5 h-10 rounded-full dc-btn-secondary text-xs font-bold cursor-pointer"
               >
-                Volver
+                {t('settings.back')}
               </button>
             </div>
           </div>
@@ -266,7 +420,7 @@ export const SettingsView: React.FC<{
               <div className="space-y-3 pt-2">
                 <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] cursor-pointer">
                   <div>
-                    <p className="text-sm font-semibold">Sonidos de la interfaz</p>
+                    <p className="text-sm font-semibold">{t('settings.uiSounds')}</p>
                     <p className="text-xs text-[var(--dc-text-muted)]">
                       Efectos suaves al enviar mensajes o entrar a voz
                     </p>
@@ -283,7 +437,7 @@ export const SettingsView: React.FC<{
 
                 <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] cursor-pointer">
                   <div>
-                    <p className="text-sm font-semibold">Modo compacto</p>
+                    <p className="text-sm font-semibold">{t('settings.compactMode')}</p>
                     <p className="text-xs text-[var(--dc-text-muted)]">
                       Muestra más mensajes reduciendo el espaciado vertical
                     </p>
@@ -299,13 +453,13 @@ export const SettingsView: React.FC<{
                 </label>
 
                 <div className="p-3 rounded-xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] space-y-2">
-                  <p className="text-sm font-semibold">Tamaño de fuente del chat</p>
+                  <p className="text-sm font-semibold">{t('settings.chatFontSize')}</p>
                   <div className="grid grid-cols-3 gap-2">
                     {(
                       [
-                        { id: 'small', label: '14px Pequeño' },
-                        { id: 'standard', label: '15px Estándar' },
-                        { id: 'large', label: '16px Grande' },
+                        { id: 'small', label: '14px' },
+                        { id: 'standard', label: '15px' },
+                        { id: 'large', label: '16px' },
                       ] as const
                     ).map((opt) => (
                       <button
@@ -353,7 +507,7 @@ export const SettingsView: React.FC<{
               onClick={() => setActiveSubPanel(null)}
               className="px-5 py-2 rounded-full dc-btn-primary text-xs font-bold cursor-pointer"
             >
-              Listo
+              {t('settings.done')}
             </button>
           </div>
         </div>
@@ -366,7 +520,7 @@ export const SettingsView: React.FC<{
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar"
+              placeholder={t('settings.searchPlaceholder')}
               className="flex-1 bg-transparent text-[15px] text-[var(--dc-text-primary)] placeholder:text-[var(--dc-text-muted)] focus:outline-none"
             />
           </div>
@@ -377,7 +531,7 @@ export const SettingsView: React.FC<{
           {accountRows.length > 0 && (
             <section className="space-y-1.5">
               <h2 className="text-[13px] font-semibold text-[var(--dc-text-muted)] px-1">
-                Ajustes de la cuenta
+                {t('settings.section.account')}
               </h2>
               <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] divide-y divide-[var(--dc-border)] overflow-hidden">
                 {accountRows.map((row) => {
@@ -414,7 +568,7 @@ export const SettingsView: React.FC<{
           {billingRows.length > 0 && (
             <section className="space-y-1.5">
               <h2 className="text-[13px] font-semibold text-[var(--dc-text-muted)] px-1">
-                Ajustes de facturación
+                {t('settings.section.billing')}
               </h2>
               <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] divide-y divide-[var(--dc-border)] overflow-hidden">
                 {billingRows.map((row) => {
@@ -443,7 +597,7 @@ export const SettingsView: React.FC<{
           {appRows.length > 0 && (
             <section className="space-y-1.5">
               <h2 className="text-[13px] font-semibold text-[var(--dc-text-muted)] px-1">
-                Ajustes de la aplicación
+                {t('settings.section.app')}
               </h2>
               <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] divide-y divide-[var(--dc-border)] overflow-hidden">
                 {appRows.map((row) => {
@@ -463,7 +617,19 @@ export const SettingsView: React.FC<{
                       <div className="flex items-center gap-2">
                         {row.id === 'apariencia' && (
                           <span className="text-xs text-[var(--dc-text-muted)] capitalize">
-                            {theme === 'light' ? 'Claro' : theme === 'vice-city' ? 'Vice City' : theme}
+                            {theme === 'light'
+                              ? t('theme.light')
+                              : theme === 'vice-city'
+                              ? t('theme.viceCity')
+                              : theme === 'dark'
+                              ? t('theme.dark')
+                              : t('theme.onyx')}
+                          </span>
+                        )}
+                        {row.id === 'idioma' && (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#9aa4ff]">
+                            <span>{languageOption.flag}</span>
+                            <span>{languageOption.nativeName}</span>
                           </span>
                         )}
                         {row.id === 'chat' && (
@@ -473,7 +639,7 @@ export const SettingsView: React.FC<{
                               : appPreferences.chatFontSize === 'large'
                               ? '16px'
                               : '15px'}
-                            {appPreferences.compactMode ? ' · Compacto' : ''}
+                            {appPreferences.compactMode ? ' · Compact' : ''}
                           </span>
                         )}
                         <ChevronRight className="w-4 h-4 text-[var(--dc-text-muted)]" />
@@ -486,11 +652,11 @@ export const SettingsView: React.FC<{
               {/* Controles rápidos de la App */}
               <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] p-3.5 space-y-3 mt-2">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
-                  Ajustes rápidos de la App
+                  {t('settings.quickControls')}
                 </p>
                 <label className="flex items-center justify-between cursor-pointer">
                   <span className="text-sm font-medium text-[var(--dc-text-primary)]">
-                    Sonidos de interfaz
+                    {t('settings.uiSounds')}
                   </span>
                   <input
                     type="checkbox"
@@ -503,7 +669,7 @@ export const SettingsView: React.FC<{
                 </label>
                 <label className="flex items-center justify-between cursor-pointer">
                   <span className="text-sm font-medium text-[var(--dc-text-primary)]">
-                    Modo compacto en chat
+                    {t('settings.compactMode')}
                   </span>
                   <input
                     type="checkbox"
@@ -516,7 +682,7 @@ export const SettingsView: React.FC<{
                 </label>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium text-[var(--dc-text-primary)]">
-                    Tamaño del chat
+                    {t('settings.chatFontSize')}
                   </span>
                   <div className="flex items-center gap-1">
                     {(['small', 'standard', 'large'] as const).map((sz) => (
@@ -543,7 +709,7 @@ export const SettingsView: React.FC<{
           {supportRows.length > 0 && (
             <section className="space-y-1.5">
               <h2 className="text-[13px] font-semibold text-[var(--dc-text-muted)] px-1">
-                Soporte técnico
+                {t('settings.section.support')}
               </h2>
               <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] divide-y divide-[var(--dc-border)] overflow-hidden">
                 {supportRows.map((row) => {
@@ -569,20 +735,20 @@ export const SettingsView: React.FC<{
           )}
 
           {/* Novedades */}
-          {matches('Novedades') && (
+          {matches(t('settings.section.whatsNew'), 'novedades whats new') && (
             <section className="space-y-1.5">
               <h2 className="text-[13px] font-semibold text-[var(--dc-text-muted)] px-1">
-                Novedades
+                {t('settings.section.whatsNew')}
               </h2>
               <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] overflow-hidden">
                 <button
-                  onClick={() => setActiveSubPanel('Novedades')}
+                  onClick={() => setActiveSubPanel(t('settings.row.whatsNew'))}
                   className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3.5">
                     <Info className="w-5 h-5 text-[var(--dc-text-primary)] shrink-0" />
                     <span className="text-[15px] font-medium text-[var(--dc-text-primary)]">
-                      Novedades
+                      {t('settings.row.whatsNew')}
                     </span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-[var(--dc-text-muted)]" />
@@ -597,7 +763,7 @@ export const SettingsView: React.FC<{
             className="w-full rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] px-4 py-3.5 flex items-center gap-3 text-[#da373c] font-semibold text-[15px] hover:bg-red-500/5 transition-colors cursor-pointer"
           >
             <LogOut className="w-5 h-5" />
-            <span>Cerrar sesión</span>
+            <span>{t('settings.logout')}</span>
           </button>
         </div>
       )}
@@ -609,6 +775,7 @@ export const SettingsView: React.FC<{
 export const FriendsView: React.FC<{
   dms: DirectMessageThread[];
   friendRequests?: FriendRequestItem[];
+  isCloudConnected?: boolean;
   onBack: () => void;
   onOpenDm: (dmId: string) => void;
   onAddFriend: (
@@ -623,6 +790,7 @@ export const FriendsView: React.FC<{
 }> = ({
   dms,
   friendRequests = [],
+  isCloudConnected = true,
   onBack,
   onOpenDm,
   onAddFriend,
@@ -632,6 +800,7 @@ export const FriendsView: React.FC<{
   onRespondFriendRequest,
   onInspectUser,
 }) => {
+  const { t } = useTranslation();
   const friendThreads = dms.filter((d) => !d.isBot && !d.isGroup);
   const [tab, setTab] = useState<'online' | 'all' | 'pending' | 'add'>(
     friendRequests.length > 0 ? 'pending' : friendThreads.length === 0 ? 'add' : 'all'
@@ -639,8 +808,11 @@ export const FriendsView: React.FC<{
   const [friendHandle, setFriendHandle] = useState('');
   const [addedMsg, setAddedMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [realUsers, setRealUsers] = useState<PublicUserProfile[]>([]);
   const [searching, setSearching] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [sentRequestUids, setSentRequestUids] = useState<Record<string, boolean>>({});
 
   const filtered =
     tab === 'online' ? friendThreads.filter((f) => f.status === 'online') : friendThreads;
@@ -649,15 +821,33 @@ export const FriendsView: React.FC<{
 
   useEffect(() => {
     if (tab !== 'add' || !onSearchUsers) return;
+    if (!isCloudConnected) {
+      setRealUsers([]);
+      setSearching(false);
+      setSearchError(null);
+      return;
+    }
     let cancelled = false;
     setSearching(true);
+    setSearchError(null);
     const timer = window.setTimeout(() => {
       onSearchUsers(friendHandle)
         .then((res) => {
-          if (!cancelled) setRealUsers(res);
+          if (!cancelled) {
+            setRealUsers(res);
+            setSearchError(null);
+          }
         })
-        .catch(() => {
-          if (!cancelled) setRealUsers([]);
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            setRealUsers([]);
+            const msg = err instanceof Error ? err.message : '';
+            setSearchError(
+              msg
+                ? `Error al buscar en la nube: ${msg}`
+                : 'No se pudo consultar el directorio de usuarios.'
+            );
+          }
         })
         .finally(() => {
           if (!cancelled) setSearching(false);
@@ -667,32 +857,85 @@ export const FriendsView: React.FC<{
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [tab, friendHandle, onSearchUsers]);
+  }, [tab, friendHandle, onSearchUsers, isCloudConnected]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = friendHandle.trim().replace(/^@+/, '');
-    if (!clean) return;
+    const rawTrimmed = friendHandle.trim();
+    const clean = rawTrimmed.replace(/^@+/, '');
+    if (!clean || adding) return;
     setErrorMsg(null);
-    const exactMatch = realUsers.find(
-      (entry) =>
-        entry.username.toLowerCase() === clean.toLowerCase() ||
-        entry.displayName.toLowerCase() === clean.toLowerCase()
-    );
+    setAddedMsg(null);
+
     if (onAddRealUser) {
-      if (!exactMatch) {
-        setErrorMsg(`No encontramos ninguna cuenta real con el usuario «@${clean}». Pídele que cree su cuenta primero.`);
+      if (!isCloudConnected) {
+        setErrorMsg(t('friends.cloudRequired'));
         return;
       }
-      if (onSendFriendRequest) {
-        await onSendFriendRequest(exactMatch);
+
+      setAdding(true);
+      try {
+        const cleanLower = clean.toLowerCase();
+        const normalizedClean = cleanLower.replace(/[^a-z0-9_.-]/g, '').slice(0, 32);
+
+        const findBestMatch = (list: PublicUserProfile[]) => {
+          const exactUser = list.find(
+            (entry) =>
+              entry.username.toLowerCase() === cleanLower ||
+              (normalizedClean && entry.username.toLowerCase() === normalizedClean) ||
+              entry.displayName.toLowerCase() === cleanLower ||
+              entry.id === clean
+          );
+          if (exactUser) return { match: exactUser, multiple: false };
+          if (list.length === 1) return { match: list[0], multiple: false };
+          if (list.length > 1) return { match: undefined, multiple: true };
+          return { match: undefined, multiple: false };
+        };
+
+        let pool = realUsers;
+        let { match, multiple } = findBestMatch(pool);
+
+        // Always perform an immediate fresh search when submitting so debounce never causes false "not found"
+        if (!match && onSearchUsers) {
+          const fresh = await onSearchUsers(clean);
+          pool = fresh;
+          setRealUsers(fresh);
+          setSearchError(null);
+          const resolved = findBestMatch(fresh);
+          match = resolved.match;
+          multiple = resolved.multiple;
+        }
+
+        if (!match) {
+          setErrorMsg(
+            multiple
+              ? `Hay ${pool.length} cuentas parecidas a «${clean}». Toca «Enviar solicitud» o «Chatear» en la cuenta exacta de abajo.`
+              : `No encontramos ninguna cuenta real con «${clean}». Verifica el @usuario exacto o revisa que esa persona haya entrado con Google.`
+          );
+          return;
+        }
+
+        if (onSendFriendRequest) {
+          await onSendFriendRequest(match);
+          setSentRequestUids((prev) => ({ ...prev, [match!.id]: true }));
+        }
+        await onAddRealUser(match);
+        setAddedMsg(`Solicitud enviada y chat abierto con ${match.displayName} (@${match.username})`);
+        setFriendHandle('');
+        setTimeout(() => setAddedMsg(null), 3200);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : '';
+        setErrorMsg(
+          msg
+            ? `No se pudo añadir al usuario: ${msg}`
+            : 'Ocurrió un error buscando o enviando la solicitud.'
+        );
+      } finally {
+        setAdding(false);
       }
-      await onAddRealUser(exactMatch);
-      setAddedMsg(`Solicitud y chat abierto con ${exactMatch.displayName} (@${exactMatch.username})`);
-      setFriendHandle('');
-      setTimeout(() => setAddedMsg(null), 2600);
       return;
     }
+
     onAddFriend(clean);
     setAddedMsg(`Chat abierto con ${clean}`);
     setFriendHandle('');
@@ -710,32 +953,32 @@ export const FriendsView: React.FC<{
             <ArrowLeft className="w-5 h-5" />
           </button>
           <Users className="w-5 h-5 text-zinc-400" />
-          <h1 className="font-display font-bold text-[17px] text-white">Amigos</h1>
+          <h1 className="font-display font-bold text-[17px] text-white">{t('friends.title')}</h1>
         </div>
         <button
           onClick={() => setTab('add')}
           className="px-3.5 py-1.5 rounded-full dc-btn-success text-xs font-bold cursor-pointer whitespace-nowrap"
         >
-          Añadir amigo
+          {t('friends.addFriend')}
         </button>
       </header>
 
       <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#2e3035] overflow-x-auto no-scrollbar bg-[#1c1d22]">
         {[
-          { id: 'online', label: 'En línea' },
-          { id: 'all', label: `Todos (${friendThreads.length})` },
-          { id: 'pending', label: `Pendientes (${friendRequests.length})` },
-          { id: 'add', label: 'Añadir amigo' },
-        ].map((t) => (
+          { id: 'online', label: t('friends.tab.online') },
+          { id: 'all', label: `${t('friends.tab.all')} (${friendThreads.length})` },
+          { id: 'pending', label: `${t('friends.tab.pending')} (${friendRequests.length})` },
+          { id: 'add', label: t('friends.tab.add') },
+        ].map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id as 'online' | 'all' | 'pending' | 'add')}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id as 'online' | 'all' | 'pending' | 'add')}
             className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
-              tab === t.id ? 'dc-btn-primary' : 'bg-[#26272f] text-zinc-300 hover:text-white'
+              tab === tabItem.id ? 'dc-btn-primary' : 'bg-[#26272f] text-zinc-300 hover:text-white'
             }`}
           >
-            <span>{t.label}</span>
-            {t.id === 'pending' && friendRequests.length > 0 && (
+            <span>{tabItem.label}</span>
+            {tabItem.id === 'pending' && friendRequests.length > 0 && (
               <span className="w-2 h-2 rounded-full bg-[#f23f43]" />
             )}
           </button>
@@ -746,14 +989,14 @@ export const FriendsView: React.FC<{
         {tab === 'pending' ? (
           <div className="space-y-2.5">
             <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
-              Solicitudes pendientes ({friendRequests.length})
+              {t('friends.tab.pending')} ({friendRequests.length})
             </p>
             {friendRequests.length === 0 ? (
               <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-8 text-center space-y-2">
                 <UserPlus className="w-8 h-8 text-zinc-500 mx-auto" />
-                <p className="text-sm font-bold text-white">No hay solicitudes pendientes</p>
+                <p className="text-sm font-bold text-white">{t('friends.noPendingTitle')}</p>
                 <p className="text-xs text-zinc-400">
-                  Cuando alguien te envíe una solicitud de amistad, aparecerá aquí para que la aceptes o rechaces.
+                  {t('friends.noPendingDesc')}
                 </p>
               </div>
             ) : (
@@ -775,7 +1018,7 @@ export const FriendsView: React.FC<{
                         {req.fromDisplayName}
                       </p>
                       <p className="text-xs text-zinc-400 truncate">
-                        @{req.fromUsername} · Solicitud entrante
+                        @{req.fromUsername} · {t('friends.pendingIncoming')}
                       </p>
                     </div>
                   </div>
@@ -803,13 +1046,19 @@ export const FriendsView: React.FC<{
           </div>
         ) : tab === 'add' ? (
           <>
+            {!isCloudConnected && (
+              <div className="rounded-2xl bg-amber-500/12 border border-amber-400/35 p-3.5 text-xs text-amber-200 font-medium leading-relaxed">
+                {t('friends.cloudRequired')}
+              </div>
+            )}
+
             <form
               onSubmit={handleAdd}
               className="space-y-3 bg-[#1c1d22] p-5 rounded-2xl border border-[#2e3035]"
             >
-              <h2 className="font-display font-bold text-base">Buscar y añadir usuarios reales</h2>
+              <h2 className="font-display font-bold text-base">{t('friends.searchHeading')}</h2>
               <p className="text-xs text-zinc-400">
-                Busca personas que ya crearon su cuenta en Primordial por su @usuario exacto o nombre para enviarles solicitud y mensajes en tiempo real.
+                {t('friends.searchSubheading')}
               </p>
               <div className="flex gap-2">
                 <div className="flex-1 flex items-center gap-2 bg-[#111214] border border-[#2e3035] rounded-xl px-3.5 focus-within:border-[#5865F2]">
@@ -817,8 +1066,11 @@ export const FriendsView: React.FC<{
                   <input
                     type="text"
                     value={friendHandle}
-                    onChange={(e) => setFriendHandle(e.target.value)}
-                    placeholder="Buscar por @usuario o nombre..."
+                    onChange={(e) => {
+                      setFriendHandle(e.target.value);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
+                    placeholder={t('friends.searchPlaceholder')}
                     className="flex-1 bg-transparent py-2.5 text-sm text-white focus:outline-none"
                   />
                   {friendHandle && (
@@ -833,10 +1085,11 @@ export const FriendsView: React.FC<{
                 </div>
                 <button
                   type="submit"
-                  className="px-4 py-2.5 rounded-xl dc-btn-primary text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  disabled={adding || !friendHandle.trim()}
+                  className="px-4 py-2.5 rounded-xl dc-btn-primary text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-50"
                 >
                   <UserPlus className="w-4 h-4" />
-                  <span>Añadir</span>
+                  <span>{adding ? '...' : t('friends.addButton')}</span>
                 </button>
               </div>
               {addedMsg && (
@@ -845,9 +1098,9 @@ export const FriendsView: React.FC<{
                   <span>{addedMsg}</span>
                 </p>
               )}
-              {errorMsg && (
+              {(errorMsg || searchError) && (
                 <p className="text-xs text-[#f23f43] font-semibold">
-                  {errorMsg}
+                  {errorMsg || searchError}
                 </p>
               )}
             </form>
@@ -855,18 +1108,19 @@ export const FriendsView: React.FC<{
             <div className="space-y-2">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
                 {searching
-                  ? 'Buscando cuentas reales...'
+                  ? t('friends.searching')
                   : q
-                    ? `Resultados (${realUsers.length})`
-                    : `Usuarios registrados en Primordial (${realUsers.length})`}
+                    ? `${t('friends.resultsLabel')} (${realUsers.length})`
+                    : `${t('friends.registeredLabel')} (${realUsers.length})`}
               </p>
 
               {realUsers.map((person) => {
                 const existingDm = dms.find(
                   (d) =>
                     d.otherUid === person.id ||
-                    (d.username && d.username.toLowerCase() === person.username.toLowerCase())
+                    (d.username && person.username && d.username.toLowerCase() === person.username.toLowerCase())
                 );
+                const sent = Boolean(sentRequestUids[person.id]);
 
                 return (
                   <div
@@ -903,14 +1157,21 @@ export const FriendsView: React.FC<{
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            void onSendFriendRequest(person).then(() => {
-                              setAddedMsg(`Solicitud enviada a @${person.username}`);
-                              setTimeout(() => setAddedMsg(null), 2600);
-                            });
+                            void onSendFriendRequest(person)
+                              .then(() => {
+                                setSentRequestUids((prev) => ({ ...prev, [person.id]: true }));
+                                setAddedMsg(`Solicitud enviada a @${person.username}`);
+                                setTimeout(() => setAddedMsg(null), 2600);
+                              })
+                              .catch(() => undefined);
                           }}
-                          className="px-3 py-1.5 rounded-full bg-[#26272f] hover:bg-[#31333d] border border-[#2e3035] text-xs font-bold text-white cursor-pointer"
+                          className={`px-3 py-1.5 rounded-full border text-xs font-bold cursor-pointer ${
+                            sent
+                              ? 'bg-[#23a55a]/20 border-[#23a55a]/40 text-[#23a55a]'
+                              : 'bg-[#26272f] hover:bg-[#31333d] border-[#2e3035] text-white'
+                          }`}
                         >
-                          Enviar solicitud
+                          {sent ? t('friends.requestSent') : t('friends.sendRequest')}
                         </button>
                       )}
                       <button
@@ -932,7 +1193,7 @@ export const FriendsView: React.FC<{
                           existingDm ? 'dc-btn-secondary' : 'dc-btn-primary'
                         }`}
                       >
-                        {existingDm ? 'Abrir chat' : 'Chatear'}
+                        {existingDm ? t('friends.openChat') : t('friends.chatNow')}
                       </button>
                     </div>
                   </div>
@@ -981,7 +1242,7 @@ export const FriendsView: React.FC<{
                   <div className="text-left min-w-0">
                     <p className="font-bold text-sm truncate text-white">{f.name}</p>
                     <p className="text-xs text-zinc-400 truncate">
-                      {f.username || f.lastMessagePreview}
+                      {f.username ? `@${f.username}` : f.lastMessagePreview}
                     </p>
                   </div>
                 </div>
@@ -993,7 +1254,7 @@ export const FriendsView: React.FC<{
                   }}
                   className="px-3 py-1.5 rounded-full bg-[#26272f] hover:bg-[#31333d] text-xs font-semibold text-white cursor-pointer"
                 >
-                  Mensaje
+                  {t('friends.message')}
                 </button>
               </div>
             ))}
@@ -1002,8 +1263,8 @@ export const FriendsView: React.FC<{
               <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-8 text-center space-y-3">
                 <p className="text-sm font-medium text-zinc-300">
                   {tab === 'online'
-                    ? 'Ninguno de tus amigos añadidos está en línea ahora.'
-                    : 'Aún no has añadido amigos.'}
+                    ? t('friends.emptyOnline')
+                    : t('friends.emptyAll')}
                 </p>
                 <button
                   type="button"
@@ -1011,7 +1272,7 @@ export const FriendsView: React.FC<{
                   className="px-5 py-2.5 rounded-full dc-btn-primary text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <Search className="w-4 h-4" />
-                  <span>Buscar amigos</span>
+                  <span>{t('friends.searchFriendsCta')}</span>
                 </button>
               </div>
             )}
@@ -1028,6 +1289,7 @@ export const NotificationsView: React.FC<{
   onMarkAllRead: () => void;
   onClickNotification: (n: NotificationItem) => void;
 }> = ({ notifications, onMarkAllRead, onClickNotification }) => {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<'all' | 'mentions'>('all');
   const mentionItems = notifications.filter((n) => n.type === 'mention' || n.type === 'reply');
   const visible = tab === 'mentions' ? mentionItems : notifications;
@@ -1053,14 +1315,14 @@ export const NotificationsView: React.FC<{
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-[var(--dc-text-primary)]" />
-            <h1 className="font-display font-extrabold text-[22px] tracking-tight">Notificaciones</h1>
+            <h1 className="font-display font-extrabold text-[22px] tracking-tight">{t('notifications.title')}</h1>
           </div>
           <button
             onClick={onMarkAllRead}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full dc-btn-secondary text-xs font-semibold cursor-pointer whitespace-nowrap"
           >
             <CheckCheck className="w-4 h-4" />
-            <span>Marcar leídas</span>
+            <span>{t('notifications.markAllRead')}</span>
           </button>
         </div>
 
@@ -1074,7 +1336,7 @@ export const NotificationsView: React.FC<{
                 : 'bg-[var(--dc-bg-card)] text-[var(--dc-text-secondary)] hover:text-white'
             }`}
           >
-            Todas ({notifications.length})
+            {t('notifications.tabAll')} ({notifications.length})
           </button>
           <button
             type="button"
@@ -1086,7 +1348,7 @@ export const NotificationsView: React.FC<{
             }`}
           >
             <AtSign className="w-3.5 h-3.5" />
-            <span>Menciones ({mentionItems.length})</span>
+            <span>{t('notifications.tabMentions')} ({mentionItems.length})</span>
           </button>
         </div>
       </header>
@@ -1127,10 +1389,10 @@ export const NotificationsView: React.FC<{
           <div className="rounded-2xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] p-8 text-center space-y-2 mt-4">
             <Bell className="w-8 h-8 text-[var(--dc-text-muted)] mx-auto opacity-75" />
             <p className="font-bold text-sm text-[var(--dc-text-primary)]">
-              Sin notificaciones por ahora
+              {t('notifications.emptyTitle')}
             </p>
             <p className="text-xs text-[var(--dc-text-muted)]">
-              Aquí aparecerán tus menciones, respuestas y avisos de tus amigos o servidores.
+              {t('notifications.emptyDesc')}
             </p>
           </div>
         )}
