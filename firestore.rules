@@ -80,8 +80,8 @@ service cloud.firestore {
         && data.uid == uid
         && data.orbs is number && data.orbs >= 0 && data.orbs <= 999999999999999
         && data.nitroTier in ['none', 'basic', 'nitro']
-        && data.ownedBundleIds is list && data.ownedBundleIds.size() <= 200
-        && (!('wishlistIds' in data) || (data.wishlistIds is list && data.wishlistIds.size() <= 200))
+        && data.ownedBundleIds is list && data.ownedBundleIds.size() <= 500
+        && (!('wishlistIds' in data) || (data.wishlistIds is list && data.wishlistIds.size() <= 500))
         && (!('unlockedBadgeIds' in data) || (data.unlockedBadgeIds is list && data.unlockedBadgeIds.size() <= 20))
         && (!('equippedBadgeIds' in data) || (data.equippedBadgeIds is list && data.equippedBadgeIds.size() <= 20))
         && (!('claimedQuestIds' in data) || (data.claimedQuestIds is list && data.claimedQuestIds.size() <= 100))
@@ -254,6 +254,22 @@ service cloud.firestore {
         && (!('updatedAt' in data) || isRecentTimestamp(data.updatedAt));
     }
 
+    function isValidSentFriendRequest(data, fromUid, toUid) {
+      return data.keys().hasAll(['fromUid', 'toUid', 'toDisplayName', 'toUsername', 'toAvatar', 'status', 'createdAt'])
+        && data.keys().hasOnly([
+          'fromUid', 'toUid', 'toDisplayName', 'toUsername',
+          'toAvatar', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.fromUid == fromUid
+        && data.toUid == toUid
+        && nonEmptyStr(data.toDisplayName, 40)
+        && nonEmptyStr(data.toUsername, 32)
+        && nonEmptyStr(data.toAvatar, 32)
+        && data.status in ['pending', 'accepted', 'declined']
+        && isRecentTimestamp(data.createdAt)
+        && (!('updatedAt' in data) || isRecentTimestamp(data.updatedAt));
+    }
+
     function isValidSdpDesc(desc) {
       return desc is map
         && desc.keys().hasAll(['type', 'sdp', 'seq'])
@@ -408,9 +424,28 @@ service cloud.firestore {
         && (request.auth.uid == uid || request.auth.uid == fromUid);
     }
 
+    // Outgoing friend requests (stored on sender for cross-device sync)
+    match /users/{uid}/sentFriendRequests/{toUid} {
+      allow get: if isOwner(uid) && isValidId(toUid);
+      allow list: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && isValidId(toUid)
+        && uid != toUid
+        && isValidSentFriendRequest(request.resource.data, uid, toUid)
+        && request.resource.data.status == 'pending';
+      allow update: if isOwner(uid)
+        && isValidId(toUid)
+        && isValidSentFriendRequest(request.resource.data, uid, toUid)
+        && request.resource.data.fromUid == resource.data.fromUid
+        && request.resource.data.toUid == resource.data.toUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isOwner(uid) && isValidId(toUid);
+    }
+
     // Direct Message threads
     match /dms/{dmId} {
-      allow get: if isVerifiedUser() && isValidId(dmId) && request.auth.uid in resource.data.participantIds;
+      allow get: if isVerifiedUser() && isValidId(dmId) && (resource == null || request.auth.uid in resource.data.participantIds);
       allow list: if isVerifiedUser() && request.auth.uid in resource.data.participantIds;
       allow create: if isVerifiedUser()
         && isValidId(dmId)

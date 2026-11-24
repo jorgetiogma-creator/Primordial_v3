@@ -141,7 +141,25 @@ export type DecorationId =
   | 'scene-xd'
   | 'nitro-disco'
   | 'nitro-auris'
-  | 'nitro-chip';
+  | 'nitro-chip'
+  | 'naruto-sabio'
+  | 'naruto-barion'
+  | 'kurama'
+  | 'sasuke'
+  | 'sasuke-rinnegan'
+  | 'obito-tobi'
+  | 'obito-juubi'
+  | 'madara-edo'
+  | 'madara-rikudo'
+  | 'boruto-karma'
+  | 'rinnegan-deva'
+  | 'rinne-sharingan'
+  | 'sharingan-3tomoe'
+  | 'sharingan-itachi'
+  | 'sharingan-kamui'
+  | 'sharingan-shisui'
+  | 'ems-sasuke'
+  | 'ems-madara';
 
 export type NameplateId =
   | 'none'
@@ -174,7 +192,14 @@ export type NameplateId =
   | 'el-mismo-pato'
   | 'marea-lluvia'
   | 'jackalope'
-  | 'jardin-secreto';
+  | 'jardin-secreto'
+  | 'kurama'
+  | 'uchiha-sharingan'
+  | 'rinnegan'
+  | 'obito-kamui'
+  | 'madara-susanoo'
+  | 'boruto-karma'
+  | 'naruto-sabio';
 
 export type BadgeId =
   | 'hypesquad'
@@ -251,7 +276,15 @@ export type ProfileEffectId =
   | 'jardin-secreto'
   | 'luna-mistica'
   | 'adorable'
-  | 'scene-xd';
+  | 'scene-xd'
+  | 'kurama'
+  | 'tsukuyomi-sharingan'
+  | 'rinnegan-chibaku'
+  | 'kamui-vortex'
+  | 'susanoo-madara'
+  | 'chidori-sasuke'
+  | 'baryon-mode'
+  | 'karma-boruto';
 
 export type ProfileFrameId =
   | 'none'
@@ -266,7 +299,11 @@ export type ProfileFrameId =
   | 'flores-luna'
   | 'diablo-jersey'
   | 'el-ente'
-  | 'luna-oscura';
+  | 'luna-oscura'
+  | 'sharingan-ring'
+  | 'rinnegan-aura'
+  | 'kurama-tails'
+  | 'susanoo-armor';
 
 export interface PerServerProfile {
   nickname?: string;
@@ -603,6 +640,7 @@ export interface Quest {
 }
 
 export type ShopCollectionId =
+  | 'naruto'
   | 'night-terrors'
   | 'dark-folklore'
   | 'dbd'
@@ -641,6 +679,7 @@ export interface ShopBundle {
   collectionId?: ShopCollectionId;
   category:
     | 'destacado'
+    | 'naruto'
     | 'zzz'
     | 'marvel'
     | 'dbd'
@@ -730,7 +769,25 @@ export interface ShopBundle {
     | 'flores-luna-marco'
     | 'diablo-jersey-marco'
     | 'el-ente-marco'
-    | 'luna-oscura-marco';
+    | 'luna-oscura-marco'
+    | 'naruto-sabio'
+    | 'naruto-barion'
+    | 'kurama'
+    | 'sasuke'
+    | 'sasuke-rinnegan'
+    | 'obito-tobi'
+    | 'obito-juubi'
+    | 'madara-edo'
+    | 'madara-rikudo'
+    | 'boruto-karma'
+    | 'rinnegan-deva'
+    | 'rinne-sharingan'
+    | 'sharingan-3tomoe'
+    | 'sharingan-itachi'
+    | 'sharingan-kamui'
+    | 'sharingan-shisui'
+    | 'ems-sasuke'
+    | 'ems-madara';
 }
 
 export interface NotificationItem {

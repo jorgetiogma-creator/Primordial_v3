@@ -7,6 +7,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Copy,
   Eye,
   EyeOff,
@@ -162,6 +163,65 @@ function buildQrMatrix(token: string): boolean[][] {
   return grid;
 }
 
+const AuthEditorialShowcase: React.FC = () => (
+  <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 relative overflow-hidden flex-col justify-between p-10 xl:p-14 bg-[#07080d] border-r border-white/[0.06]">
+    {/* Atmospheric Obsidian Radial Lighting */}
+    <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute -top-24 -left-24 w-[480px] h-[480px] rounded-full bg-[#5865F2]/18 blur-[120px]" />
+      <div className="absolute bottom-[-80px] right-[-60px] w-[420px] h-[420px] rounded-full bg-indigo-500/12 blur-[120px]" />
+      <div
+        className="absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+        }}
+      />
+    </div>
+
+    <div className="relative z-10 flex items-center gap-3.5">
+      <PrimordialAppIcon className="w-11 h-11 rounded-2xl border border-white/15 shadow-lg" />
+      <span className="font-display font-extrabold text-xl tracking-tight text-white">
+        Primordial
+      </span>
+    </div>
+
+    <div className="relative z-10 max-w-xl space-y-6 my-auto py-8">
+      <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#818cf8]">
+        Mensajería · Comunidades · Coleccionables
+      </p>
+      <h2
+        className="font-display font-black text-4xl xl:text-5xl tracking-tight leading-[1.06] text-white"
+        style={{ textWrap: 'balance' }}
+      >
+        Tu espacio privado, sincronizado en cualquier dispositivo.
+      </h2>
+      <p className="text-base text-zinc-400 leading-relaxed max-w-md">
+        Conecta al instante con personas reales, comparte pantalla en alta calidad y conserva tu inventario y amigos en la nube sin depender de cuentas externas.
+      </p>
+
+      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/[0.08]">
+        <div>
+          <p className="font-display font-bold text-lg text-white">Tiempo real</p>
+          <p className="text-xs text-zinc-400 mt-0.5">Chats y solicitudes al instante</p>
+        </div>
+        <div>
+          <p className="font-display font-bold text-lg text-white">Multidispositivo</p>
+          <p className="text-xs text-zinc-400 mt-0.5">Tu cuenta y objetos contigo</p>
+        </div>
+        <div>
+          <p className="font-display font-bold text-lg text-white">Tienda Shinobi</p>
+          <p className="text-xs text-zinc-400 mt-0.5">Sharingan, Rinnegan y más</p>
+        </div>
+      </div>
+    </div>
+
+    <div className="relative z-10 text-xs text-zinc-500">
+      Primordial Web &amp; Mobile · Acceso directo por usuario, correo o teléfono
+    </div>
+  </div>
+);
+
 export const AuthView: React.FC<AuthViewProps> = ({
   accounts,
   onLoginAccount,
@@ -177,7 +237,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [require2FA, setRequire2FA] = useState(true);
+  const [require2FA, setRequire2FA] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [infoBanner, setInfoBanner] = useState<string | null>(null);
 
@@ -228,14 +288,13 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [regPassword, setRegPassword] = useState('');
   const [regShowPass, setRegShowPass] = useState(false);
   const [regAvatar, setRegAvatar] = useState<AvatarKey>('madara');
-  const [regEnable2FA, setRegEnable2FA] = useState(true);
+  const [regEnable2FA, setRegEnable2FA] = useState(false);
   const [regBackupCodes] = useState<string[]>(() => generateBackupCodes());
   const [copiedCodes, setCopiedCodes] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
 
   const selectedCountry = COUNTRY_CODES[countryIndex];
 
-  // Countdown timers for lockout, TOTP 30s rotation, and QR expiration
   useEffect(() => {
     if (lockoutSeconds <= 0) return;
     const id = window.setInterval(() => {
@@ -280,7 +339,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
   );
 
   const qrMatrix = useMemo(() => buildQrMatrix(qrNonce), [qrNonce]);
-
   const regStrength = useMemo(() => evaluatePasswordStrength(regPassword), [regPassword]);
   const recStrength = useMemo(() => evaluatePasswordStrength(recNewPassword), [recNewPassword]);
 
@@ -352,13 +410,13 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
 
     if (needsHumanCheck) {
-      setLoginError('Completa la verificación de seguridad anti-bot antes de continuar.');
+      setLoginError('Completa la verificación de seguridad antes de continuar.');
       return;
     }
 
     const idClean = loginIdentifier.trim().toLowerCase().replace(/^@+/, '');
     if (!idClean || !loginPassword.trim()) {
-      setLoginError('Introduce tu usuario/correo y contraseña.');
+      setLoginError('Introduce tu usuario, correo o teléfono y tu contraseña.');
       return;
     }
 
@@ -382,7 +440,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
           return;
         }
       }
-      registerFailedAttempt('No encontramos esa cuenta. Verifica tus datos o créate una nueva.');
+      registerFailedAttempt('No encontramos esa cuenta o la contraseña no coincide.');
       return;
     }
 
@@ -413,12 +471,12 @@ export const AuthView: React.FC<AuthViewProps> = ({
     setLoginError(null);
     const target = resolveAccountForQuickAuth();
     if (!target) {
-      setLoginError('No encontramos una cuenta asociada a ese identificador.');
+      setLoginError('No encontramos una cuenta local asociada a ese identificador.');
       return;
     }
 
     setBioState('scanning');
-    setBioStatusText('Generando desafío criptográfico WebAuthn (FIDO2)...');
+    setBioStatusText('Generando desafío WebAuthn...');
 
     try {
       const supportsWebAuthn =
@@ -426,12 +484,12 @@ export const AuthView: React.FC<AuthViewProps> = ({
         typeof window.PublicKeyCredential !== 'undefined' &&
         !!navigator.credentials;
 
-      await new Promise((r) => setTimeout(r, 900));
+      await new Promise((r) => setTimeout(r, 850));
 
       setBioStatusText(
         supportsWebAuthn
-          ? 'Llave de seguridad / biometría verificada con firma ECDSA P-256.'
-          : 'Verificación biométrica local completada y firmada.'
+          ? 'Llave de seguridad verificada.'
+          : 'Verificación biométrica local completada.'
       );
       setBioState('verified');
 
@@ -439,7 +497,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
         setBioState('idle');
         setBioStatusText(null);
         finalizeAuthenticatedLogin(target, true);
-      }, 650);
+      }, 550);
     } catch {
       setBioState('error');
       setBioStatusText('No se pudo completar la lectura biométrica.');
@@ -458,8 +516,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
       window.setTimeout(() => {
         setQrState('ready');
         finalizeAuthenticatedLogin(target, true);
-      }, 500);
-    }, 650);
+      }, 450);
+    }, 600);
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -508,7 +566,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
       }
       const prevExpected = computeTotpCode(pendingAccount.id, currentWindowStep - 1);
       if (entered !== expectedTotp && entered !== prevExpected) {
-        setTwoFactorError('Código TOTP incorrecto o expirado. Verifica el código actual.');
+        setTwoFactorError('Código TOTP incorrecto o expirado.');
         return;
       }
       finalizeAuthenticatedLogin(pendingAccount, trustDevice);
@@ -544,7 +602,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
         a.user.displayName.toLowerCase() === clean
     );
     if (!found) {
-      setRecError('No encontramos ninguna cuenta con ese dato.');
+      setRecError('No encontramos ninguna cuenta guardada con ese dato en este dispositivo.');
       return;
     }
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -592,8 +650,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
     const display = regDisplayName.trim();
     const uname =
       regUsername.trim() || display.toLowerCase().replace(/[^a-z0-9_]/g, '') || 'usuario';
-    if (!display || regPassword.trim().length < 4) {
-      setRegError('Escribe un nombre para mostrar y una contraseña de al menos 4 caracteres.');
+    if (!display || regPassword.trim().length < 6) {
+      setRegError('Escribe un nombre para mostrar y una contraseña de al menos 6 caracteres.');
       return;
     }
     const ownerAlreadyExists = accounts.some(
@@ -631,93 +689,104 @@ export const AuthView: React.FC<AuthViewProps> = ({
     });
   };
 
-
-
-  /* ---------------- 1. WELCOME COSMIC SCREEN ---------------- */
+  /* ---------------- 1. WELCOME SCREEN ---------------- */
   if (step === 'welcome') {
     return (
-      <div className="w-screen h-screen relative overflow-hidden flex flex-col justify-between bg-gradient-to-b from-[#040726] via-[#0c1659] to-[#0f248c] text-white select-none">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-16 -left-16 w-72 h-72 rounded-full bg-indigo-500/20 blur-3xl" />
-          <div className="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-blue-400/15 blur-3xl" />
-          <div className="absolute bottom-12 left-1/4 w-64 h-64 rounded-full bg-fuchsia-500/15 blur-3xl" />
+      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto select-none">
+        <AuthEditorialShowcase />
 
-          <div className="absolute top-[18%] right-[12%] w-24 h-24 rounded-full bg-gradient-to-br from-indigo-200/40 via-indigo-400/25 to-transparent blur-[2px] border border-white/15 shadow-2xl anim-float" />
-          <div className="absolute top-[34%] -left-10 w-28 h-28 rounded-full bg-gradient-to-br from-violet-500/35 to-fuchsia-600/15 blur-[6px]" />
-          <div className="absolute bottom-[18%] right-[14%] w-20 h-20 rounded-3xl rotate-12 bg-gradient-to-br from-indigo-300/35 to-purple-600/20 blur-[3px] border border-white/10" />
+        <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-between px-6 py-8 sm:px-10 min-h-[100dvh] relative overflow-hidden">
+          <div className="absolute -top-24 right-0 w-72 h-72 rounded-full bg-[#5865F2]/12 blur-3xl pointer-events-none lg:hidden" />
 
-          {[
-            { top: '12%', left: '16%', size: 4 },
-            { top: '22%', left: '72%', size: 3 },
-            { top: '28%', left: '34%', size: 4 },
-            { top: '42%', left: '84%', size: 5 },
-            { top: '56%', left: '14%', size: 4 },
-            { top: '64%', left: '66%', size: 3 },
-            { top: '74%', left: '28%', size: 4 },
-            { top: '16%', left: '54%', size: 3 },
-          ].map((s, idx) => (
-            <span
-              key={idx}
-              className="absolute bg-white/45 rounded-[1px]"
-              style={{ top: s.top, left: s.left, width: s.size, height: s.size }}
-            />
-          ))}
-        </div>
+          <div className="flex items-center justify-between lg:justify-end relative z-10">
+            <div className="flex items-center gap-2.5 lg:hidden">
+              <PrimordialAppIcon className="w-9 h-9 rounded-xl border border-white/15" />
+              <span className="font-display font-extrabold text-base text-white">Primordial</span>
+            </div>
+            <span className="text-xs font-medium text-zinc-500">Acceso en la nube</span>
+          </div>
 
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center max-w-md mx-auto w-full">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.35 }}
-            className="mb-7"
-          >
-            <PrimordialAppIcon className="w-24 h-24 rounded-3xl border border-white/20 shadow-[0_12px_40px_rgba(56,189,248,0.45)]" />
-          </motion.div>
+          <div className="my-auto py-8 max-w-[420px] mx-auto w-full space-y-6 relative z-10">
+            <div className="space-y-2.5 text-center lg:text-left">
+              <div className="hidden lg:inline-flex items-center gap-2 text-xs font-semibold text-[#818cf8]">
+                <span>Bienvenido</span>
+              </div>
+              <div className="lg:hidden flex justify-center mb-4">
+                <PrimordialAppIcon className="w-20 h-20 rounded-3xl border border-white/15 shadow-[0_14px_38px_rgba(88,101,242,0.35)]" />
+              </div>
+              <h1
+                className="font-display font-black text-[28px] sm:text-[34px] tracking-tight leading-[1.08] text-white"
+                style={{ textWrap: 'balance' }}
+              >
+                Tu comunidad, en cualquier pantalla
+              </h1>
+              <p className="text-[14.5px] text-zinc-400 leading-relaxed">
+                Chatea con personas reales, comparte pantalla y conserva tus objetos y amigos entre dispositivos.
+              </p>
+            </div>
 
-          <motion.h1
-            initial={{ y: 14, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.08, duration: 0.35 }}
-            className="font-display font-black text-[28px] sm:text-[32px] uppercase tracking-tight leading-[1.08] text-white"
-            style={{ textWrap: 'balance' }}
-          >
-            BIENVENIDO A PRIMORDIAL
-          </motion.h1>
+            {accounts.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-zinc-400">Cuentas guardadas en este dispositivo</p>
+                <div className="space-y-2 max-h-44 overflow-y-auto pr-0.5">
+                  {accounts.slice(0, 3).map((acc) => (
+                    <button
+                      key={acc.id}
+                      type="button"
+                      onClick={() => finalizeAuthenticatedLogin(acc, false)}
+                      className="w-full p-3 rounded-2xl bg-[#11131a] hover:bg-[#171a24] border border-white/[0.08] hover:border-white/20 flex items-center justify-between gap-3 cursor-pointer transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <UserAvatar
+                          avatar={acc.user.avatar}
+                          customAvatarUrl={acc.user.customAvatarUrl}
+                          decoration={acc.user.decoration}
+                          size="sm"
+                          showStatus={false}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{acc.user.displayName}</p>
+                          <p className="text-xs text-zinc-400 truncate">@{acc.user.username}</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-zinc-400 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          <motion.p
-            initial={{ y: 14, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.14, duration: 0.35 }}
-            className="text-[15px] text-indigo-100/90 mt-3 leading-relaxed max-w-xs"
-          >
-            Conéctate con personas reales, crea servidores y chatea en tiempo real.
-          </motion.p>
-        </div>
+            <div className="space-y-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setRegError(null);
+                  setStep('register-contact');
+                }}
+                className="w-full h-12 rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-display font-bold text-[15px] shadow-[0_10px_28px_-8px_rgba(88,101,242,0.65)] flex items-center justify-center gap-2 transition-all active:scale-[0.985] cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Crear cuenta nueva</span>
+              </button>
 
-        <div className="relative z-10 px-5 pb-8 pt-4 max-w-md mx-auto w-full space-y-3">
-          <button
-            type="button"
-            onClick={() => {
-              setRegError(null);
-              setStep('register-contact');
-            }}
-            className="w-full h-12 rounded-full bg-white hover:bg-zinc-100 text-[#0b1033] font-display font-bold text-[15.5px] shadow-xl flex items-center justify-center gap-2 transition-transform active:scale-[0.985] cursor-pointer"
-          >
-            Crear cuenta
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginError(null);
+                  setInfoBanner(null);
+                  setLoginMethod('password');
+                  setStep('login');
+                }}
+                className="w-full h-12 rounded-full bg-[#151722] hover:bg-[#1c1f2e] border border-white/12 text-white font-display font-bold text-[15px] transition-all active:scale-[0.985] cursor-pointer"
+              >
+                Iniciar sesión con mi cuenta
+              </button>
+            </div>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setLoginError(null);
-              setInfoBanner(null);
-              setLoginMethod('password');
-              setStep('login');
-            }}
-            className="w-full h-12 rounded-full bg-[#15246b]/90 hover:bg-[#1c2f85] border border-white/20 text-white font-display font-bold text-[15px] transition-transform active:scale-[0.985] cursor-pointer"
-          >
-            {accounts.length > 0 ? 'Iniciar sesión' : 'Ya tengo una cuenta'}
-          </button>
+          <p className="text-center lg:text-left text-xs text-zinc-500 relative z-10">
+            Sin inicio con Google · Acceso directo privado
+          </p>
         </div>
       </div>
     );
@@ -726,29 +795,28 @@ export const AuthView: React.FC<AuthViewProps> = ({
   /* ---------------- 2. TWO-FACTOR AUTHENTICATION (2FA) ---------------- */
   if (step === 'two-factor' && pendingAccount) {
     return (
-      <div className="w-screen h-screen bg-[#14151a] text-white flex flex-col overflow-y-auto relative">
-        <header className="h-14 px-4 flex items-center justify-between shrink-0 relative z-10">
-          <button
-            type="button"
-            onClick={() => {
-              setPendingAccount(null);
-              setStep('login');
-            }}
-            aria-label="Volver"
-            className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#5865F2]/15 border border-[#5865F2]/35 text-[11px] font-bold text-[#a5b4fc]">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Protección 2FA activa
-          </span>
-        </header>
+      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+        <AuthEditorialShowcase />
 
-        <div className="flex-1 flex flex-col justify-between px-5 pb-8 pt-2 max-w-md mx-auto w-full relative z-10">
-          <div className="space-y-5">
+        <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
+          <header className="h-14 px-4 sm:px-6 flex items-center justify-between shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setPendingAccount(null);
+                setStep('login');
+              }}
+              aria-label="Volver"
+              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <span className="text-xs font-semibold text-zinc-400">Verificación 2FA</span>
+          </header>
+
+          <div className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-5">
             <div className="text-center space-y-1.5">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-[#5865F2]/20 border border-[#5865F2]/40 flex items-center justify-center text-[#818cf8] mb-2">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-[#5865F2]/18 border border-[#5865F2]/35 flex items-center justify-center text-[#818cf8] mb-2">
                 <Shield className="w-6 h-6" />
               </div>
               <h1 className="font-display font-bold text-[24px] text-white tracking-tight">
@@ -759,8 +827,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
               </p>
             </div>
 
-            {/* 2FA Method Tabs */}
-            <div className="p-1 rounded-2xl bg-[#0b0c10] border border-white/[0.07] grid grid-cols-3 gap-1">
+            <div className="p-1 rounded-2xl bg-[#11131a] border border-white/[0.08] grid grid-cols-3 gap-1">
               {[
                 { id: 'totp' as const, label: 'Autenticador', icon: Smartphone },
                 { id: 'push' as const, label: 'Push móvil', icon: BellRing },
@@ -791,7 +858,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
             {twoFactorTab === 'totp' && (
               <form onSubmit={handleVerifyTwoFactor} className="space-y-4">
-                <div className="rounded-2xl bg-[#0b0c10] border border-white/[0.08] p-4 space-y-4">
+                <div className="rounded-2xl bg-[#11131a] border border-white/[0.08] p-4 space-y-4">
                   <div className="flex items-center justify-between text-xs text-zinc-400">
                     <span>Código de 6 dígitos (TOTP)</span>
                     <span className="font-mono font-bold text-[#818cf8] tabular-nums">
@@ -799,7 +866,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
                     </span>
                   </div>
 
-                  {/* TOTP 30s countdown bar */}
                   <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
                     <div
                       className="h-full bg-[#5865F2] transition-all duration-1000"
@@ -820,7 +886,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                         value={digit}
                         onChange={(e) => handleOtpChange(idx, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="h-12 rounded-xl bg-[#161820] border border-white/10 text-center font-mono font-bold text-lg text-white focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/30"
+                        className="h-12 rounded-xl bg-[#090a0f] border border-white/10 text-center font-mono font-bold text-lg text-white focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/30"
                       />
                     ))}
                   </div>
@@ -829,7 +895,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowTotpHelper((v) => !v)}
-                      className="text-xs font-semibold text-[#4ea1ff] hover:underline cursor-pointer"
+                      className="text-xs font-semibold text-[#60a5fa] hover:underline cursor-pointer"
                     >
                       {showTotpHelper ? 'Ocultar código simulado' : '¿Sin app? Ver código actual'}
                     </button>
@@ -872,7 +938,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
             )}
 
             {twoFactorTab === 'push' && (
-              <div className="rounded-2xl bg-[#0b0c10] border border-white/[0.08] p-5 text-center space-y-4">
+              <div className="rounded-2xl bg-[#11131a] border border-white/[0.08] p-5 text-center space-y-4">
                 <div className="w-14 h-14 mx-auto rounded-full bg-[#5865F2]/15 border border-[#5865F2]/40 flex items-center justify-center">
                   <BellRing className="w-7 h-7 text-[#818cf8]" />
                 </div>
@@ -885,7 +951,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                       : 'Solicitud rechazada por seguridad'}
                   </p>
                   <p className="text-xs text-zinc-400">
-                    Dispositivo: Primordial Mobile · Verificación de sesión cifrada
+                    Autoriza el acceso para @{pendingAccount.user.username}
                   </p>
                 </div>
 
@@ -896,7 +962,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                       setPushState('denied');
                       setTwoFactorError('Acceso rechazado desde tu dispositivo móvil.');
                     }}
-                    className="flex-1 h-11 rounded-full bg-[#24262e] hover:bg-[#2f323d] text-xs font-bold text-zinc-200 cursor-pointer"
+                    className="flex-1 h-11 rounded-full bg-[#1e212e] hover:bg-[#282c3d] text-xs font-bold text-zinc-200 cursor-pointer"
                   >
                     No fui yo
                   </button>
@@ -924,23 +990,23 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
             {twoFactorTab === 'backup' && (
               <form onSubmit={handleVerifyTwoFactor} className="space-y-4">
-                <div className="rounded-2xl bg-[#0b0c10] border border-white/[0.08] p-4 space-y-3">
+                <div className="rounded-2xl bg-[#11131a] border border-white/[0.08] p-4 space-y-3">
                   <label className="block text-xs font-semibold text-zinc-300">
-                    Código de recuperación de 8 caracteres
+                    Código de recuperación
                   </label>
                   <input
                     type="text"
                     value={backupInput}
                     onChange={(e) => setBackupInput(e.target.value)}
                     placeholder="PRM-XXXX-XX"
-                    className="w-full h-12 rounded-xl bg-[#161820] border border-white/10 px-4 font-mono text-sm uppercase tracking-wider text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
+                    className="w-full h-12 rounded-xl bg-[#090a0f] border border-white/10 px-4 font-mono text-sm uppercase tracking-wider text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
                   />
                   <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                    <span>Código de prueba válido:</span>
+                    <span>Código válido:</span>
                     <button
                       type="button"
                       onClick={() => setBackupInput(fallbackBackupCode)}
-                      className="font-mono font-bold text-[#4ea1ff] hover:underline cursor-pointer"
+                      className="font-mono font-bold text-[#60a5fa] hover:underline cursor-pointer"
                     >
                       {fallbackBackupCode}
                     </button>
@@ -962,204 +1028,198 @@ export const AuthView: React.FC<AuthViewProps> = ({
               </form>
             )}
           </div>
-
-          <div className="mt-6 flex justify-center">
-            <div className="px-4 py-2 rounded-full bg-[#1e2027] border border-white/[0.06] text-xs font-medium text-zinc-300 flex items-center gap-2">
-              <Lock className="w-3.5 h-3.5 text-[#5865F2]" />
-              <span>Autenticación multifactor cifrada de extremo a extremo</span>
-            </div>
-          </div>
         </div>
       </div>
     );
   }
 
-  /* ---------------- 3. SECURE ACCOUNT RECOVERY ---------------- */
+  /* ---------------- 3. ACCOUNT RECOVERY ---------------- */
   if (step === 'recovery') {
     return (
-      <div className="w-screen h-screen bg-[#14151a] text-white flex flex-col overflow-y-auto relative">
-        <header className="h-14 px-4 flex items-center shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setRecError(null);
-              setStep('login');
-            }}
-            aria-label="Volver"
-            className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-        </header>
+      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+        <AuthEditorialShowcase />
 
-        <div className="flex-1 px-5 pb-8 pt-2 max-w-md mx-auto w-full space-y-5">
-          <div className="text-center space-y-1">
-            <h1 className="font-display font-bold text-[24px] text-white">
-              Recuperación segura
-            </h1>
-            <p className="text-[13.5px] text-zinc-400">
-              {recCodeSent
-                ? 'Introduce el código de verificación y define una nueva contraseña fuerte.'
-                : 'Te enviaremos un código temporal de 6 dígitos para verificar tu identidad.'}
-            </p>
-          </div>
+        <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
+          <header className="h-14 px-4 sm:px-6 flex items-center shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setRecError(null);
+                setStep('login');
+              }}
+              aria-label="Volver"
+              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          </header>
 
-          {!recCodeSent ? (
-            <form onSubmit={handleSendRecoveryCode} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-semibold text-zinc-300">
-                  Correo electrónico, teléfono o usuario
-                </label>
-                <input
-                  type="text"
-                  value={recIdentifier}
-                  onChange={(e) => setRecIdentifier(e.target.value)}
-                  placeholder="usuario@correo.com"
-                  className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
-                />
-              </div>
-
-              {recError && (
-                <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">
-                  {recError}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full h-12 rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-display font-bold text-[15px] shadow-lg cursor-pointer"
-              >
-                Enviar código de verificación
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleConfirmRecovery} className="space-y-4">
-              <div className="rounded-2xl bg-[#0b0c10] border border-white/10 p-3.5 flex items-center justify-between text-xs">
-                <span className="text-zinc-300">Código enviado (vista previa):</span>
-                <button
-                  type="button"
-                  onClick={() => setRecCodeInput(recCodeSent)}
-                  className="font-mono font-bold text-[#4ea1ff] hover:underline cursor-pointer"
-                >
-                  {recCodeSent} · Rellenar
-                </button>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-semibold text-zinc-300">
-                  Código de 6 dígitos
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={recCodeInput}
-                  onChange={(e) => setRecCodeInput(e.target.value.replace(/\D/g, ''))}
-                  placeholder="000000"
-                  className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] px-4 font-mono tracking-widest text-[16px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-semibold text-zinc-300">
-                  Nueva contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    type={recShowPass ? 'text' : 'password'}
-                    value={recNewPassword}
-                    onChange={(e) => setRecNewPassword(e.target.value)}
-                    placeholder="Mínimo 6 caracteres"
-                    className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] pl-4 pr-12 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setRecShowPass((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-white cursor-pointer"
-                  >
-                    {recShowPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-
-                {recNewPassword && (
-                  <div className="pt-1 space-y-1">
-                    <div className="grid grid-cols-4 gap-1">
-                      {[1, 2, 3, 4].map((lvl) => (
-                        <span
-                          key={lvl}
-                          className={`h-1.5 rounded-full transition-colors ${
-                            recStrength.score >= lvl ? recStrength.color : 'bg-white/10'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-[11px] text-zinc-400">
-                      Fortaleza: <strong className="text-white">{recStrength.label}</strong>
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {recError && (
-                <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">
-                  {recError}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full h-12 rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-display font-bold text-[15px] shadow-lg cursor-pointer"
-              >
-                Actualizar contraseña
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  /* ---------------- 4. LOGIN SCREEN (Advanced Security Suite) ---------------- */
-  if (step === 'login') {
-    return (
-      <div className="w-screen h-screen bg-[#14151a] text-white flex flex-col overflow-y-auto relative">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-12 -left-12 w-40 h-40 rotate-45 rounded-2xl bg-white/[0.025]" />
-          <div className="absolute top-28 right-1/4 w-24 h-24 rounded-full bg-white/[0.02]" />
-          <div className="absolute bottom-24 -right-10 w-36 h-36 rounded-full bg-white/[0.02]" />
-        </div>
-
-        <header className="h-14 px-4 flex items-center justify-between shrink-0 relative z-10">
-          <button
-            type="button"
-            onClick={() => setStep('welcome')}
-            aria-label="Volver"
-            className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[11px] font-semibold text-emerald-300">
-            <Lock className="w-3 h-3" />
-            Conexión cifrada
-          </span>
-        </header>
-
-        <div className="flex-1 flex flex-col justify-between px-5 pb-8 pt-2 max-w-md mx-auto w-full relative z-10">
-          <div className="space-y-5">
-            <div className="text-center">
+          <div className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-5">
+            <div className="text-center lg:text-left space-y-1.5">
               <h1 className="font-display font-bold text-[26px] text-white tracking-tight">
-                ¡Hola de nuevo!
+                Recuperar acceso
               </h1>
-              <p className="text-[14px] text-zinc-400 mt-1">
-                Acceso protegido con autenticación multifactor y llaves criptográficas
+              <p className="text-[13.5px] text-zinc-400">
+                {recCodeSent
+                  ? 'Introduce el código de verificación y define una nueva contraseña fuerte.'
+                  : 'Escribe tu usuario, correo o teléfono para restablecer tu contraseña.'}
               </p>
             </div>
 
-            {/* Security Access Mode Switcher */}
-            <div className="p-1 rounded-2xl bg-[#0b0c10] border border-white/[0.07] grid grid-cols-3 gap-1">
+            {!recCodeSent ? (
+              <form onSubmit={handleSendRecoveryCode} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-semibold text-zinc-300">
+                    Correo electrónico, teléfono o usuario
+                  </label>
+                  <input
+                    type="text"
+                    value={recIdentifier}
+                    onChange={(e) => setRecIdentifier(e.target.value)}
+                    placeholder="usuario@correo.com"
+                    className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/25"
+                  />
+                </div>
+
+                {recError && (
+                  <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">
+                    {recError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full h-12 rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-display font-bold text-[15px] shadow-lg cursor-pointer"
+                >
+                  Enviar código de verificación
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleConfirmRecovery} className="space-y-4">
+                <div className="rounded-2xl bg-[#11131a] border border-white/10 p-3.5 flex items-center justify-between text-xs">
+                  <span className="text-zinc-300">Código enviado:</span>
+                  <button
+                    type="button"
+                    onClick={() => setRecCodeInput(recCodeSent)}
+                    className="font-mono font-bold text-[#60a5fa] hover:underline cursor-pointer"
+                  >
+                    {recCodeSent} · Rellenar
+                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-semibold text-zinc-300">
+                    Código de 6 dígitos
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={recCodeInput}
+                    onChange={(e) => setRecCodeInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] px-4 font-mono tracking-widest text-[16px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-semibold text-zinc-300">
+                    Nueva contraseña
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={recShowPass ? 'text' : 'password'}
+                      value={recNewPassword}
+                      onChange={(e) => setRecNewPassword(e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
+                      className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] pl-4 pr-12 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setRecShowPass((s) => !s)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-white cursor-pointer"
+                    >
+                      {recShowPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+
+                  {recNewPassword && (
+                    <div className="pt-1 space-y-1">
+                      <div className="grid grid-cols-4 gap-1">
+                        {[1, 2, 3, 4].map((lvl) => (
+                          <span
+                            key={lvl}
+                            className={`h-1.5 rounded-full transition-colors ${
+                              recStrength.score >= lvl ? recStrength.color : 'bg-white/10'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-zinc-400">
+                        Fortaleza: <strong className="text-white">{recStrength.label}</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {recError && (
+                  <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">
+                    {recError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full h-12 rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-display font-bold text-[15px] shadow-lg cursor-pointer"
+                >
+                  Actualizar contraseña
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- 4. LOGIN SCREEN ---------------- */
+  if (step === 'login') {
+    return (
+      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+        <AuthEditorialShowcase />
+
+        <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
+          <header className="h-14 px-4 sm:px-6 flex items-center justify-between shrink-0">
+            <button
+              type="button"
+              onClick={() => setStep('welcome')}
+              aria-label="Volver"
+              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep('register-contact')}
+              className="text-xs font-semibold text-[#818cf8] hover:text-white transition-colors cursor-pointer"
+            >
+              Crear cuenta
+            </button>
+          </header>
+
+          <div className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-5">
+            <div className="text-center lg:text-left space-y-1">
+              <h1 className="font-display font-black text-[28px] text-white tracking-tight">
+                ¡Hola de nuevo!
+              </h1>
+              <p className="text-[14px] text-zinc-400">
+                Ingresa desde cualquier dispositivo con tu usuario, correo o teléfono.
+              </p>
+            </div>
+
+            <div className="p-1 rounded-2xl bg-[#11131a] border border-white/[0.08] grid grid-cols-3 gap-1">
               {[
-                { id: 'password' as const, label: 'Clave + 2FA', icon: Lock },
+                { id: 'password' as const, label: 'Contraseña', icon: Lock },
                 { id: 'qr' as const, label: 'Código QR', icon: QrCode },
                 { id: 'biometric' as const, label: 'Biometría', icon: Fingerprint },
               ].map((m) => {
@@ -1190,14 +1250,14 @@ export const AuthView: React.FC<AuthViewProps> = ({
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="block text-[13px] font-semibold text-zinc-300">
-                    Correo electrónico, teléfono o usuario
+                    Usuario, correo o teléfono
                   </label>
                   <input
                     type="text"
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
-                    placeholder="usuario@correo.com"
-                    className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
+                    placeholder="@tu_usuario o correo@ejemplo.com"
+                    className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/25"
                   />
                 </div>
 
@@ -1211,7 +1271,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] pl-4 pr-12 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
+                      className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] pl-4 pr-12 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/25"
                     />
                     <button
                       type="button"
@@ -1224,7 +1284,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   </div>
                 </div>
 
-                {/* 2FA enforcement toggle & password recovery */}
                 <div className="flex items-center justify-between gap-2 pt-0.5">
                   <button
                     type="button"
@@ -1234,26 +1293,22 @@ export const AuthView: React.FC<AuthViewProps> = ({
                       setRecIdentifier(loginIdentifier);
                       setStep('recovery');
                     }}
-                    className="text-[13px] font-semibold text-[#4ea1ff] hover:underline cursor-pointer"
+                    className="text-[13px] font-semibold text-[#60a5fa] hover:underline cursor-pointer"
                   >
                     ¿Has olvidado la contraseña?
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setRequire2FA((v) => !v)}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors cursor-pointer ${
-                      require2FA
-                        ? 'bg-[#5865F2]/20 border-[#5865F2]/50 text-[#c7d2fe]'
-                        : 'bg-white/5 border-white/10 text-zinc-400'
-                    }`}
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>2FA {require2FA ? 'Activo' : 'Opcional'}</span>
-                  </button>
+                  <label className="inline-flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={require2FA}
+                      onChange={(e) => setRequire2FA(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-[#5865F2]"
+                    />
+                    <span>Exigir 2FA</span>
+                  </label>
                 </div>
 
-                {/* Brute-force lockout + Human Verification Challenge */}
                 {(lockoutSeconds > 0 || needsHumanCheck) && (
                   <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-3.5 space-y-2.5">
                     <div className="flex items-center justify-between text-xs font-bold text-amber-300">
@@ -1289,7 +1344,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                                     setChallengeIndex((i) => i + 1);
                                   }
                                 }}
-                                className="h-10 rounded-xl bg-[#0b0c10] hover:bg-[#1a1c26] border border-white/15 flex items-center justify-center gap-1.5 text-xs font-semibold text-white cursor-pointer"
+                                className="h-10 rounded-xl bg-[#090a0f] hover:bg-[#1a1c26] border border-white/15 flex items-center justify-center gap-1.5 text-xs font-semibold text-white cursor-pointer"
                               >
                                 <Icon className="w-3.5 h-3.5 text-[#818cf8]" />
                                 <span>{item.label}</span>
@@ -1303,14 +1358,14 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 )}
 
                 {loginError && (
-                  <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2 flex items-start gap-2">
+                  <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3.5 py-2.5 flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{loginError}</span>
                   </p>
                 )}
 
                 {infoBanner && (
-                  <p className="text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3 py-2">
+                  <p className="text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3.5 py-2.5">
                     {infoBanner}
                   </p>
                 )}
@@ -1318,23 +1373,23 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 <button
                   type="submit"
                   disabled={lockoutSeconds > 0 || cloudLoginPending}
-                  className={`w-full h-12 rounded-full font-display font-bold text-[15px] shadow-lg transition-colors mt-1 ${
+                  className={`w-full h-12 rounded-full font-display font-bold text-[15px] shadow-[0_10px_28px_-8px_rgba(88,101,242,0.6)] transition-all mt-1 ${
                     lockoutSeconds > 0 || cloudLoginPending
                       ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
-                      : 'bg-[#5865F2] hover:bg-[#4752C4] text-white cursor-pointer'
+                      : 'bg-[#5865F2] hover:bg-[#4752C4] text-white cursor-pointer active:scale-[0.985]'
                   }`}
                 >
                   {lockoutSeconds > 0
                     ? `Bloqueado (${lockoutSeconds}s)`
                     : cloudLoginPending
-                      ? 'Conectando...'
+                      ? 'Conectando en la nube...'
                       : 'Iniciar sesión'}
                 </button>
               </form>
             )}
 
             {loginMethod === 'qr' && (
-              <div className="rounded-3xl bg-[#0b0c10] border border-white/[0.08] p-5 text-center space-y-4">
+              <div className="rounded-3xl bg-[#11131a] border border-white/[0.08] p-5 text-center space-y-4">
                 <div className="relative w-44 h-44 mx-auto rounded-2xl bg-white p-3 shadow-xl flex items-center justify-center">
                   <svg
                     viewBox="0 0 21 21"
@@ -1369,7 +1424,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                     Iniciar sesión con código QR
                   </h2>
                   <p className="text-xs text-zinc-400 leading-relaxed">
-                    Escanea este código desde la app móvil de Primordial para autorizar el acceso sin escribir tu clave.
+                    Escanea este código desde tu sesión abierta en otro dispositivo.
                   </p>
                   <p className="text-[11px] font-mono text-[#818cf8] tabular-nums pt-0.5">
                     Token: {qrNonce} · Expira en {qrCountdown}s
@@ -1384,7 +1439,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                       setQrCountdown(120);
                       setQrState('ready');
                     }}
-                    className="h-10 px-4 rounded-full bg-[#1d1f28] hover:bg-[#272a36] text-xs font-semibold text-zinc-200 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="h-10 px-4 rounded-full bg-[#1b1e2b] hover:bg-[#25293a] text-xs font-semibold text-zinc-200 inline-flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Renovar</span>
@@ -1405,7 +1460,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
             )}
 
             {loginMethod === 'biometric' && (
-              <div className="rounded-3xl bg-[#0b0c10] border border-white/[0.08] p-5 text-center space-y-4">
+              <div className="rounded-3xl bg-[#11131a] border border-white/[0.08] p-5 text-center space-y-4">
                 <div
                   className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center border transition-all ${
                     bioState === 'verified'
@@ -1424,10 +1479,10 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
                 <div className="space-y-1">
                   <h2 className="font-display font-bold text-base text-white">
-                    Llave de acceso FIDO2 / Biometría
+                    Biometría / Face ID
                   </h2>
                   <p className="text-xs text-zinc-400">
-                    Inicia sesión con huella dactilar, Face ID o llave física USB/NFC resistente a phishing.
+                    Inicia sesión con huella dactilar o reconocimiento facial de este dispositivo.
                   </p>
                 </div>
 
@@ -1435,8 +1490,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   type="text"
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
-                  placeholder="Opcional: correo o usuario"
-                  className="w-full h-11 rounded-xl bg-[#161820] border border-white/10 px-3.5 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#5865F2]"
+                  placeholder="Opcional: usuario o correo"
+                  className="w-full h-11 rounded-xl bg-[#090a0f] border border-white/10 px-3.5 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#5865F2]"
                 />
 
                 {bioStatusText && (
@@ -1460,359 +1515,360 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   <KeyRound className="w-4 h-4" />
                   <span>
                     {bioState === 'scanning'
-                      ? 'Verificando llave criptográfica...'
+                      ? 'Verificando...'
                       : 'Verificar con huella o Face ID'}
                   </span>
                 </button>
               </div>
             )}
           </div>
-
-          <div className="mt-6 flex justify-center">
-            <div className="px-4 py-2 rounded-full bg-[#1e2027] border border-white/[0.06] text-xs font-medium text-zinc-300 flex items-center gap-2">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#5865F2]" />
-              <span>TLS 1.3 · Anti-phishing · 2FA y WebAuthn</span>
-            </div>
-          </div>
         </div>
       </div>
     );
   }
 
-  /* ---------------- 5. REGISTER STEP 1 (Teléfono / Correo) ---------------- */
+  /* ---------------- 5. REGISTER STEP 1 (Contacto) ---------------- */
   if (step === 'register-contact') {
     return (
-      <div className="w-screen h-screen bg-[#14151a] text-white flex flex-col overflow-y-auto relative">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-10 -left-10 w-36 h-36 rotate-45 rounded-2xl bg-white/[0.025]" />
-          <div className="absolute bottom-28 right-8 w-28 h-28 rounded-full bg-white/[0.02]" />
-        </div>
+      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+        <AuthEditorialShowcase />
 
-        <header className="h-14 px-4 flex items-center shrink-0 relative z-10">
+        <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
+          <header className="h-14 px-4 sm:px-6 flex items-center justify-between shrink-0">
+            <button
+              type="button"
+              onClick={() => setStep('welcome')}
+              aria-label="Volver"
+              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <span className="text-xs font-semibold text-zinc-500 tabular-nums">Paso 1 de 2</span>
+          </header>
+
+          <form
+            onSubmit={handleContinueContact}
+            className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-5"
+          >
+            <div className="text-center lg:text-left space-y-1">
+              <h1
+                className="font-display font-black text-[26px] text-white leading-tight"
+                style={{ textWrap: 'balance' }}
+              >
+                Tu teléfono o correo
+              </h1>
+              <p className="text-[13.5px] text-zinc-400">
+                Usaremos esto para sincronizar tu cuenta y compras entre dispositivos.
+              </p>
+            </div>
+
+            <div className="p-1 rounded-full bg-[#11131a] border border-white/[0.08] grid grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setContactMode('phone')}
+                className={`h-9 rounded-full text-[13.5px] font-bold transition-all cursor-pointer ${
+                  contactMode === 'phone'
+                    ? 'bg-[#5865F2] text-white shadow'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Teléfono
+              </button>
+              <button
+                type="button"
+                onClick={() => setContactMode('email')}
+                className={`h-9 rounded-full text-[13.5px] font-bold transition-all cursor-pointer ${
+                  contactMode === 'email'
+                    ? 'bg-[#5865F2] text-white shadow'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Correo electrónico
+              </button>
+            </div>
+
+            {contactMode === 'phone' ? (
+              <div className="space-y-1.5 relative">
+                <label className="block text-[13px] font-semibold text-zinc-300">
+                  Número de teléfono
+                </label>
+                <div className="h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] flex items-center overflow-hidden focus-within:border-[#5865F2] focus-within:ring-2 focus-within:ring-[#5865F2]/25">
+                  <button
+                    type="button"
+                    onClick={() => setShowCountryPicker((s) => !s)}
+                    className="h-full px-3.5 flex items-center gap-1.5 border-r border-white/[0.08] text-sm font-semibold text-white hover:bg-white/5 cursor-pointer shrink-0"
+                  >
+                    <span>
+                      {selectedCountry.code} {selectedCountry.dial}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                  </button>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="Número de teléfono"
+                    className="flex-1 h-full bg-transparent px-3.5 text-[15px] text-white placeholder:text-zinc-500 focus:outline-none tabular-nums"
+                  />
+                </div>
+
+                {showCountryPicker && (
+                  <div className="absolute left-0 top-full mt-1.5 w-60 rounded-2xl bg-[#161924] border border-white/10 p-1.5 shadow-2xl z-30">
+                    {COUNTRY_CODES.map((c, idx) => (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => {
+                          setCountryIndex(idx);
+                          setShowCountryPicker(false);
+                        }}
+                        className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer ${
+                          idx === countryIndex
+                            ? 'bg-[#5865F2] text-white'
+                            : 'text-zinc-300 hover:bg-white/5'
+                        }`}
+                      >
+                        <span>{c.label}</span>
+                        {idx === countryIndex && <Check className="w-3.5 h-3.5" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-semibold text-zinc-300">
+                  Correo electrónico
+                </label>
+                <input
+                  type="email"
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                  placeholder="tucorreo@ejemplo.com"
+                  className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] px-4 text-[15px] text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/25"
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={!isContactValid}
+              className={`w-full h-12 rounded-full font-display font-bold text-[15px] transition-all ${
+                isContactValid
+                  ? 'bg-[#5865F2] hover:bg-[#4752C4] text-white cursor-pointer shadow-lg'
+                  : 'bg-[#292e5e] text-white/50 cursor-not-allowed'
+              }`}
+            >
+              Siguiente
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setRegError(null);
+                setStep('register-profile');
+              }}
+              className="w-full py-2 text-xs font-semibold text-[#818cf8] hover:text-white transition-colors cursor-pointer"
+            >
+              Continuar solo con usuario y nombre →
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- 6. REGISTER STEP 2 (Perfil y contraseña) ---------------- */
+  return (
+    <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+      <AuthEditorialShowcase />
+
+      <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
+        <header className="h-14 px-4 sm:px-6 flex items-center justify-between shrink-0">
           <button
             type="button"
-            onClick={() => setStep('welcome')}
+            onClick={() => setStep('register-contact')}
             aria-label="Volver"
             className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
+          <span className="text-xs font-semibold text-zinc-500 tabular-nums">Paso 2 de 2</span>
         </header>
 
         <form
-          onSubmit={handleContinueContact}
-          className="flex-1 px-5 pt-2 pb-8 max-w-md mx-auto w-full relative z-10 space-y-5"
+          onSubmit={handleCompleteRegistration}
+          className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-4"
         >
-          <h1
-            className="font-display font-bold text-[24px] sm:text-[26px] text-center leading-tight text-white"
-            style={{ textWrap: 'balance' }}
-          >
-            Introduce tu teléfono o correo electrónico
-          </h1>
-
-          <div className="p-1 rounded-full bg-[#090a0d] border border-white/[0.06] grid grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setContactMode('phone')}
-              className={`h-9 rounded-full text-[13.5px] font-bold transition-all cursor-pointer ${
-                contactMode === 'phone'
-                  ? 'bg-[#2a2c35] text-white shadow'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Teléfono
-            </button>
-            <button
-              type="button"
-              onClick={() => setContactMode('email')}
-              className={`h-9 rounded-full text-[13.5px] font-bold transition-all cursor-pointer ${
-                contactMode === 'email'
-                  ? 'bg-[#2a2c35] text-white shadow'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Correo electrónico
-            </button>
+          <div className="text-center lg:text-left">
+            <h1 className="font-display font-black text-[26px] text-white">Crea tu perfil</h1>
+            <p className="text-xs text-zinc-400 mt-1">
+              Empieza con 1.200 Orbs de regalo · tu cuenta se guarda automáticamente en la nube
+            </p>
           </div>
 
-          {contactMode === 'phone' ? (
-            <div className="space-y-1.5 relative">
-              <label className="block text-[13px] font-semibold text-zinc-300">
-                Número de teléfono
-              </label>
-              <div className="h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.09] flex items-center overflow-hidden focus-within:border-[#5865F2]">
+          <div className="space-y-1.5">
+            <label className="block text-[13px] font-semibold text-zinc-300">Elige tu avatar</label>
+            <div className="flex items-center justify-between gap-2 bg-[#11131a] border border-white/[0.08] rounded-2xl p-2.5">
+              {AVATAR_CHOICES.map((av) => (
                 <button
+                  key={av.id}
                   type="button"
-                  onClick={() => setShowCountryPicker((s) => !s)}
-                  className="h-full px-3.5 flex items-center gap-1.5 border-r border-white/[0.08] text-sm font-semibold text-white hover:bg-white/5 cursor-pointer shrink-0"
+                  onClick={() => setRegAvatar(av.id)}
+                  className={`p-1 rounded-full transition-all cursor-pointer ${
+                    regAvatar === av.id
+                      ? 'ring-2 ring-[#5865F2] scale-110'
+                      : 'opacity-65 hover:opacity-100'
+                  }`}
+                  title={av.label}
                 >
-                  <span>
-                    {selectedCountry.code} {selectedCountry.dial}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                  <UserAvatar avatar={av.id} size="md" showStatus={false} />
                 </button>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="Número de teléfono"
-                  className="flex-1 h-full bg-transparent px-3.5 text-[15px] text-white placeholder:text-zinc-500 focus:outline-none tabular-nums"
-                />
-              </div>
+              ))}
+            </div>
+          </div>
 
-              {showCountryPicker && (
-                <div className="absolute left-0 top-full mt-1.5 w-60 rounded-2xl bg-[#1a1b22] border border-white/10 p-1.5 shadow-2xl z-30">
-                  {COUNTRY_CODES.map((c, idx) => (
-                    <button
-                      key={c.code}
-                      type="button"
-                      onClick={() => {
-                        setCountryIndex(idx);
-                        setShowCountryPicker(false);
-                      }}
-                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer ${
-                        idx === countryIndex
-                          ? 'bg-[#5865F2] text-white'
-                          : 'text-zinc-300 hover:bg-white/5'
+          <div className="space-y-1.5">
+            <label className="block text-[13px] font-semibold text-zinc-300">
+              Nombre para mostrar
+            </label>
+            <input
+              type="text"
+              value={regDisplayName}
+              onChange={(e) => setRegDisplayName(e.target.value)}
+              placeholder="Ej. Tu nombre"
+              className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/25"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[13px] font-semibold text-zinc-300">
+              Nombre de usuario
+            </label>
+            <input
+              type="text"
+              value={regUsername}
+              onChange={(e) => setRegUsername(e.target.value)}
+              placeholder="ej. shinobi_uchiha"
+              className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/25"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[13px] font-semibold text-zinc-300">Contraseña</label>
+            <div className="relative">
+              <input
+                type={regShowPass ? 'text' : 'password'}
+                value={regPassword}
+                onChange={(e) => setRegPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] pl-4 pr-12 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/25"
+              />
+              <button
+                type="button"
+                onClick={() => setRegShowPass((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-white cursor-pointer"
+              >
+                {regShowPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+
+            {regPassword && (
+              <div className="pt-1 space-y-1.5">
+                <div className="grid grid-cols-4 gap-1">
+                  {[1, 2, 3, 4].map((lvl) => (
+                    <span
+                      key={lvl}
+                      className={`h-1.5 rounded-full transition-colors ${
+                        regStrength.score >= lvl ? regStrength.color : 'bg-white/10'
                       }`}
-                    >
-                      <span>{c.label}</span>
-                      {idx === countryIndex && <Check className="w-3.5 h-3.5" />}
-                    </button>
+                    />
                   ))}
                 </div>
-              )}
+                <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                  <span>
+                    Fortaleza: <strong className="text-white">{regStrength.label}</strong>
+                  </span>
+                  {regStrength.tips.length > 0 && (
+                    <span className="truncate max-w-[60%]">Sugerencia: {regStrength.tips[0]}</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl bg-[#11131a] border border-white/[0.08] p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-[#5865F2] shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-white">Protección 2FA opcional</p>
+                  <p className="text-[11px] text-zinc-400">
+                    Códigos de respaldo de un solo uso
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRegEnable2FA((v) => !v)}
+                className={`w-10 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${
+                  regEnable2FA ? 'bg-[#5865F2]' : 'bg-zinc-700'
+                }`}
+              >
+                <span
+                  className={`block w-5 h-5 rounded-full bg-white transition-transform ${
+                    regEnable2FA ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
             </div>
-          ) : (
-            <div className="space-y-1.5">
-              <label className="block text-[13px] font-semibold text-zinc-300">
-                Correo electrónico
-              </label>
-              <input
-                type="email"
-                value={emailAddress}
-                onChange={(e) => setEmailAddress(e.target.value)}
-                placeholder="tucorreo@ejemplo.com"
-                className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.09] px-4 text-[15px] text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#5865F2]"
-              />
-            </div>
+
+            {regEnable2FA && (
+              <div className="pt-2 border-t border-white/[0.07] space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                  <span>Códigos de respaldo:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(regBackupCodes.join('\n')).catch(() => undefined);
+                      setCopiedCodes(true);
+                      window.setTimeout(() => setCopiedCodes(false), 1800);
+                    }}
+                    className="inline-flex items-center gap-1 text-[#60a5fa] font-semibold cursor-pointer"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>{copiedCodes ? 'Copiados' : 'Copiar'}</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {regBackupCodes.map((code) => (
+                    <span
+                      key={code}
+                      className="px-2 py-1 rounded-lg bg-[#090a0f] border border-white/10 text-[10.5px] font-mono text-center text-indigo-200"
+                    >
+                      {code}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {regError && (
+            <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3.5 py-2.5">
+              {regError}
+            </p>
           )}
 
           <button
             type="submit"
-            disabled={!isContactValid}
-            className={`w-full h-12 rounded-full font-display font-bold text-[15px] transition-all ${
-              isContactValid
-                ? 'bg-[#5865F2] hover:bg-[#4752C4] text-white cursor-pointer shadow-lg'
-                : 'bg-[#363d82] text-white/55 cursor-not-allowed'
-            }`}
+            className="w-full h-12 rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-display font-bold text-[15px] flex items-center justify-center gap-2 shadow-[0_10px_28px_-8px_rgba(88,101,242,0.65)] cursor-pointer mt-2"
           >
-            Siguiente
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setRegError(null);
-              setStep('register-profile');
-            }}
-            className="w-full py-2 text-xs font-semibold text-indigo-300 hover:text-white transition-colors cursor-pointer"
-          >
-            Continuar solo con usuario y nombre →
+            <Sparkles className="w-4 h-4" />
+            <span>Crear cuenta</span>
           </button>
         </form>
       </div>
-    );
-  }
-
-  /* ---------------- 6. REGISTER STEP 2 (Perfil + Seguridad avanzada) ---------------- */
-  return (
-    <div className="w-screen h-screen bg-[#14151a] text-white flex flex-col overflow-y-auto relative">
-      <header className="h-14 px-4 flex items-center shrink-0">
-        <button
-          type="button"
-          onClick={() => setStep('register-contact')}
-          aria-label="Volver"
-          className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
-        >
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-      </header>
-
-      <form
-        onSubmit={handleCompleteRegistration}
-        className="flex-1 px-5 pt-1 pb-8 max-w-md mx-auto w-full space-y-4"
-      >
-        <div className="text-center">
-          <h1 className="font-display font-bold text-[24px] text-white">Crea tu cuenta</h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Empieza con 1.200 Orbs de bienvenida · gana más completando Misiones
-          </p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-[13px] font-semibold text-zinc-300">Elige tu avatar</label>
-          <div className="flex items-center justify-between gap-2 bg-[#0b0c10] border border-white/[0.08] rounded-2xl p-2.5">
-            {AVATAR_CHOICES.map((av) => (
-              <button
-                key={av.id}
-                type="button"
-                onClick={() => setRegAvatar(av.id)}
-                className={`p-1 rounded-full transition-all cursor-pointer ${
-                  regAvatar === av.id
-                    ? 'ring-2 ring-[#5865F2] scale-110'
-                    : 'opacity-65 hover:opacity-100'
-                }`}
-                title={av.label}
-              >
-                <UserAvatar avatar={av.id} size="md" showStatus={false} />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-[13px] font-semibold text-zinc-300">
-            Nombre para mostrar
-          </label>
-          <input
-            type="text"
-            value={regDisplayName}
-            onChange={(e) => setRegDisplayName(e.target.value)}
-            placeholder="Ej. Tu nombre"
-            className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-[13px] font-semibold text-zinc-300">
-            Nombre de usuario
-          </label>
-          <input
-            type="text"
-            value={regUsername}
-            onChange={(e) => setRegUsername(e.target.value)}
-            placeholder="ej. usuario_gg"
-            className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-[13px] font-semibold text-zinc-300">Contraseña</label>
-          <div className="relative">
-            <input
-              type={regShowPass ? 'text' : 'password'}
-              value={regPassword}
-              onChange={(e) => setRegPassword(e.target.value)}
-              placeholder="Mínimo 4 caracteres"
-              className="w-full h-12 rounded-2xl bg-[#0b0c10] border border-white/[0.08] pl-4 pr-12 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2]"
-            />
-            <button
-              type="button"
-              onClick={() => setRegShowPass((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-white cursor-pointer"
-            >
-              {regShowPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          </div>
-
-          {/* Password Strength Meter */}
-          {regPassword && (
-            <div className="pt-1 space-y-1.5">
-              <div className="grid grid-cols-4 gap-1">
-                {[1, 2, 3, 4].map((lvl) => (
-                  <span
-                    key={lvl}
-                    className={`h-1.5 rounded-full transition-colors ${
-                      regStrength.score >= lvl ? regStrength.color : 'bg-white/10'
-                    }`}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                <span>
-                  Fortaleza: <strong className="text-white">{regStrength.label}</strong>
-                </span>
-                {regStrength.tips.length > 0 && (
-                  <span className="truncate max-w-[60%]">Sugerencia: {regStrength.tips[0]}</span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 2FA Setup Card */}
-        <div className="rounded-2xl bg-[#0b0c10] border border-white/[0.08] p-3.5 space-y-2.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-[#5865F2] shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-white">Activar protección 2FA</p>
-                <p className="text-[11px] text-zinc-400">
-                  Verificación TOTP + códigos de respaldo
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setRegEnable2FA((v) => !v)}
-              className={`w-10 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${
-                regEnable2FA ? 'bg-[#5865F2]' : 'bg-zinc-700'
-              }`}
-            >
-              <span
-                className={`block w-5 h-5 rounded-full bg-white transition-transform ${
-                  regEnable2FA ? 'translate-x-4' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          {regEnable2FA && (
-            <div className="pt-2 border-t border-white/[0.07] space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                <span>Códigos de respaldo de un solo uso:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(regBackupCodes.join('\n')).catch(() => undefined);
-                    setCopiedCodes(true);
-                    window.setTimeout(() => setCopiedCodes(false), 1800);
-                  }}
-                  className="inline-flex items-center gap-1 text-[#4ea1ff] font-semibold cursor-pointer"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span>{copiedCodes ? 'Copiados' : 'Copiar'}</span>
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {regBackupCodes.map((code) => (
-                  <span
-                    key={code}
-                    className="px-2 py-1 rounded-lg bg-[#161820] border border-white/10 text-[10.5px] font-mono text-center text-indigo-200"
-                  >
-                    {code}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {regError && (
-          <p className="text-xs font-semibold text-[#f87171] bg-red-500/10 border border-red-500/25 rounded-xl px-3 py-2">
-            {regError}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          className="w-full h-12 rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-display font-bold text-[15px] flex items-center justify-center gap-2 shadow-lg cursor-pointer mt-2"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Crear cuenta</span>
-        </button>
-      </form>
     </div>
   );
 };

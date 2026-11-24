@@ -5,6 +5,7 @@ import {
   Check,
   ChevronRight,
   Eye,
+  Flame,
   Gift,
   Heart,
   Image as ImageIcon,
@@ -166,6 +167,29 @@ const getBundleArtUrl = (variant: ShopBundle['artVariant']): string | null => {
     case 'random-xd':
     case 'scene-xd':
       return GENERATED_ASSETS.shopRawrSceneArt;
+    /* 18 Naruto Shinobi & Dōjutsu Collectibles */
+    case 'naruto-sabio':
+    case 'naruto-barion':
+    case 'kurama':
+      return GENERATED_ASSETS.narutoKuramaArt;
+    case 'sasuke':
+    case 'sasuke-rinnegan':
+    case 'boruto-karma':
+      return GENERATED_ASSETS.narutoSasukeBorutoArt;
+    case 'obito-tobi':
+    case 'obito-juubi':
+    case 'madara-edo':
+    case 'madara-rikudo':
+      return GENERATED_ASSETS.narutoMadaraObitoArt;
+    case 'rinnegan-deva':
+    case 'rinne-sharingan':
+    case 'sharingan-3tomoe':
+    case 'sharingan-itachi':
+    case 'sharingan-kamui':
+    case 'sharingan-shisui':
+    case 'ems-sasuke':
+    case 'ems-madara':
+      return GENERATED_ASSETS.narutoDoujutsuArt;
     default:
       return null;
   }
@@ -179,6 +203,44 @@ interface BundleThemeMeta {
 
 const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
   switch (variant) {
+    case 'naruto-sabio':
+    case 'naruto-barion':
+    case 'kurama':
+      return {
+        gradient: 'from-[#291005] via-[#170905] to-[#080505]',
+        glow: 'rgba(249, 115, 22, 0.45)',
+        stageBg: '#120704',
+      };
+    case 'sasuke':
+    case 'boruto-karma':
+      return {
+        gradient: 'from-[#061829] via-[#0c1026] to-[#060710]',
+        glow: 'rgba(56, 189, 248, 0.44)',
+        stageBg: '#060c18',
+      };
+    case 'sasuke-rinnegan':
+    case 'rinnegan-deva':
+      return {
+        gradient: 'from-[#1a0a2e] via-[#100921] to-[#07060d]',
+        glow: 'rgba(168, 85, 247, 0.45)',
+        stageBg: '#0d0618',
+      };
+    case 'obito-tobi':
+    case 'obito-juubi':
+    case 'madara-edo':
+    case 'madara-rikudo':
+    case 'rinne-sharingan':
+    case 'sharingan-3tomoe':
+    case 'sharingan-itachi':
+    case 'sharingan-kamui':
+    case 'sharingan-shisui':
+    case 'ems-sasuke':
+    case 'ems-madara':
+      return {
+        gradient: 'from-[#2b060a] via-[#140709] to-[#060506]',
+        glow: 'rgba(220, 38, 38, 0.45)',
+        stageBg: '#110406',
+      };
     case 'miyabi':
       return {
         gradient: 'from-[#071a24] via-[#0c111b] to-[#1a0a12]',
@@ -282,14 +344,6 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
         glow: 'rgba(239, 68, 68, 0.45)',
         stageBg: '#110406',
       };
-    case 'luna-oscura':
-    case 'luna-oscura-marco':
-    case 'cuervos-luna':
-      return {
-        gradient: 'from-[#161b24] via-[#0d1016] to-[#06070a]',
-        glow: 'rgba(226, 232, 240, 0.28)',
-        stageBg: '#090b0f',
-      };
     case 'hazlo-brillante':
     case 'luces-camara':
     case 'mas-alla-boveda':
@@ -347,6 +401,9 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
         stageBg: '#0e0614',
       };
     case 'lobo':
+    case 'luna-oscura':
+    case 'luna-oscura-marco':
+    case 'cuervos-luna':
       return {
         gradient: 'from-[#1a0e2e] via-[#110d26] to-[#090b16]',
         glow: 'rgba(192, 132, 252, 0.38)',
@@ -412,6 +469,8 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
 
 const getCategoryLabel = (category: ShopBundle['category']): string => {
   switch (category) {
+    case 'naruto':
+      return 'Naruto · Shinobi';
     case 'anime':
       return 'Anime';
     case 'horror':
@@ -457,6 +516,14 @@ interface CollectionMeta {
 }
 
 const COLLECTION_META: Record<ShopCollectionId, CollectionMeta> = {
+  naruto: {
+    id: 'naruto',
+    title: 'NARUTO · SHINOBI & DŌJUTSU',
+    subtitle: '18 coleccionables oficiales: Sharingan, Mangekyō Eterno, Rinnegan, Kurama, Naruto, Sasuke, Óbito, Madara y Boruto',
+    backdropUrl: GENERATED_ASSETS.narutoHeroArt,
+    accentGradient: 'from-[#240608]/95 via-[#14080a]/82 to-[#060608]/96',
+    titleStyleClass: 'font-sakura font-extrabold tracking-[0.06em] uppercase text-white drop-shadow-[0_2px_16px_rgba(239,68,68,0.55)]',
+  },
   'night-terrors': {
     id: 'night-terrors',
     title: 'NIGHT TERRORS',
@@ -596,7 +663,7 @@ const ThematicBundleArtwork: React.FC<{
   );
 };
 
-/* Museum-Grade Collectible Stage Renderer for Shop Cards */
+/* Museum-Grade Collectible Stage Renderer for Shop Cards (4:3 uniform aspect) */
 const CollectibleCardStage: React.FC<{
   bundle: ShopBundle;
   activeSwatch?: string;
@@ -617,20 +684,19 @@ const CollectibleCardStage: React.FC<{
           src={artUrl}
           alt={bundle.title}
           referrerPolicy="no-referrer"
-          className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-106"
+          className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#090a0f] via-black/20 to-black/15" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
-        <div className="absolute bottom-2.5 left-3 right-3 flex items-center gap-2.5 z-10">
-          <div className="w-9 h-9 rounded-full bg-[#0c0d12] p-0.5 border border-white/30 shadow-[0_8px_18px_rgba(0,0,0,0.8)] shrink-0 relative">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c11] via-black/20 to-black/15" />
+        <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 z-10">
+          <div className="w-9 h-9 rounded-full bg-[#0c0d12] p-0.5 border border-white/25 shrink-0 relative">
             <div className="w-full h-full rounded-full bg-gradient-to-br from-[#5865F2] to-[#3b47c9] flex items-center justify-center">
               <DiscordLogo className="w-4.5 h-4.5 text-white" />
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#23a55a] border-2 border-[#0c0d12]" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23a55a] border-2 border-[#0c0d12]" />
           </div>
           <div className="min-w-0">
-            <div className="h-2 w-18 rounded-full bg-white/90 shadow-xs" />
-            <div className="h-1.5 w-11 rounded-full bg-white/50 mt-1" />
+            <div className="h-2 w-18 rounded-full bg-white/85" />
+            <div className="h-1.5 w-11 rounded-full bg-white/45 mt-1" />
           </div>
         </div>
       </div>
@@ -645,61 +711,47 @@ const CollectibleCardStage: React.FC<{
           src={GENERATED_ASSETS.shopPatoArt}
           alt={bundle.title}
           fallbackGradient={theme.gradient}
-          className="absolute inset-0 w-full h-full object-cover object-right transition-transform duration-500 ease-out group-hover:scale-106"
+          className="absolute inset-0 w-full h-full object-cover object-right transition-transform duration-500 ease-out group-hover:scale-105"
         />
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'linear-gradient(90deg, rgba(14,116,144,0.85) 0%, rgba(56,189,248,0.3) 45%, transparent 75%)',
+              'linear-gradient(90deg, rgba(14,116,144,0.85) 0%, rgba(56,189,248,0.28) 45%, transparent 75%)',
           }}
         />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-200/45 to-transparent pointer-events-none" />
-        <div className="absolute left-4 bottom-4 z-10 flex items-center justify-center transition-transform duration-300 group-hover:scale-108">
-          <div className="absolute -inset-3 rounded-full border border-sky-100/55 animate-ping opacity-35" />
-          <div className="absolute -inset-1.5 rounded-full border-2 border-sky-200/80 shadow-[0_0_16px_rgba(125,211,252,0.5)]" />
-          <div className="w-[70px] h-[70px] rounded-full bg-sky-900/55 border border-white/50 backdrop-blur-xs flex items-center justify-center shadow-2xl">
-            <DiscordLogo className="w-9 h-9 text-white drop-shadow" />
+        <div className="absolute left-4 bottom-4 z-10 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+          <div className="w-[68px] h-[68px] rounded-full bg-sky-900/60 border border-white/45 flex items-center justify-center shadow-xl">
+            <DiscordLogo className="w-8 h-8 text-white" />
           </div>
         </div>
       </div>
     );
   }
 
-  /* 3. Standalone Profile Frame ("Marco de perfil") Stage — Collector Mini Card */
+  /* 3. Standalone Profile Frame ("Marco de perfil") Stage */
   if (bundle.items.length === 1 && frameItem?.profileFrameId) {
     return (
       <div
-        className={`relative w-full aspect-[4/3] overflow-hidden bg-gradient-to-br ${theme.gradient} flex items-end justify-center px-4 pt-6 pb-2.5`}
+        className={`relative w-full aspect-[4/3] overflow-hidden bg-gradient-to-br ${theme.gradient} flex items-end justify-center px-4 pt-6 pb-3`}
       >
         <div
-          className="absolute inset-0 pointer-events-none opacity-90 transition-opacity duration-300 group-hover:opacity-100"
+          className="absolute inset-0 pointer-events-none opacity-85"
           style={{
-            background: `radial-gradient(circle at 50% 40%, ${glowColor} 0%, rgba(12,13,18,0.72) 55%, rgba(6,7,10,0.96) 100%)`,
+            background: `radial-gradient(circle at 50% 40%, ${glowColor} 0%, rgba(10,11,16,0.75) 58%, rgba(6,7,10,0.97) 100%)`,
           }}
         />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
-
-        {/* Mini Discord Profile Card Wrapped by Ornate Profile Frame */}
-        <div className="relative w-[78%] h-[82%] rounded-xl bg-gradient-to-b from-[#1c1e27] to-[#13141b] border border-white/15 shadow-[0_16px_34px_rgba(0,0,0,0.88)] transition-transform duration-300 group-hover:scale-[1.04]">
-          <div className="h-[40%] w-full rounded-t-xl bg-gradient-to-r from-[#282b37] via-[#2f3344] to-[#232632] border-b border-white/10 relative overflow-hidden">
-            <div
-              className="absolute inset-0 opacity-40"
-              style={{
-                background: `radial-gradient(circle at 80% 25%, ${glowColor}, transparent 65%)`,
-              }}
-            />
-          </div>
+        <div className="relative w-[76%] h-[82%] rounded-xl bg-gradient-to-b from-[#1a1c25] to-[#111218] border border-white/15 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]">
+          <div className="h-[40%] w-full rounded-t-xl bg-gradient-to-r from-[#272a36] to-[#1f222d] border-b border-white/10" />
           <div className="px-2.5 -mt-4 relative z-10 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[#363945] border-2 border-[#181920] flex items-center justify-center shadow-md relative">
-              <DiscordLogo className="w-4.5 h-4.5 text-zinc-200" />
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23a55a] border-2 border-[#181920]" />
+            <div className="w-8 h-8 rounded-full bg-[#363945] border-2 border-[#16171e] flex items-center justify-center relative">
+              <DiscordLogo className="w-4 h-4 text-zinc-200" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23a55a] border-2 border-[#16171e]" />
             </div>
           </div>
           <div className="px-2.5 pt-1.5 space-y-1.5">
             <div className="h-2 w-14 rounded-full bg-white/25" />
             <div className="h-1.5 w-20 rounded-full bg-white/12" />
-            <div className="h-1.5 w-15 rounded-full bg-white/10" />
           </div>
           <ProfileFrameArtwork frame={frameItem.profileFrameId} accentColor={activeSwatch} />
         </div>
@@ -707,31 +759,26 @@ const CollectibleCardStage: React.FC<{
     );
   }
 
-  /* 4. Authentic Discord Member-List Nameplate Stage */
+  /* 4. Authentic Member-List Nameplate Stage */
   if (bundle.items.length === 1 && nameplateItem?.nameplateId) {
     const plateId: NameplateId = nameplateItem.nameplateId;
     const isLightPlate = plateId === 'rama';
     return (
       <div
-        className="relative w-full aspect-[4/3] overflow-hidden p-3 flex flex-col justify-center gap-2.5"
-        style={{ backgroundColor: '#111218' }}
+        className="relative w-full aspect-[4/3] overflow-hidden p-3.5 flex flex-col justify-center gap-2.5 bg-[#0e0f15]"
       >
         <div
-          className="absolute inset-0 pointer-events-none opacity-75 transition-opacity duration-300 group-hover:opacity-100"
+          className="absolute inset-0 pointer-events-none opacity-70"
           style={{
             background: `radial-gradient(circle at 60% 50%, ${glowColor}, transparent 70%)`,
           }}
         />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-
-        {/* Top muted member skeleton row */}
-        <div className="relative z-10 flex items-center gap-2 opacity-35 px-2">
-          <div className="w-5 h-5 rounded-full bg-zinc-600/80 shrink-0" />
-          <span className="h-2 w-16 rounded-full bg-white/35" />
+        <div className="relative z-10 flex items-center gap-2 opacity-30 px-2">
+          <div className="w-5 h-5 rounded-full bg-zinc-700 shrink-0" />
+          <span className="h-2 w-16 rounded-full bg-white/30" />
         </div>
 
-        {/* Highlighted Nameplate Bar */}
-        <div className="relative z-10 h-13.5 rounded-xl overflow-hidden border border-white/25 shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)] flex items-center justify-between px-2.5 bg-[#191a23] anim-shimmer group-hover:scale-[1.03] transition-transform duration-300">
+        <div className="relative z-10 h-13.5 rounded-xl overflow-hidden border border-white/20 shadow-xl flex items-center justify-between px-2.5 bg-[#171822] anim-shimmer group-hover:scale-[1.02] transition-transform duration-300">
           <NameplateStripBackground nameplate={plateId} accentColor={activeSwatch} />
           <div className="relative z-10 flex items-center gap-2 min-w-0">
             <span className="w-6.5 h-6.5 rounded-full bg-black/55 border border-white/40 flex items-center justify-center shrink-0 relative">
@@ -740,17 +787,16 @@ const CollectibleCardStage: React.FC<{
             </span>
             <span
               className={`h-2 w-14 rounded-full ${
-                isLightPlate ? 'bg-zinc-900/60' : 'bg-white/60'
+                isLightPlate ? 'bg-zinc-900/60' : 'bg-white/65'
               }`}
             />
           </div>
           <NameplateRowDecor nameplate={plateId} />
         </div>
 
-        {/* Bottom muted member skeleton row */}
-        <div className="relative z-10 flex items-center gap-2 opacity-35 px-2">
-          <div className="w-5 h-5 rounded-full bg-zinc-600/80 shrink-0" />
-          <span className="h-2 w-12 rounded-full bg-white/30" />
+        <div className="relative z-10 flex items-center gap-2 opacity-30 px-2">
+          <div className="w-5 h-5 rounded-full bg-zinc-700 shrink-0" />
+          <span className="h-2 w-12 rounded-full bg-white/25" />
         </div>
       </div>
     );
@@ -763,35 +809,25 @@ const CollectibleCardStage: React.FC<{
         className={`relative w-full aspect-[4/3] overflow-hidden bg-gradient-to-br ${theme.gradient} flex items-center justify-center`}
       >
         <div
-          className="absolute inset-0 pointer-events-none transition-opacity duration-300 opacity-90 group-hover:opacity-100"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            background: `radial-gradient(circle at 50% 46%, ${glowColor} 0%, rgba(10,11,16,0.7) 56%, rgba(5,5,8,0.97) 100%)`,
+            background: `radial-gradient(circle at 50% 46%, ${glowColor} 0%, rgba(10,11,16,0.72) 56%, rgba(5,5,8,0.98) 100%)`,
           }}
         />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
-        {/* Concentric Orbital Studio Pedestal Rings */}
         <div className="absolute w-32 h-32 rounded-full border border-white/[0.06] pointer-events-none transition-transform duration-500 group-hover:scale-110" />
-        <div className="absolute w-44 h-44 rounded-full border border-white/[0.035] pointer-events-none" />
         <div
-          className="absolute w-36 h-36 rounded-full blur-2xl opacity-50 transition-all duration-300 group-hover:scale-115 group-hover:opacity-75 pointer-events-none"
+          className="absolute w-32 h-32 rounded-full blur-2xl opacity-45 transition-all duration-300 group-hover:opacity-70 pointer-events-none"
           style={{ backgroundColor: activeSwatch || theme.glow }}
         />
-        {/* Subtle Twinkle Accents */}
-        <span className="absolute top-3.5 left-4 w-1 h-1 rounded-full bg-white/65 anim-twinkle pointer-events-none" />
-        <span
-          className="absolute bottom-4 right-5 w-1.5 h-1.5 rounded-full bg-white/50 anim-twinkle pointer-events-none"
-          style={{ animationDelay: '0.8s' }}
-        />
 
-        <div className="relative z-10 flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-110">
+        <div className="relative z-10 flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-108">
           <div
-            className="w-[74px] h-[74px] rounded-full border border-white/25 flex items-center justify-center shadow-[0_14px_34px_rgba(0,0,0,0.9)] overflow-hidden relative"
+            className="w-[72px] h-[72px] rounded-full border border-white/20 flex items-center justify-center shadow-[0_14px_34px_rgba(0,0,0,0.9)] overflow-hidden relative"
             style={{
-              backgroundColor: activeSwatch ? `${activeSwatch}26` : '#232530',
+              backgroundColor: activeSwatch ? `${activeSwatch}22` : '#1f212b',
             }}
           >
-            <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
-            <DiscordLogo className="w-9 h-9 text-white/75 drop-shadow relative z-10" />
+            <DiscordLogo className="w-8.5 h-8.5 text-white/75 relative z-10" />
           </div>
           <AvatarDecorationRing decoration={firstDeco} accentColor={activeSwatch} />
         </div>
@@ -799,7 +835,7 @@ const CollectibleCardStage: React.FC<{
     );
   }
 
-  /* 6. Single Profile Effect Showcase Stage (Full Artwork + Mini Profile Card Glass Overlay) */
+  /* 6. Single Profile Effect Showcase Stage */
   if (bundle.items.length === 1 && effectItem) {
     const isCrimsonMoon =
       effectItem.profileEffectId === 'cuervos-luna' && activeSwatch === '#ef4444';
@@ -809,7 +845,7 @@ const CollectibleCardStage: React.FC<{
     return (
       <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#0a0a0e]">
         <div
-          className="w-full h-full transition-transform duration-500 ease-out group-hover:scale-106"
+          className="w-full h-full transition-transform duration-500 ease-out group-hover:scale-105"
           style={{
             filter: isCrimsonMoon
               ? 'hue-rotate(105deg) saturate(1.5)'
@@ -821,18 +857,9 @@ const CollectibleCardStage: React.FC<{
           <ThematicBundleArtwork variant={bundle.artVariant} />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-[#090a0f] via-black/25 to-black/15" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
-        <div
-          className="absolute inset-0 pointer-events-none opacity-45 group-hover:opacity-75 transition-opacity duration-300"
-          style={{
-            background: `radial-gradient(circle at 75% 22%, ${glowColor}, transparent 60%)`,
-          }}
-        />
-
-        {/* Subtle Translucent Discord Profile Card Silhouette Overlay */}
-        <div className="absolute inset-x-3 bottom-3 top-7 rounded-xl border border-white/15 bg-black/30 backdrop-blur-[1.5px] pointer-events-none flex flex-col justify-end p-2.5 shadow-inner">
-          <div className="w-8 h-8 rounded-full bg-[#1e1f27]/90 border border-white/30 flex items-center justify-center shadow-lg mb-1.5 relative">
-            <DiscordLogo className="w-4.5 h-4.5 text-white/75" />
+        <div className="absolute inset-x-3 bottom-3 top-7 rounded-xl border border-white/15 bg-black/30 backdrop-blur-[1.5px] pointer-events-none flex flex-col justify-end p-2.5">
+          <div className="w-8 h-8 rounded-full bg-[#1e1f27]/90 border border-white/30 flex items-center justify-center mb-1.5 relative">
+            <DiscordLogo className="w-4 h-4 text-white/75" />
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23a55a] border-2 border-[#1e1f27]" />
           </div>
           <div className="h-1.5 w-16 rounded-full bg-white/35" />
@@ -848,21 +875,19 @@ const CollectibleCardStage: React.FC<{
       className={`relative w-full aspect-[4/3] overflow-hidden bg-gradient-to-br ${theme.gradient}`}
     >
       <div
-        className="absolute inset-0 pointer-events-none transition-opacity duration-300 opacity-90 group-hover:opacity-100"
+        className="absolute inset-0 pointer-events-none opacity-90 group-hover:opacity-100 transition-opacity duration-300"
         style={{
-          background: `radial-gradient(circle at 26% 32%, ${glowColor} 0%, transparent 58%), radial-gradient(circle at 78% 68%, rgba(255,255,255,0.11) 0%, transparent 60%)`,
+          background: `radial-gradient(circle at 26% 32%, ${glowColor} 0%, transparent 58%), radial-gradient(circle at 78% 68%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
         }}
       />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
-      <span className="absolute top-2.5 right-3 w-1 h-1 rounded-full bg-white/60 anim-twinkle pointer-events-none" />
 
-      {/* Right / Center Tilted Profile Card with Effect Artwork & Optional Profile Frame */}
-      <div className="absolute right-2.5 top-3 bottom-2.5 w-[57%] rounded-xl border border-white/25 shadow-[0_16px_32px_-6px_rgba(0,0,0,0.9)] transform rotate-3 group-hover:rotate-1 group-hover:translate-x-0.5 transition-transform duration-300 ease-out bg-[#121319]">
+      {/* Right Tilted Profile Card with Artwork & Frame */}
+      <div className="absolute right-2.5 top-3 bottom-2.5 w-[57%] rounded-xl border border-white/20 shadow-[0_16px_32px_-6px_rgba(0,0,0,0.92)] transform rotate-2 group-hover:rotate-0 transition-transform duration-300 ease-out bg-[#121319]">
         <div className="w-full h-full rounded-xl overflow-hidden relative">
           <ThematicBundleArtwork variant={bundle.artVariant} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/15" />
-          <div className="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-[#1d1e27]/90 border border-white/35 flex items-center justify-center shadow">
-            <DiscordLogo className="w-4 h-4 text-white/85" />
+          <div className="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-[#1d1e27]/90 border border-white/30 flex items-center justify-center">
+            <DiscordLogo className="w-3.5 h-3.5 text-white/85" />
           </div>
           <div className="absolute bottom-2.5 left-2.5 right-2.5 space-y-1">
             <div className="h-1.5 w-14 rounded-full bg-white/80" />
@@ -876,27 +901,27 @@ const CollectibleCardStage: React.FC<{
 
       {/* Slanted Bottom-Left Nameplate Strip */}
       {nameplateItem ? (
-        <div className="absolute left-2 bottom-3 w-[63%] h-7.5 rounded-lg bg-[#14151c] border border-white/30 shadow-[0_10px_22px_rgba(0,0,0,0.82)] transform -rotate-5 group-hover:-rotate-3 transition-transform duration-300 flex items-center justify-between px-2 z-10 overflow-hidden">
+        <div className="absolute left-2 bottom-3 w-[62%] h-7.5 rounded-lg bg-[#14151c] border border-white/25 shadow-[0_10px_22px_rgba(0,0,0,0.82)] transform -rotate-4 group-hover:-rotate-2 transition-transform duration-300 flex items-center justify-between px-2 z-10 overflow-hidden">
           <NameplateStripBackground nameplate={nameplateItem.nameplateId || 'none'} accentColor={activeSwatch} />
-          <span className="relative z-10 w-4.5 h-4.5 rounded-full bg-black/55 border border-white/45 flex items-center justify-center shrink-0">
+          <span className="relative z-10 w-4.5 h-4.5 rounded-full bg-black/55 border border-white/40 flex items-center justify-center shrink-0">
             <DiscordLogo className="w-2.5 h-2.5 text-white/90" />
           </span>
           <NameplateRowDecor nameplate={nameplateItem.nameplateId || 'none'} />
         </div>
       ) : (
-        <div className="absolute left-2.5 bottom-3 w-[54%] h-7 rounded-lg bg-[#14151c]/95 border border-white/25 shadow-lg transform -rotate-4 group-hover:-rotate-2 transition-transform duration-300 flex items-center gap-2 px-2 z-10">
-          <span className="w-4 h-4 rounded-full overflow-hidden border border-white/35 shrink-0">
+        <div className="absolute left-2.5 bottom-3 w-[52%] h-7 rounded-lg bg-[#14151c]/95 border border-white/20 shadow-lg transform -rotate-3 group-hover:-rotate-1 transition-transform duration-300 flex items-center gap-2 px-2 z-10">
+          <span className="w-4 h-4 rounded-full overflow-hidden border border-white/30 shrink-0">
             <AvatarArtwork avatar="madara" />
           </span>
-          <span className="h-1.5 w-14 rounded-full bg-white/50" />
+          <span className="h-1.5 w-14 rounded-full bg-white/45" />
         </div>
       )}
 
       {/* Floating Top-Left Hero Avatar Decoration */}
       {firstDeco && (
-        <div className="absolute top-3.5 left-3.5 z-20 w-14 h-14 flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-112 group-hover:-translate-y-0.5">
-          <div className="w-11 h-11 rounded-full bg-[#20222b] border border-white/30 flex items-center justify-center shadow-[0_12px_26px_rgba(0,0,0,0.92)]">
-            <DiscordLogo className="w-5.5 h-5.5 text-white/90" />
+        <div className="absolute top-3.5 left-3.5 z-20 w-14 h-14 flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-110">
+          <div className="w-11 h-11 rounded-full bg-[#1e2029] border border-white/25 flex items-center justify-center shadow-[0_12px_26px_rgba(0,0,0,0.92)]">
+            <DiscordLogo className="w-5 h-5 text-white/90" />
           </div>
           <AvatarDecorationRing decoration={firstDeco} accentColor={activeSwatch} />
         </div>
@@ -1083,6 +1108,7 @@ const BannerProfilePreview: React.FC<{
   );
 };
 
+/* Clean Luxury Collector Card — Zero Pill Noise, Focused 4:3 Visual Stage + Editorial Footer */
 const BundleCard: React.FC<{
   bundle: ShopBundle;
   wishlisted: boolean;
@@ -1093,11 +1119,6 @@ const BundleCard: React.FC<{
   const [selectedSwatch, setSelectedSwatch] = useState<string | undefined>(
     bundle.colorSwatches?.[0]
   );
-
-  const itemPrefix =
-    bundle.items.length > 1
-      ? `${bundle.items.length} ítem(s) `
-      : '';
 
   const singleKindLabel =
     bundle.items.length === 1
@@ -1110,7 +1131,7 @@ const BundleCard: React.FC<{
         : bundle.items[0]?.kind === 'Marco de perfil'
         ? 'Marco de perfil'
         : 'Banner'
-      : getCategoryLabel(bundle.category);
+      : `${bundle.items.length} piezas · ${getCategoryLabel(bundle.category)}`;
 
   return (
     <motion.div
@@ -1118,61 +1139,52 @@ const BundleCard: React.FC<{
       whileTap={{ scale: 0.985 }}
       transition={{ duration: 0.16, ease: 'easeOut' }}
       onClick={() => onSelect(selectedSwatch)}
-      className="group rounded-2xl bg-gradient-to-b from-[#13151d] to-[#0b0c12] border border-white/[0.09] hover:border-white/[0.26] overflow-hidden relative cursor-pointer transition-all shadow-[0_10px_28px_-10px_rgba(0,0,0,0.75)] hover:shadow-[0_16px_36px_-10px_rgba(88,101,242,0.28)] flex flex-col"
+      className="group rounded-2xl bg-[#0c0d12] border border-white/[0.08] hover:border-white/[0.24] overflow-hidden relative cursor-pointer transition-all shadow-[0_12px_30px_-14px_rgba(0,0,0,0.85)] hover:shadow-[0_18px_38px_-12px_rgba(0,0,0,0.95)] flex flex-col"
     >
       <button
         type="button"
         onClick={onToggleWishlist}
         aria-label="Añadir a lista de deseos"
-        className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/65 hover:bg-black/90 border border-white/20 backdrop-blur-xs flex items-center justify-center z-20 cursor-pointer transition-transform active:scale-90 shadow-md"
+        className="absolute top-2.5 right-2.5 w-9 h-9 rounded-full bg-black/60 hover:bg-black/85 border border-white/15 backdrop-blur-xs flex items-center justify-center z-20 cursor-pointer transition-transform active:scale-90"
       >
         <Heart
           className={`w-4 h-4 transition-transform ${
-            wishlisted ? 'text-red-500 fill-red-500 scale-110' : 'text-white/90'
+            wishlisted ? 'text-red-500 fill-red-500 scale-110' : 'text-white/85'
           }`}
         />
       </button>
 
       <CollectibleCardStage bundle={bundle} activeSwatch={selectedSwatch} />
 
-      <div className="p-3 flex-1 flex flex-col justify-between gap-2 bg-gradient-to-b from-[#111219] to-[#0d0e14] border-t border-white/[0.06]">
+      <div className="px-3.5 py-3 flex-1 flex flex-col justify-between gap-2.5 bg-[#0c0d12] border-t border-white/[0.06]">
         <div>
-          <p className="text-[11px] font-semibold text-zinc-400 truncate tracking-wide">
+          <p className="text-[11px] font-medium text-zinc-400 truncate">
             {singleKindLabel}
           </p>
-          <h3 className="font-display font-bold text-[13.5px] sm:text-[14.5px] text-white truncate leading-snug mt-0.5">
-            {itemPrefix && <span className="text-zinc-300 font-semibold">{itemPrefix}</span>}
+          <h3 className="font-display font-bold text-[14px] sm:text-[15px] text-white truncate leading-snug mt-0.5">
             {bundle.shortTitle || bundle.title}
           </h3>
         </div>
 
         <div className="flex items-center justify-between gap-2 pt-0.5">
-          <span
-            className={`inline-flex items-center gap-1 text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-md ${
-              owned
-                ? 'bg-[#23a55a]/18 text-[#36d077] border border-[#23a55a]/25'
-                : 'bg-white/[0.07] text-zinc-100 border border-white/[0.06]'
-            }`}
-          >
-            {owned ? (
-              <>
-                <Check className="w-3.5 h-3.5 shrink-0" />
-                <span>En propiedad</span>
-              </>
-            ) : (
-              <>
-                <OrbsCrystalIcon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                <span>{bundle.priceOrbs}</span>
-              </>
-            )}
-          </span>
+          {owned ? (
+            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-emerald-400 tabular-nums">
+              <Check className="w-3.5 h-3.5 shrink-0" />
+              <span>En propiedad</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-white tabular-nums">
+              <OrbsCrystalIcon className="w-3.5 h-3.5 text-[#818cf8] shrink-0" />
+              <span>{bundle.priceOrbs.toLocaleString('es-ES')}</span>
+            </span>
+          )}
 
           {bundle.colorSwatches && bundle.colorSwatches.length > 0 ? (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 shrink-0"
+              className="flex items-center gap-1.5 shrink-0"
             >
-              {bundle.colorSwatches.map((hex) => (
+              {bundle.colorSwatches.slice(0, 4).map((hex) => (
                 <button
                   key={hex}
                   type="button"
@@ -1182,18 +1194,13 @@ const BundleCard: React.FC<{
                   className={`w-3.5 h-3.5 rounded-full border cursor-pointer transition-transform ${
                     selectedSwatch === hex
                       ? 'border-white scale-120 shadow'
-                      : 'border-black/70 opacity-80 hover:opacity-100'
+                      : 'border-black/70 opacity-75 hover:opacity-100'
                   }`}
                 />
               ))}
-              {bundle.hasExtraSwatches && (
-                <span className="w-3.5 h-3.5 rounded-full bg-zinc-700 text-white text-[9px] font-bold flex items-center justify-center">
-                  +
-                </span>
-              )}
             </div>
           ) : (
-            <span className="text-[11px] font-medium text-zinc-400 tabular-nums">
+            <span className="text-[11px] font-medium text-zinc-500 tabular-nums">
               {bundle.priceUsd}
             </span>
           )}
@@ -1207,7 +1214,7 @@ const BundleCard: React.FC<{
 const CollectionPromoBanner: React.FC<{
   title: string;
   subtitle?: string;
-  badgeText?: string;
+  metaText?: string;
   imageUrl: string;
   titleClass?: string;
   gradientClass?: string;
@@ -1215,41 +1222,40 @@ const CollectionPromoBanner: React.FC<{
 }> = ({
   title,
   subtitle,
-  badgeText,
+  metaText,
   imageUrl,
   titleClass = 'font-display font-black text-2xl text-white',
-  gradientClass = 'from-black/85 via-black/45 to-black/15',
+  gradientClass = 'from-black/90 via-black/50 to-black/15',
   onClick,
 }) => (
   <motion.button
     type="button"
     whileHover={{ y: -2 }}
-    whileTap={{ scale: 0.985 }}
+    whileTap={{ scale: 0.99 }}
     onClick={onClick}
-    className="w-full h-28 sm:h-32 rounded-2xl overflow-hidden relative text-left border border-white/15 hover:border-white/30 px-4 py-3.5 flex items-center justify-between gap-3 cursor-pointer group shadow-[0_14px_34px_-12px_rgba(0,0,0,0.85)] anim-shimmer transition-colors"
+    className="w-full h-28 sm:h-32 rounded-2xl overflow-hidden relative text-left border border-white/12 hover:border-white/25 px-5 py-4 flex items-center justify-between gap-4 cursor-pointer group shadow-[0_14px_34px_-12px_rgba(0,0,0,0.85)] anim-shimmer transition-colors"
   >
     <img
       src={imageUrl}
       alt={title}
       referrerPolicy="no-referrer"
-      className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-106"
+      className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
     />
     <div className={`absolute inset-0 bg-gradient-to-r ${gradientClass}`} />
-    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none" />
 
     <div className="relative z-10 min-w-0">
-      {badgeText && (
-        <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider text-white/85 mb-1 drop-shadow">
-          {badgeText}
+      {metaText && (
+        <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300/90 mb-1">
+          {metaText}
         </span>
       )}
       <div className={`${titleClass} truncate leading-tight`}>{title}</div>
       {subtitle && (
-        <p className="text-xs text-zinc-200/95 mt-0.5 line-clamp-1">{subtitle}</p>
+        <p className="text-xs text-zinc-300 mt-0.5 line-clamp-1">{subtitle}</p>
       )}
     </div>
 
-    <div className="relative z-10 w-9 h-9 rounded-full bg-black/60 group-hover:bg-black/85 border border-white/30 backdrop-blur-xs flex items-center justify-center shrink-0 transition-transform group-hover:translate-x-0.5 shadow-lg">
+    <div className="relative z-10 w-10 h-10 rounded-full bg-black/60 group-hover:bg-black/85 border border-white/25 backdrop-blur-xs flex items-center justify-center shrink-0 transition-transform group-hover:translate-x-0.5">
       <ChevronRight className="w-5 h-5 text-white" />
     </div>
   </motion.button>
@@ -1257,6 +1263,7 @@ const CollectionPromoBanner: React.FC<{
 
 const CATEGORIES = [
   { id: 'all', label: 'Todo' },
+  { id: 'naruto', label: 'Naruto (18)' },
   { id: 'horror', label: 'Night Terrors' },
   { id: 'folklore', label: 'Dark Folklore' },
   { id: 'dbd', label: 'Dead by Daylight' },
@@ -1339,6 +1346,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
   });
 
   // Collection Groups for Structured Storefront
+  const narutoBundles = bundles.filter((b) => b.collectionId === 'naruto');
   const nightTerrorsBundles = bundles.filter((b) => b.collectionId === 'night-terrors');
   const darkFolkloreBundles = bundles.filter((b) => b.collectionId === 'dark-folklore');
   const dbdBundles = bundles.filter((b) => b.collectionId === 'dbd');
@@ -1351,7 +1359,12 @@ export const ShopView: React.FC<ShopViewProps> = ({
   const lofiBundles = bundles.filter((b) => b.category === 'lofi');
   const zzzBundles = bundles.filter((b) => b.category === 'zzz');
   const animeFantasyBundles = bundles.filter(
-    (b) => b.category === 'anime' || b.category === 'fantasia' || b.id === 'bundle-grabado' || b.id === 'bundle-vader' || b.id === 'bundle-condenacion'
+    (b) =>
+      b.category === 'anime' ||
+      b.category === 'fantasia' ||
+      b.id === 'bundle-grabado' ||
+      b.id === 'bundle-vader' ||
+      b.id === 'bundle-condenacion'
   );
   const bannerBundles = bundles.filter((b) => b.category === 'banners');
   const deadpoolBundle = bundles.find((b) => b.id === 'bundle-deadpool');
@@ -1386,15 +1399,15 @@ export const ShopView: React.FC<ShopViewProps> = ({
   const isSelectedWishlisted = selectedBundle ? wishlistIds.includes(selectedBundle.id) : false;
   const modalTheme = selectedBundle ? getBundleTheme(selectedBundle.artVariant) : null;
   const modalBannerUrl = selectedBundle
-    ? selectedBundle.items.find((i) => i.bannerUrl)?.bannerUrl || getBundleArtUrl(selectedBundle.artVariant)
+    ? selectedBundle.items.find((i) => i.bannerUrl)?.bannerUrl ||
+      getBundleArtUrl(selectedBundle.artVariant)
     : null;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#050507] text-[var(--dc-text-primary)] relative overflow-hidden">
-      {/* Dedicated Collection Sub-Page (Matches Screenshots 084919, 084951, 084843) */}
+    <div className="flex-1 flex flex-col h-full bg-[#07070a] text-[var(--dc-text-primary)] relative overflow-hidden">
+      {/* Dedicated Collection Sub-Page */}
       {activeCollection && activeCollectionMeta ? (
         <div className="flex-1 flex flex-col h-full relative overflow-hidden">
-          {/* Atmospheric Full-Bleed Blurred Backdrop */}
           <img
             src={activeCollectionMeta.backdropUrl}
             alt=""
@@ -1405,12 +1418,11 @@ export const ShopView: React.FC<ShopViewProps> = ({
             className={`absolute inset-0 bg-gradient-to-b ${activeCollectionMeta.accentGradient} pointer-events-none`}
           />
 
-          {/* Collection Sub-Page Sticky Header */}
-          <header className="relative z-20 h-14 px-3 md:px-5 flex items-center justify-between gap-2 bg-black/45 backdrop-blur-md border-b border-white/10 shrink-0">
+          <header className="relative z-20 h-14 px-3 md:px-6 flex items-center justify-between gap-2 bg-black/50 backdrop-blur-md border-b border-white/10 shrink-0">
             <button
               onClick={() => setActiveCollection(null)}
               aria-label="Volver a tienda"
-              className="w-9 h-9 rounded-full hover:bg-white/15 flex items-center justify-center text-white cursor-pointer"
+              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -1419,21 +1431,20 @@ export const ShopView: React.FC<ShopViewProps> = ({
               {activeCollectionMeta.title}
             </h1>
 
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/55 border border-white/15 text-white text-xs font-bold tabular-nums shrink-0">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/55 border border-white/15 text-white text-xs font-bold tabular-nums shrink-0">
               <OrbsCrystalIcon className="w-3.5 h-3.5 text-indigo-400" />
               <span>{user.orbs.toLocaleString('es-ES')}</span>
             </div>
           </header>
 
-          {/* Collection Scrollable Grid */}
           <div className="relative z-10 flex-1 overflow-y-auto pb-16">
-            <div className="max-w-4xl mx-auto px-3.5 pt-4 space-y-6">
-              <div className="text-center max-w-lg mx-auto">
-                <p className="text-xs sm:text-sm text-zinc-300">{activeCollectionMeta.subtitle}</p>
-              </div>
+            <div className="max-w-5xl mx-auto px-4 pt-5 space-y-6">
+              <p className="text-center text-xs sm:text-sm text-zinc-300 max-w-xl mx-auto">
+                {activeCollectionMeta.subtitle}
+              </p>
 
               {[
-                { label: 'Lotes destacados', items: colMultiBundles },
+                { label: 'Lotes y coleccionables', items: colMultiBundles },
                 { label: 'Decoraciones de avatar', items: colDecos },
                 { label: 'Placas de identificación', items: colPlates },
                 { label: 'Efectos de perfil', items: colEffects },
@@ -1442,13 +1453,13 @@ export const ShopView: React.FC<ShopViewProps> = ({
               ]
                 .filter((group) => group.items.length > 0)
                 .map((group) => (
-                  <section key={group.label} className="space-y-2.5">
+                  <section key={group.label} className="space-y-3">
                     <div className="flex items-center justify-between px-0.5">
-                      <h2 className="font-display font-bold text-xs uppercase tracking-wider text-zinc-300">
+                      <h2 className="font-display font-bold text-xs uppercase tracking-[0.12em] text-zinc-300 tabular-nums">
                         {group.label} ({group.items.length})
                       </h2>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
                       {group.items.map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1470,9 +1481,9 @@ export const ShopView: React.FC<ShopViewProps> = ({
         </div>
       ) : (
         <>
-          {/* Top Header */}
-          <header className="h-14 px-3 md:px-5 flex items-center justify-between gap-2 bg-[#09090d] border-b border-white/[0.08] shrink-0">
-            <div className="flex items-center gap-2.5">
+          {/* Luxury Editorial Header */}
+          <header className="h-14 px-3 md:px-6 flex items-center justify-between gap-2 bg-[#0a0a0e]/95 backdrop-blur-md border-b border-white/[0.08] shrink-0">
+            <div className="flex items-center gap-2">
               <button
                 onClick={onBack}
                 aria-label="Cerrar tienda"
@@ -1480,12 +1491,12 @@ export const ShopView: React.FC<ShopViewProps> = ({
               >
                 <X className="w-5 h-5" />
               </button>
-              <Store className="w-5 h-5 text-white ml-1" />
-              <h1 className="font-display font-bold text-[19px] text-white">Tienda</h1>
+              <Store className="w-5 h-5 text-white ml-0.5" />
+              <h1 className="font-display font-bold text-[19px] text-white tracking-tight">Tienda</h1>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#13141a] border border-white/10 text-white text-xs sm:text-sm font-bold tabular-nums whitespace-nowrap">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#13141b] border border-white/12 text-white text-xs sm:text-sm font-bold tabular-nums whitespace-nowrap">
                 <OrbsCrystalIcon className="w-4 h-4 text-indigo-400 shrink-0" />
                 <span>{user.orbs.toLocaleString('es-ES')}</span>
               </div>
@@ -1493,7 +1504,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
               <button
                 onClick={() => setFilterWishlistOnly((w) => !w)}
                 aria-label="Lista de deseos"
-                className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
                   filterWishlistOnly ? 'dc-btn-danger' : 'hover:bg-white/10 text-white'
                 }`}
               >
@@ -1502,19 +1513,27 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
               <button
                 onClick={() => setShowMenuSheet(true)}
+                aria-label="Buscar y explorar categorías"
+                className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={() => setShowMenuSheet(true)}
                 aria-label="Categorías de tienda"
-                className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+                className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer md:hidden"
               >
                 <Menu className="w-5 h-5" />
               </button>
             </div>
           </header>
 
-          {/* Interactive Category Segmented Bar */}
-          <div className="px-3 md:px-5 py-2.5 border-b border-white/[0.06] bg-[#09090d] shrink-0">
-            <div className="max-w-4xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {/* Horizontal Category Filter Bar */}
+          <div className="px-3 md:px-6 py-2.5 border-b border-white/[0.06] bg-[#09090d] shrink-0">
+            <div className="max-w-5xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
               {CATEGORIES.map((cat) => {
-                const active = activeCategory === cat.id;
+                const active = activeCategory === cat.id && !filterWishlistOnly;
                 return (
                   <button
                     key={cat.id}
@@ -1522,8 +1541,12 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       setActiveCategory(cat.id);
                       setFilterWishlistOnly(false);
                     }}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer ${
-                      active ? 'dc-btn-primary' : 'dc-btn-secondary'
+                    className={`h-9 px-4 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-all ${
+                      active
+                        ? cat.id === 'naruto'
+                          ? 'bg-red-600 text-white shadow-[0_4px_16px_-4px_rgba(220,38,38,0.65)]'
+                          : 'bg-[#5865F2] text-white shadow'
+                        : 'bg-[#14151c] hover:bg-[#1c1e27] text-zinc-300 border border-white/[0.07]'
                     }`}
                   >
                     {cat.label}
@@ -1533,13 +1556,13 @@ export const ShopView: React.FC<ShopViewProps> = ({
             </div>
           </div>
 
-          {/* Main Scrollable Storefront */}
+          {/* Main Storefront Scroll */}
           <div className="flex-1 overflow-y-auto pb-16">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-5xl mx-auto">
               {filterWishlistOnly || activeCategory !== 'all' || searchQuery.trim() ? (
-                <div className="px-3.5 pt-4 space-y-3">
+                <div className="px-4 pt-5 space-y-4">
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-display font-bold text-lg text-white">
+                    <h2 className="font-display font-bold text-lg text-white tabular-nums">
                       {filterWishlistOnly
                         ? `Tu lista de deseos (${visibleBundles.length})`
                         : `${
@@ -1580,19 +1603,89 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="px-3.5 pt-4 space-y-7">
+                <div className="px-4 pt-5 space-y-9">
+                  {/* FEATURED DROP: NARUTO · SHINOBI & DŌJUTSU (18 ITEMS) */}
+                  <section className="space-y-4">
+                    <div className="relative rounded-3xl overflow-hidden border border-red-500/25 bg-[#0c080a] shadow-[0_24px_60px_-16px_rgba(220,38,38,0.3)]">
+                      <div className="grid grid-cols-1 md:grid-cols-12 items-stretch">
+                        <div className="md:col-span-7 relative min-h-[210px] sm:min-h-[260px] overflow-hidden">
+                          <img
+                            src={GENERATED_ASSETS.narutoHeroArt}
+                            alt="Colección Naruto Shinobi y Dōjutsu"
+                            referrerPolicy="no-referrer"
+                            className="absolute inset-0 w-full h-full object-cover object-center"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-transparent via-[#0c080a]/25 to-[#0c080a]" />
+                        </div>
+
+                        <div className="md:col-span-5 p-6 sm:p-7 flex flex-col justify-center gap-3 relative z-10 bg-gradient-to-b md:bg-gradient-to-l from-[#0c080a] via-[#0c080a] to-[#0c080a]/90">
+                          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-red-400">
+                            <Flame className="w-3.5 h-3.5" />
+                            <span>Colección Estelar · {narutoBundles.length} Artículos</span>
+                          </div>
+                          <h2 className="font-sakura font-extrabold text-2xl sm:text-[28px] text-white leading-tight">
+                            Naruto · Shinobi &amp; Dōjutsu
+                          </h2>
+                          <p className="text-xs sm:text-[13px] text-zinc-300 leading-relaxed">
+                            Naruto Sabio y Modo Barión, Kurama, Sasuke, Óbito, Madara Susanoo, Boruto Karma, Rinnegan, Rinne-Sharingan y cada Mangekyō Sharingan.
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => openCollectionPage('naruto')}
+                              className="h-11 px-5 rounded-full bg-red-600 hover:bg-red-500 text-white font-display font-bold text-xs sm:text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-[0_8px_24px_-6px_rgba(220,38,38,0.65)]"
+                            >
+                              <span>Ver los 18 coleccionables</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between px-0.5">
+                      <h3 className="font-display font-bold text-base sm:text-lg text-white">
+                        Destacados de Naruto &amp; Sharingan
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => openCollectionPage('naruto')}
+                        className="text-xs font-semibold text-red-400 hover:text-red-300 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Ver todos ({narutoBundles.length})</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                      {narutoBundles.slice(0, 8).map((b) => (
+                        <BundleCard
+                          key={b.id}
+                          bundle={b}
+                          wishlisted={wishlistIds.includes(b.id)}
+                          owned={ownedBundleIds.includes(b.id)}
+                          onSelect={(swatch) => openBundleModal(b, swatch)}
+                          onToggleWishlist={(e) => {
+                            e.stopPropagation();
+                            onToggleWishlist(b.id);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </section>
+
                   {/* 1. NIGHT TERRORS SECTION */}
-                  <section className="space-y-3">
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="NIGHT TERRORS"
                       subtitle="Lotes, placas, efectos y marcos de perfil abisales"
-                      badgeText={`${nightTerrorsBundles.length} artículos`}
+                      metaText={`${nightTerrorsBundles.length} artículos`}
                       imageUrl={GENERATED_ASSETS.shopObserverEyes}
                       titleClass="font-display font-black italic text-2xl tracking-tighter text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.4)]"
                       gradientClass="from-black/90 via-black/55 to-transparent"
                       onClick={() => openCollectionPage('night-terrors')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
                       {nightTerrorsBundles.slice(0, 4).map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1610,17 +1703,17 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   </section>
 
                   {/* 2. DARK FOLKLORE SECTION */}
-                  <section className="space-y-3">
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="DARK FOLKLORE"
                       subtitle="Hombre polilla, Jackalope, Diablo de Jersey y La Llorona"
-                      badgeText={`${darkFolkloreBundles.length} artículos · Incluye Marcos`}
+                      metaText={`${darkFolkloreBundles.length} artículos · Incluye Marcos`}
                       imageUrl={GENERATED_ASSETS.shopMoonflowersArt}
                       titleClass="font-display font-extrabold text-xl sm:text-2xl tracking-[0.14em] text-emerald-100"
                       gradientClass="from-[#0a140f]/95 via-[#0b1511]/60 to-transparent"
                       onClick={() => openCollectionPage('dark-folklore')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
                       {darkFolkloreBundles.slice(0, 4).map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1638,17 +1731,17 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   </section>
 
                   {/* 3. DEAD BY DAYLIGHT SECTION */}
-                  <section className="space-y-3">
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="DEAD BY DAYLIGHT"
                       subtitle="El Ente, Luna oscura, Red de sangre y Calabazas del Vacío"
-                      badgeText={`Behaviour Interactive · ${dbdBundles.length} artículos`}
+                      metaText={`Behaviour Interactive · ${dbdBundles.length} artículos`}
                       imageUrl={GENERATED_ASSETS.dbdBanner}
                       titleClass="font-display font-black text-xl sm:text-2xl tracking-tight text-orange-100"
                       gradientClass="from-[#230905]/95 via-[#180a07]/55 to-transparent"
                       onClick={() => openCollectionPage('dbd')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
                       {dbdBundles.slice(0, 4).map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1665,8 +1758,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     </div>
                   </section>
 
-                  {/* 4. STARDUST & LUCES SECTION */}
-                  <section className="space-y-3">
+                  {/* 4. STARDUST SECTION */}
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="Stardust"
                       subtitle="Aros cósmicos brillantes en oro solar y esmeralda"
@@ -1675,7 +1768,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       gradientClass="from-[#241506]/90 via-[#0e1b13]/60 to-transparent"
                       onClick={() => openCollectionPage('stardust')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                       {stardustBundles.map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1692,8 +1785,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     </div>
                   </section>
 
-                  {/* 5. NAMEPLATE BONANZA! SECTION */}
-                  <section className="space-y-3">
+                  {/* 5. NAMEPLATE BONANZA! */}
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="NAMEPLATE BONANZA!"
                       subtitle="Conejito fresero, El mismo pato y Marea de lluvia"
@@ -1702,7 +1795,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       gradientClass="from-fuchsia-950/70 via-purple-950/35 to-transparent"
                       onClick={() => openCollectionPage('nameplate-bonanza')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                       {bonanzaBundles.map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1719,8 +1812,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     </div>
                   </section>
 
-                  {/* 6. BORDERLANDS 4 SECTION */}
-                  <section className="space-y-3">
+                  {/* 6. BORDERLANDS 4 */}
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="BORDERLANDS 4"
                       subtitle="Más allá de la Cámara, Saqueo arcoíris y Claptrap"
@@ -1729,7 +1822,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       gradientClass="from-[#1e1007]/85 via-[#130f24]/45 to-transparent"
                       onClick={() => openCollectionPage('borderlands')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                       {borderlandsBundles.map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1746,8 +1839,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     </div>
                   </section>
 
-                  {/* 7. CELESTIAL & NOCTURNO SECTION */}
-                  <section className="space-y-3">
+                  {/* 7. CELESTIAL */}
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="Celestial"
                       subtitle="Luna mística, Estrella nocturna y Flores lunares"
@@ -1756,7 +1849,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       gradientClass="from-[#12102c]/90 via-[#150e2b]/50 to-transparent"
                       onClick={() => openCollectionPage('celestial')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                       {celestialBundles.map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1773,8 +1866,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     </div>
                   </section>
 
-                  {/* 8. SECRET GARDEN SECTION */}
-                  <section className="space-y-3">
+                  {/* 8. SECRET GARDEN */}
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="Secret Garden"
                       subtitle="Trébol de la suerte, Jardín secreto y Lirio del valle"
@@ -1783,7 +1876,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       gradientClass="from-[#0a1d15]/85 via-[#0b1814]/45 to-transparent"
                       onClick={() => openCollectionPage('secret-garden')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                       {gardenBundles.map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1800,8 +1893,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     </div>
                   </section>
 
-                  {/* 9. RAWR XD SECTION */}
-                  <section className="space-y-3">
+                  {/* 9. RAWR XD */}
+                  <section className="space-y-3.5">
                     <CollectionPromoBanner
                       title="Rawr xD"
                       subtitle="Lote Adorable, jeje qué random y Lote Scene"
@@ -1810,7 +1903,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       gradientClass="from-[#29092c]/80 via-[#150c1d]/45 to-transparent"
                       onClick={() => openCollectionPage('rawr-xd')}
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                       {rawrBundles.map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1828,7 +1921,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   </section>
 
                   {/* 10. MARVEL & ZENLESS ZONE ZERO */}
-                  <section className="space-y-3">
+                  <section className="space-y-3.5">
                     <div className="flex items-center justify-between">
                       <h2 className="font-display font-bold text-[18px] text-white">
                         Marvel &amp; Zenless Zone Zero
@@ -1852,7 +1945,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       />
                     )}
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
                       {zzzBundles.map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1870,7 +1963,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   </section>
 
                   {/* 11. ANIME, FANTASÍA & VIBRAS LOFI */}
-                  <section className="space-y-3">
+                  <section className="space-y-3.5">
                     <div className="flex items-center justify-between">
                       <div>
                         <h2 className="font-display font-bold text-[18px] text-white">
@@ -1888,7 +1981,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
                       {[...animeFantasyBundles, ...lofiBundles].map((b) => (
                         <BundleCard
                           key={b.id}
@@ -1907,14 +2000,14 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
                   {/* 12. BANNERS DE PERFIL */}
                   {bannerBundles.length > 0 && (
-                    <section className="space-y-3">
+                    <section className="space-y-3.5">
                       <div className="flex items-center justify-between">
                         <h2 className="font-display font-bold text-[18px] text-white flex items-center gap-2">
                           <ImageIcon className="w-5 h-5 text-[#5865F2]" />
                           <span>Banners de perfil</span>
                         </h2>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3.5">
                         {bannerBundles.map((b) => (
                           <BundleCard
                             key={b.id}
@@ -1966,7 +2059,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
               <h3 className="font-display font-bold text-base text-white">Explorar tienda</h3>
               <button
                 onClick={() => setShowMenuSheet(false)}
-                className="w-8 h-8 rounded-full dc-btn-icon flex items-center justify-center cursor-pointer"
+                className="w-9 h-9 rounded-full dc-btn-icon flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1981,7 +2074,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   setSearchQuery(e.target.value);
                   setActiveCollection(null);
                 }}
-                placeholder="Buscar Hombre polilla, El Ente, Marcos, Rawr xD..."
+                placeholder="Buscar Sharingan, Madara, Naruto, Óbito, Rinnegan..."
                 className="w-full h-11 rounded-xl bg-[#07080a] border border-white/10 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#5865F2]"
               />
             </div>
@@ -2344,7 +2437,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                 <div className="mt-3.5 px-3.5 py-2.5 rounded-xl bg-[#14151b] border border-white/10 flex items-center justify-between">
                   <span className="text-xs font-semibold text-zinc-400">Precio del lote</span>
                   <span className="text-sm font-bold text-white tabular-nums">
-                    ◈ {selectedBundle.priceOrbs} Orbs · {selectedBundle.priceUsd}
+                    ◈ {selectedBundle.priceOrbs.toLocaleString('es-ES')} Orbs · {selectedBundle.priceUsd}
                   </span>
                 </div>
               </div>
@@ -2379,7 +2472,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       )}
                       <span>
                         {user.orbs >= selectedBundle.priceOrbs
-                          ? `Comprar lote (◈ ${selectedBundle.priceOrbs})`
+                          ? `Comprar lote (◈ ${selectedBundle.priceOrbs.toLocaleString('es-ES')})`
                           : `Comprar lote (${selectedBundle.priceUsd})`}
                       </span>
                     </motion.button>
@@ -2439,9 +2532,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
               <div className="space-y-1.5 max-h-60 overflow-y-auto">
                 {(() => {
-                  const giftableFriends = dms.filter(
-                    (d) => !d.isGroup && !d.isBot
-                  );
+                  const giftableFriends = dms.filter((d) => !d.isGroup && !d.isBot);
                   if (giftableFriends.length === 0) {
                     return (
                       <div className="p-4 rounded-2xl bg-[#14151b] border border-white/10 text-center text-xs text-zinc-400">

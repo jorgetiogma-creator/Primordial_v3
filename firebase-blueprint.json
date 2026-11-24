@@ -267,6 +267,22 @@
       },
       "required": ["fromUid", "toUid", "fromDisplayName", "fromUsername", "fromAvatar", "status", "createdAt"]
     },
+    "SentFriendRequest": {
+      "title": "SentFriendRequest",
+      "description": "Outgoing friend request stored on sender profile for cross-device sync",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string" },
+        "toUid": { "type": "string" },
+        "toDisplayName": { "type": "string" },
+        "toUsername": { "type": "string" },
+        "toAvatar": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromUid", "toUid", "toDisplayName", "toUsername", "toAvatar", "status", "createdAt"]
+    },
     "RtcCallSession": {
       "title": "RtcCallSession",
       "description": "WebRTC offer/answer and screen-share state for real-time DM audio/video/screen calls",
@@ -343,6 +359,10 @@
     "/users/{uid}/friendRequests/{fromUid}": {
       "schema": { "$ref": "#/entities/FriendRequest" },
       "description": "Incoming friend requests for a user"
+    },
+    "/users/{uid}/sentFriendRequests/{toUid}": {
+      "schema": { "$ref": "#/entities/SentFriendRequest" },
+      "description": "Outgoing friend requests stored per sender for cross-device sync"
     },
     "/dms/{dmId}": {
       "schema": { "$ref": "#/entities/DirectMessage" },

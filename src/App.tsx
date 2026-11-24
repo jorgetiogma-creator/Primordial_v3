@@ -53,6 +53,7 @@ import {
   subscribeToDms,
   subscribeToFriendRequests,
   subscribeToNotifications,
+  subscribeToSentFriendRequests,
   subscribeToServerDetail,
   subscribeToVoiceChannelPresence,
   syncUserAccountToFirestore,
@@ -386,6 +387,7 @@ export default function App() {
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>([]);
   const [discoverableServers, setDiscoverableServers] = useState<Server[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequestItem[]>([]);
+  const [sentFriendRequestUids, setSentFriendRequestUids] = useState<string[]>([]);
   const [appPreferences, setAppPreferences] = useState<AppPreferences>(() => {
     try {
       const raw = localStorage.getItem(APP_PREFS_KEY);
@@ -619,6 +621,8 @@ export default function App() {
       if (!fbUser) {
         setFirebaseUid(null);
         setFirebaseEmail(null);
+        setSentFriendRequestUids([]);
+        setFriendRequests([]);
         hydratedUidRef.current = null;
         setActiveAccountId((prev) => {
           if (!prev) return null;
@@ -734,27 +738,43 @@ export default function App() {
     syncAppAccountToCloud,
   ]);
 
+  const flushCloudAccountSync = useCallback(
+    (overrides?: {
+      user?: UserProfile;
+      ownedBundleIds?: string[];
+      wishlistIds?: string[];
+      claimedQuestIds?: string[];
+      joinedServerIds?: string[];
+    }) => {
+      if (!firebaseUid || hydratedUidRef.current !== firebaseUid) return;
+      const nextUser = overrides?.user ?? user;
+      const nextOwned = overrides?.ownedBundleIds ?? ownedBundleIds;
+      const nextWishlist = overrides?.wishlistIds ?? wishlistIds;
+      const nextClaimed = overrides?.claimedQuestIds ?? claimedQuestIds;
+      const nextJoined = overrides?.joinedServerIds ?? joinedServerIds;
+      void syncUserAccountToFirestore(firebaseUid, nextUser, {
+        ownedBundleIds: nextOwned,
+        wishlistIds: nextWishlist,
+        claimedQuestIds: nextClaimed,
+        joinedServerIds: nextJoined,
+        isOwnerAccount: isOwner,
+      }).catch((err) => console.error('Sync profile error:', err));
+    },
+    [firebaseUid, user, ownedBundleIds, wishlistIds, claimedQuestIds, joinedServerIds, isOwner]
+  );
+
   useEffect(() => {
     if (!firebaseUid || hydratedUidRef.current !== firebaseUid) return;
     const timer = window.setTimeout(() => {
-      void syncUserAccountToFirestore(firebaseUid, user, {
-        ownedBundleIds,
-        wishlistIds,
-        claimedQuestIds,
-        joinedServerIds,
-        isOwnerAccount: isOwner,
-      }).catch((err) => console.error('Sync profile error:', err));
-    }, 450);
-    return () => window.clearTimeout(timer);
-  }, [
-    firebaseUid,
-    user,
-    ownedBundleIds,
-    wishlistIds,
-    claimedQuestIds,
-    joinedServerIds,
-    isOwner,
-  ]);
+      flushCloudAccountSync();
+    }, 300);
+    const handlePageHide = () => flushCloudAccountSync();
+    window.addEventListener('beforeunload', handlePageHide);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('beforeunload', handlePageHide);
+    };
+  }, [firebaseUid, flushCloudAccountSync]);
 
   useEffect(() => {
     if (!firebaseUid) return;
@@ -778,10 +798,15 @@ export default function App() {
       setFriendRequests(reqs);
     });
 
+    const unsubSentReqs = subscribeToSentFriendRequests(firebaseUid, (sentUids) => {
+      setSentFriendRequestUids(sentUids);
+    });
+
     return () => {
       unsubDms();
       unsubNotifs();
       unsubFriendReqs();
+      unsubSentReqs();
     };
   }, [firebaseUid]);
 
@@ -1735,13 +1760,18 @@ export default function App() {
     if (!q || q.claimed) return;
     const rawBonus = user.nitroTier === 'nitro' ? Math.round(q.rewardOrbs * 1.2) : q.rewardOrbs;
     const bonus = q.isLimitedTime ? Math.min(300, rawBonus) : rawBonus;
-    setClaimedQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
+    const nextClaimed = claimedQuestIds.includes(questId)
+      ? claimedQuestIds
+      : [...claimedQuestIds, questId];
+    const nextUser: UserProfile = {
+      ...user,
+      orbs: user.orbs + bonus,
+      ...unlockBadgeHelper(user, 'orbs'),
+    };
+    setClaimedQuestIds(nextClaimed);
     setQuests((prev) => prev.map((item) => (item.id === questId ? { ...item, claimed: true } : item)));
-    setUser((prev) => ({
-      ...prev,
-      orbs: prev.orbs + bonus,
-      ...unlockBadgeHelper(prev, 'orbs'),
-    }));
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser, claimedQuestIds: nextClaimed });
     showToastMsg(`¡Conseguiste +${bonus} Orbs y la insignia Aprendiz de Orbs!`);
   };
 
@@ -2210,12 +2240,14 @@ export default function App() {
         };
       })
     );
-    setUser((prev) => ({
-      ...prev,
-      orbs: prev.orbs - bundle.priceOrbs,
-      giftsSent: prev.giftsSent + 1,
-      ...unlockBadgeHelper(prev, 'regalos'),
-    }));
+    const nextUser: UserProfile = {
+      ...user,
+      orbs: user.orbs - bundle.priceOrbs,
+      giftsSent: user.giftsSent + 1,
+      ...unlockBadgeHelper(user, 'regalos'),
+    };
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser });
     showToastMsg(`¡Regalo enviado a ${recipientName}! Ya lo luce en su perfil`);
   };
 
@@ -2257,30 +2289,29 @@ export default function App() {
 
   const handleBuyBundle = (bundle: ShopBundle, useOrbs: boolean) => {
     if (ownedBundleIds.includes(bundle.id)) return;
-    if (useOrbs) {
-      if (user.orbs < bundle.priceOrbs) {
-        showToastMsg('No tienes suficientes Orbs');
-        return;
-      }
-      setUser((prev) => ({ ...prev, orbs: prev.orbs - bundle.priceOrbs }));
+    if (useOrbs && user.orbs < bundle.priceOrbs) {
+      showToastMsg('No tienes suficientes Orbs');
+      return;
     }
-    setOwnedBundleIds((prev) => [...prev, bundle.id]);
+    const nextOwned = [...ownedBundleIds, bundle.id];
     const deco = bundle.items.find((i) => i.decorationId)?.decorationId;
     const plate = bundle.items.find((i) => i.nameplateId)?.nameplateId;
     const banner = bundle.items.find((i) => i.bannerUrl)?.bannerUrl;
     const effect = bundle.items.find((i) => i.profileEffectId)?.profileEffectId;
     const frame = bundle.items.find((i) => i.profileFrameId)?.profileFrameId;
-    if (deco || plate || banner || effect || frame) {
-      setUser((prev) => ({
-        ...prev,
-        ...(deco ? { decoration: deco } : {}),
-        ...(plate ? { nameplate: plate } : {}),
-        ...(banner ? { bannerImage: banner } : {}),
-        ...(effect ? { profileEffect: effect } : {}),
-        ...(frame ? { profileFrame: frame } : {}),
-      }));
-    }
-    showToastMsg(`¡${bundle.title} adquirido y equipado!`);
+    const nextUser: UserProfile = {
+      ...user,
+      ...(useOrbs ? { orbs: user.orbs - bundle.priceOrbs } : {}),
+      ...(deco ? { decoration: deco } : {}),
+      ...(plate ? { nameplate: plate } : {}),
+      ...(banner ? { bannerImage: banner } : {}),
+      ...(effect ? { profileEffect: effect } : {}),
+      ...(frame ? { profileFrame: frame } : {}),
+    };
+    setOwnedBundleIds(nextOwned);
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser, ownedBundleIds: nextOwned });
+    showToastMsg(`¡${bundle.title} adquirido y guardado en tu cuenta!`);
   };
 
   const handleEquipBundle = (bundle: ShopBundle) => {
@@ -2294,14 +2325,16 @@ export default function App() {
     const effect = bundle.items.find((i) => i.profileEffectId)?.profileEffectId;
     const frame = bundle.items.find((i) => i.profileFrameId)?.profileFrameId;
     if (deco || plate || banner || effect || frame) {
-      setUser((prev) => ({
-        ...prev,
+      const nextUser: UserProfile = {
+        ...user,
         ...(deco ? { decoration: deco } : {}),
         ...(plate ? { nameplate: plate } : {}),
         ...(banner ? { bannerImage: banner } : {}),
         ...(effect ? { profileEffect: effect } : {}),
         ...(frame ? { profileFrame: frame } : {}),
-      }));
+      };
+      setUser(nextUser);
+      flushCloudAccountSync({ user: nextUser });
       showToastMsg(`Estilo, marco y efectos de ${bundle.title} aplicados en tu perfil`);
     }
   };
@@ -2345,44 +2378,71 @@ export default function App() {
   };
 
   const handleCloudLogin = async (identifier: string, password: string): Promise<boolean> => {
-    const res = await signInCloudAccountWithCredentials(identifier, password);
-    if (res.authProviderDisabled) {
-      setAuthProviderNeedsSetup(true);
-      showToastMsg('Activa Correo/Anónimo en Firebase Auth para iniciar sesión desde otro dispositivo');
-      return false;
-    }
-    if (!res.uid) return false;
-    const bundle = await fetchUserAccountBundle(res.uid).catch(() => null);
-    if (!bundle) return false;
-
-    const newAcc: StoredAccount = {
-      id: res.uid,
-      contact: identifier.trim(),
-      password,
-      isOwnerAccount: bundle.isOwnerAccount,
-      user: bundle.user,
-      ownedBundleIds: bundle.ownedBundleIds,
-      wishlistIds: bundle.wishlistIds,
-    };
-    setAccounts((prev) =>
-      prev.some((a) => a.id === res.uid) ? prev : [...prev, newAcc]
-    );
-    hydratedUidRef.current = res.uid;
-    setUser(bundle.user);
-    setOwnedBundleIds(bundle.ownedBundleIds);
-    setWishlistIds(bundle.wishlistIds);
-    setClaimedQuestIds(bundle.claimedQuestIds);
-    setJoinedServerIds(bundle.joinedServerIds);
-    setActiveAccountId(res.uid);
-    setScreen('inicio');
-    setMobileChatOpen(false);
+    claimingCloudRef.current = true;
     try {
-      localStorage.setItem(SESSION_KEY, res.uid);
-    } catch {
-      /* ignore */
+      const res = await signInCloudAccountWithCredentials(identifier, password);
+      if (res.authProviderDisabled) {
+        setAuthProviderNeedsSetup(true);
+        showToastMsg('Activa Correo/Anónimo en Firebase Auth para iniciar sesión desde otro dispositivo');
+        return false;
+      }
+      if (!res.uid) {
+        if (res.errorReason === 'wrong-password') {
+          showToastMsg('Contraseña incorrecta para esta cuenta en la nube');
+        }
+        return false;
+      }
+      const bundle = await fetchUserAccountBundle(res.uid).catch(() => null);
+      if (!bundle) return false;
+
+      const safeCloudUser = sanitizeUserShopCosmetics(
+        { ...INITIAL_USER, ...bundle.user, id: res.uid },
+        bundle.ownedBundleIds,
+        INITIAL_SHOP_BUNDLES,
+        bundle.isOwnerAccount
+      );
+      const newAcc: StoredAccount = {
+        id: res.uid,
+        contact: identifier.trim(),
+        password,
+        isOwnerAccount: bundle.isOwnerAccount,
+        user: safeCloudUser,
+        ownedBundleIds: bundle.ownedBundleIds,
+        wishlistIds: bundle.wishlistIds,
+      };
+      setAccounts((prev) => {
+        const filtered = prev.filter((a) => a.id !== res.uid);
+        return [...filtered, newAcc];
+      });
+      hydratedUidRef.current = res.uid;
+      setFirebaseUid(res.uid);
+      setFirebaseEmail(res.email || null);
+      setUser(safeCloudUser);
+      setOwnedBundleIds(bundle.ownedBundleIds);
+      setWishlistIds(bundle.wishlistIds);
+      setClaimedQuestIds(bundle.claimedQuestIds);
+      setQuests(
+        INITIAL_QUESTS.map((q) => ({
+          ...q,
+          claimed: bundle.claimedQuestIds.includes(q.id),
+        }))
+      );
+      setJoinedServerIds(bundle.joinedServerIds);
+      setActiveAccountId(res.uid);
+      setScreen('inicio');
+      setMobileChatOpen(false);
+      try {
+        localStorage.setItem(SESSION_KEY, res.uid);
+      } catch {
+        /* ignore */
+      }
+      showToastMsg(
+        `¡Bienvenido, ${safeCloudUser.displayName}! (${bundle.ownedBundleIds.length} compras sincronizadas)`
+      );
+      return true;
+    } finally {
+      claimingCloudRef.current = false;
     }
-    showToastMsg(`¡Bienvenido de vuelta, ${bundle.user.displayName}!`);
-    return true;
   };
 
   const handleRegisterAccount = (payload: {
@@ -2857,26 +2917,42 @@ export default function App() {
       return;
     }
     if (!firebaseUid) {
-      showToastMsg(
-        authProviderNeedsSetup
-          ? 'Activa Correo/Anónimo en Firebase Auth para chatear en la nube'
-          : 'Conectando con la nube... Intenta de nuevo en unos segundos'
-      );
-      return;
+      const errMsg = authProviderNeedsSetup
+        ? 'Activa Correo/Anónimo en Firebase Auth para chatear en la nube'
+        : 'Conectando con la nube... Intenta de nuevo en unos segundos';
+      showToastMsg(errMsg);
+      throw new Error(errMsg);
     }
     try {
       const dmId = await getOrCreateDmThread(user, profile);
       handleSelectDm(dmId);
       showToastMsg(`Chat abierto con @${profile.username || profile.displayName}`);
-    } catch {
-      showToastMsg('No se pudo abrir el chat con este usuario');
+    } catch (err) {
+      const msg =
+        err instanceof Error && !err.message.startsWith('{')
+          ? err.message
+          : 'No se pudo abrir el chat con este usuario. Verifica tu conexión.';
+      showToastMsg(msg);
+      throw new Error(msg);
     }
   };
 
   const handleSendFriendRequest = async (profile: PublicUserProfile): Promise<void> => {
-    if (!firebaseUid || !profile.id || profile.id === user.id) return;
+    if (!firebaseUid) {
+      const msg = 'Conectando tu sesión con la nube... Intenta de nuevo en unos segundos';
+      showToastMsg(msg);
+      throw new Error(msg);
+    }
+    if (!profile.id || profile.id === firebaseUid) return;
     try {
-      const status = await sendFriendRequest({ fromUser: user, toUid: profile.id });
+      const status = await sendFriendRequest({
+        fromUser: user,
+        toUid: profile.id,
+        targetProfile: profile,
+      });
+      setSentFriendRequestUids((prev) =>
+        prev.includes(profile.id) ? prev : [...prev, profile.id]
+      );
       if (status === 'already-friends') {
         showToastMsg(`@${profile.username || profile.displayName} ya está en tu lista de amigos`);
       } else if (status === 'already-pending') {
@@ -2885,8 +2961,12 @@ export default function App() {
         showToastMsg(`Solicitud de amistad enviada a @${profile.username || profile.displayName}`);
       }
     } catch (err) {
-      showToastMsg('No se pudo enviar la solicitud de amistad');
-      throw err;
+      const msg =
+        err instanceof Error && !err.message.startsWith('{')
+          ? err.message
+          : 'No se pudo enviar la solicitud de amistad';
+      showToastMsg(msg);
+      throw new Error(msg);
     }
   };
 
@@ -3626,12 +3706,14 @@ export default function App() {
           user={user}
           onBack={() => setScreen('inicio')}
           onSubscribe={(tier) => {
-            setUser((prev) => ({
-              ...prev,
+            const nextUser: UserProfile = {
+              ...user,
               nitroTier: tier,
               ...(pendingNitroNamePatch || {}),
-              ...unlockBadgeHelper(prev, 'nitro'),
-            }));
+              ...unlockBadgeHelper(user, 'nitro'),
+            };
+            setUser(nextUser);
+            flushCloudAccountSync({ user: nextUser });
             const appliedQueuedGlow = Boolean(pendingNitroNamePatch);
             setPendingNitroNamePatch(null);
             playUiSound('ping', appPreferences.soundsEnabled);
@@ -3709,6 +3791,7 @@ export default function App() {
         <FriendsView
           dms={dms}
           friendRequests={friendRequests}
+          sentFriendRequestUids={sentFriendRequestUids}
           isCloudConnected={Boolean(firebaseUid)}
           authProviderNeedsSetup={authProviderNeedsSetup}
           onRetryCloudSync={() => {

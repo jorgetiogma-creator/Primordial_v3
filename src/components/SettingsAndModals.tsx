@@ -775,6 +775,7 @@ export const SettingsView: React.FC<{
 export const FriendsView: React.FC<{
   dms: DirectMessageThread[];
   friendRequests?: FriendRequestItem[];
+  sentFriendRequestUids?: string[];
   isCloudConnected?: boolean;
   authProviderNeedsSetup?: boolean;
   onRetryCloudSync?: () => void;
@@ -792,6 +793,7 @@ export const FriendsView: React.FC<{
 }> = ({
   dms,
   friendRequests = [],
+  sentFriendRequestUids = [],
   isCloudConnected = true,
   authProviderNeedsSetup = false,
   onRetryCloudSync,
@@ -816,7 +818,9 @@ export const FriendsView: React.FC<{
   const [realUsers, setRealUsers] = useState<PublicUserProfile[]>([]);
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [sentRequestUids, setSentRequestUids] = useState<Record<string, boolean>>({});
+  const [sendingUid, setSendingUid] = useState<string | null>(null);
+  const [chattingUid, setChattingUid] = useState<string | null>(null);
+  const [localSentRequestUids, setLocalSentRequestUids] = useState<Record<string, boolean>>({});
 
   const filtered =
     tab === 'online' ? friendThreads.filter((f) => f.status === 'online') : friendThreads;
@@ -930,7 +934,7 @@ export const FriendsView: React.FC<{
 
         if (onSendFriendRequest) {
           await onSendFriendRequest(match);
-          setSentRequestUids((prev) => ({ ...prev, [match!.id]: true }));
+          setLocalSentRequestUids((prev) => ({ ...prev, [match!.id]: true }));
         }
         await onAddRealUser(match);
         setAddedMsg(`Solicitud enviada y chat abierto con ${match.displayName} (@${match.username})`);
@@ -1174,7 +1178,11 @@ export const FriendsView: React.FC<{
                     d.otherUid === person.id ||
                     (d.username && person.username && d.username.toLowerCase() === person.username.toLowerCase())
                 );
-                const sent = Boolean(sentRequestUids[person.id]);
+                const sent =
+                  Boolean(localSentRequestUids[person.id]) ||
+                  sentFriendRequestUids.includes(person.id);
+                const isSendingReq = sendingUid === person.id;
+                const isOpeningChat = chattingUid === person.id;
 
                 return (
                   <div
@@ -1209,33 +1217,48 @@ export const FriendsView: React.FC<{
                       {!existingDm && onSendFriendRequest && (
                         <button
                           type="button"
+                          disabled={isSendingReq || sent}
                           onClick={(e) => {
                             e.stopPropagation();
+                            setErrorMsg(null);
+                            setSendingUid(person.id);
                             void onSendFriendRequest(person)
                               .then(() => {
-                                setSentRequestUids((prev) => ({ ...prev, [person.id]: true }));
+                                setLocalSentRequestUids((prev) => ({ ...prev, [person.id]: true }));
                                 setAddedMsg(`Solicitud enviada a @${person.username}`);
                                 setTimeout(() => setAddedMsg(null), 2600);
                               })
-                              .catch(() => undefined);
+                              .catch((err: unknown) => {
+                                const m = err instanceof Error ? err.message : '';
+                                setErrorMsg(m || 'No se pudo enviar la solicitud a este usuario.');
+                              })
+                              .finally(() => setSendingUid(null));
                           }}
-                          className={`px-3 py-1.5 rounded-full border text-xs font-bold cursor-pointer ${
+                          className={`px-3 py-1.5 rounded-full border text-xs font-bold cursor-pointer disabled:opacity-75 ${
                             sent
                               ? 'bg-[#23a55a]/20 border-[#23a55a]/40 text-[#23a55a]'
                               : 'bg-[#26272f] hover:bg-[#31333d] border-[#2e3035] text-white'
                           }`}
                         >
-                          {sent ? t('friends.requestSent') : t('friends.sendRequest')}
+                          {isSendingReq ? '...' : sent ? t('friends.requestSent') : t('friends.sendRequest')}
                         </button>
                       )}
                       <button
                         type="button"
+                        disabled={isOpeningChat}
                         onClick={(e) => {
                           e.stopPropagation();
+                          setErrorMsg(null);
                           if (existingDm) {
                             onOpenDm(existingDm.id);
                           } else if (onAddRealUser) {
-                            void onAddRealUser(person);
+                            setChattingUid(person.id);
+                            void onAddRealUser(person)
+                              .catch((err: unknown) => {
+                                const m = err instanceof Error ? err.message : '';
+                                setErrorMsg(m || 'No se pudo abrir el chat con este usuario.');
+                              })
+                              .finally(() => setChattingUid(null));
                           } else {
                             onAddFriend(person.displayName, {
                               avatar: person.avatar,
@@ -1243,11 +1266,11 @@ export const FriendsView: React.FC<{
                             });
                           }
                         }}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap ${
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap disabled:opacity-70 ${
                           existingDm ? 'dc-btn-secondary' : 'dc-btn-primary'
                         }`}
                       >
-                        {existingDm ? t('friends.openChat') : t('friends.chatNow')}
+                        {isOpeningChat ? 'Abriendo...' : existingDm ? t('friends.openChat') : t('friends.chatNow')}
                       </button>
                     </div>
                   </div>

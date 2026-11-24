@@ -391,8 +391,8 @@ export async function syncUserAccountToFirestore(
     uid,
     orbs: Math.max(0, Math.min(999999999999999, Math.floor(user.orbs || 0))),
     nitroTier: user.nitroTier || 'none',
-    ownedBundleIds: extras.ownedBundleIds.slice(0, 200),
-    wishlistIds: extras.wishlistIds.slice(0, 200),
+    ownedBundleIds: extras.ownedBundleIds.slice(0, 500),
+    wishlistIds: extras.wishlistIds.slice(0, 500),
     unlockedBadgeIds: (user.unlockedBadgeIds || []).slice(0, 20),
     equippedBadgeIds: (user.equippedBadgeIds || []).slice(0, 20),
     claimedQuestIds: extras.claimedQuestIds.slice(0, 100),
@@ -614,27 +614,38 @@ export async function getOrCreateDmThread(
   currentUser: UserProfile,
   target: PublicUserProfile
 ): Promise<string> {
-  const participantIds = [currentUser.id, target.id].sort();
+  const myUid = auth.currentUser?.uid || currentUser.id;
+  const targetUid = (target.id || '').trim();
+  if (!myUid || !targetUid || myUid === targetUid) {
+    throw new Error('Usuario de destino inválido para abrir un chat directo.');
+  }
+  const participantIds = [myUid, targetUid].sort();
   const dmId = participantIds.join('__');
   const dmPath = `dms/${dmId}`;
   try {
     const dmRef = doc(db, 'dms', dmId);
     const existing = await getDoc(dmRef);
     const participantProfiles = {
-      [currentUser.id]: stripUndefined({
-        displayName: clampStr(currentUser.displayName, 40) || currentUser.username,
-        username: clampStr(currentUser.username, 32),
-        avatar: currentUser.avatar || 'madara',
+      [myUid]: stripUndefined({
+        displayName:
+          clampStr(currentUser.displayName, 40) ||
+          clampStr(currentUser.username, 40) ||
+          'Usuario',
+        username: clampStr(currentUser.username, 32) || myUid.slice(0, 12),
+        avatar: clampStr(currentUser.avatar, 32) || 'madara',
         customAvatarUrl: safeMedia200k(currentUser.customAvatarUrl),
         status: currentUser.status || 'online',
         decoration: currentUser.decoration || 'none',
         nameplate: currentUser.nameplate || 'none',
         serverTag: clampStr(currentUser.serverTag, 12),
       }),
-      [target.id]: stripUndefined({
-        displayName: clampStr(target.displayName, 40) || target.username,
-        username: clampStr(target.username, 32),
-        avatar: target.avatar || 'madara',
+      [targetUid]: stripUndefined({
+        displayName:
+          clampStr(target.displayName, 40) ||
+          clampStr(target.username, 40) ||
+          'Usuario',
+        username: clampStr(target.username, 32) || targetUid.slice(0, 12),
+        avatar: clampStr(target.avatar, 32) || 'madara',
         customAvatarUrl: safeMedia200k(target.customAvatarUrl),
         status: target.status || 'online',
         decoration: target.decoration || 'none',
@@ -651,7 +662,7 @@ export async function getOrCreateDmThread(
         participantProfiles,
         lastMessagePreview: 'Conversación iniciada · Di hola',
         lastTimestamp: formatShortTime(),
-        lastSenderId: currentUser.id,
+        lastSenderId: myUid,
         unreadBy: [],
         updatedAt: serverTimestamp(),
       });
@@ -659,7 +670,7 @@ export async function getOrCreateDmThread(
       await updateDoc(dmRef, {
         participantProfiles,
         updatedAt: serverTimestamp(),
-      });
+      }).catch(() => undefined);
     }
     return dmId;
   } catch (error) {
@@ -813,6 +824,7 @@ export async function sendDmMessage(params: {
   poll?: ChatPoll;
 }): Promise<void> {
   const { dmId, currentUser, recipientUids, content, replyTo, imageUrl, sticker, audioNote, poll } = params;
+  const myUid = auth.currentUser?.uid || currentUser.id;
   const msgId = makeSafeId('msg');
   const nowLabel = formatShortTime();
   const safeImageUrl = safeMedia200k(imageUrl);
@@ -835,8 +847,8 @@ export async function sendDmMessage(params: {
     msgRef,
     stripUndefined({
       id: msgId,
-      authorId: currentUser.id,
-      authorName: clampStr(currentUser.displayName, 40) || currentUser.username,
+      authorId: myUid,
+      authorName: clampStr(currentUser.displayName, 40) || clampStr(currentUser.username, 40) || 'Usuario',
       authorAvatar: clampStr(currentUser.avatar, 32) || 'madara',
       authorTag: currentUser.serverTag ? clampStr(currentUser.serverTag, 12) : undefined,
       content: safeContent,
@@ -856,36 +868,41 @@ export async function sendDmMessage(params: {
     })
   );
 
-  const others = recipientUids.filter((id) => id && id !== currentUser.id);
+  const others = recipientUids.filter((id) => id && id !== myUid);
   batch.update(doc(db, 'dms', dmId), {
     lastMessagePreview: preview,
     lastTimestamp: nowLabel,
-    lastSenderId: currentUser.id,
+    lastSenderId: myUid,
     unreadBy: others.slice(0, 10),
     updatedAt: serverTimestamp(),
   });
-
-  for (const recipientUid of others.slice(0, 5)) {
-    const notifId = makeSafeId('notif');
-    batch.set(doc(db, 'users', recipientUid, 'notifications', notifId), {
-      id: notifId,
-      recipientUid,
-      senderUid: currentUser.id,
-      type: 'reply',
-      title: clampStr(`Mensaje de ${currentUser.displayName}`, 120),
-      body: clampStr(preview, 500) || 'Te envió un mensaje directo',
-      timestamp: 'Ahora',
-      unread: true,
-      avatar: clampStr(currentUser.avatar, 32) || 'madara',
-      targetDmId: dmId,
-      createdAt: serverTimestamp(),
-    });
-  }
 
   try {
     await batch.commit();
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `dms/${dmId}/messages/${msgId}`);
+  }
+
+  // Deliver notifications best-effort so notification edge cases never block DM delivery
+  if (others.length > 0) {
+    const notifBatch = writeBatch(db);
+    for (const recipientUid of others.slice(0, 5)) {
+      const notifId = makeSafeId('notif');
+      notifBatch.set(doc(db, 'users', recipientUid, 'notifications', notifId), {
+        id: notifId,
+        recipientUid,
+        senderUid: myUid,
+        type: 'reply',
+        title: clampStr(`Mensaje de ${currentUser.displayName || currentUser.username || 'Usuario'}`, 120),
+        body: clampStr(preview, 500) || 'Te envió un mensaje directo',
+        timestamp: 'Ahora',
+        unread: true,
+        avatar: clampStr(currentUser.avatar, 32) || 'madara',
+        targetDmId: dmId,
+        createdAt: serverTimestamp(),
+      });
+    }
+    void notifBatch.commit().catch(() => undefined);
   }
 }
 
@@ -1945,14 +1962,40 @@ export function subscribeToFriendRequests(
   );
 }
 
+export function subscribeToSentFriendRequests(
+  uid: string,
+  onData: (sentUids: string[]) => void
+): Unsubscribe {
+  const path = `users/${uid}/sentFriendRequests`;
+  return onSnapshot(
+    collection(db, 'users', uid, 'sentFriendRequests'),
+    (snapshot) => {
+      const uids: string[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d.status === 'pending') {
+          uids.push(String(d.toUid || docSnap.id));
+        }
+      });
+      onData(uids);
+    },
+    (error) => {
+      console.warn(`Unable to subscribe to sentFriendRequests ${path}:`, error?.message || error);
+    }
+  );
+}
+
 export async function sendFriendRequest(params: {
   fromUser: UserProfile;
   toUid: string;
+  targetProfile?: Partial<PublicUserProfile>;
 }): Promise<'sent' | 'already-pending' | 'already-friends'> {
-  const { fromUser, toUid } = params;
-  if (!toUid || toUid === fromUser.id) return 'already-pending';
-  const path = `users/${toUid}/friendRequests/${fromUser.id}`;
-  const reqRef = doc(db, 'users', toUid, 'friendRequests', fromUser.id);
+  const { fromUser, toUid, targetProfile } = params;
+  const myUid = auth.currentUser?.uid || fromUser.id;
+  if (!myUid || !toUid || toUid === myUid) return 'already-pending';
+  const path = `users/${toUid}/friendRequests/${myUid}`;
+  const reqRef = doc(db, 'users', toUid, 'friendRequests', myUid);
+  const sentRef = doc(db, 'users', myUid, 'sentFriendRequests', toUid);
   try {
     const existing = await getDoc(reqRef);
     if (existing.exists()) {
@@ -1960,23 +2003,38 @@ export async function sendFriendRequest(params: {
       if (currentStatus === 'pending') return 'already-pending';
       if (currentStatus === 'accepted') return 'already-friends';
       if (currentStatus === 'declined') {
-        await deleteDoc(reqRef);
+        await deleteDoc(reqRef).catch(() => undefined);
       }
     }
 
     await setDoc(
       reqRef,
       stripUndefined({
-        fromUid: fromUser.id,
+        fromUid: myUid,
         toUid,
-        fromDisplayName: clampStr(fromUser.displayName, 40) || fromUser.username,
-        fromUsername: clampStr(fromUser.username, 32) || fromUser.id.slice(0, 12),
+        fromDisplayName: clampStr(fromUser.displayName, 40) || clampStr(fromUser.username, 40) || 'Usuario',
+        fromUsername: clampStr(fromUser.username, 32) || myUid.slice(0, 12),
         fromAvatar: clampStr(fromUser.avatar, 32) || 'madara',
         fromCustomAvatarUrl: safeMedia200k(fromUser.customAvatarUrl),
         status: 'pending',
         createdAt: serverTimestamp(),
       })
     );
+
+    // Record outgoing sent request on sender's profile so it persists across devices
+    await setDoc(sentRef, {
+      fromUid: myUid,
+      toUid,
+      toDisplayName:
+        clampStr(targetProfile?.displayName, 40) ||
+        clampStr(targetProfile?.username, 40) ||
+        'Usuario',
+      toUsername: clampStr(targetProfile?.username, 32) || toUid.slice(0, 12),
+      toAvatar: clampStr(targetProfile?.avatar, 32) || 'madara',
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    }).catch(() => undefined);
+
     return 'sent';
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
@@ -1989,14 +2047,21 @@ export async function respondFriendRequest(params: {
   accept: boolean;
 }): Promise<void> {
   const { uid, fromUid, accept } = params;
-  const path = `users/${uid}/friendRequests/${fromUid}`;
+  const myUid = auth.currentUser?.uid || uid;
+  const path = `users/${myUid}/friendRequests/${fromUid}`;
+  const reqRef = doc(db, 'users', myUid, 'friendRequests', fromUid);
   try {
-    await updateDoc(doc(db, 'users', uid, 'friendRequests', fromUid), {
+    await updateDoc(reqRef, {
       status: accept ? 'accepted' : 'declined',
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
+    // Fallback cleanly if legacy friend request doc lacks strict schema fields
+    try {
+      await deleteDoc(reqRef);
+    } catch {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
   }
 }
 

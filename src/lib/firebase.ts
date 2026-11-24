@@ -17,6 +17,7 @@ export interface CloudSessionResult {
   uid: string | null;
   email: string | null;
   authProviderDisabled: boolean;
+  errorReason?: 'wrong-password' | 'not-found' | 'provider-disabled' | 'unknown';
 }
 
 function getFirebaseErrorCode(err: unknown): string {
@@ -69,16 +70,21 @@ export async function ensureFirebaseSessionForAppAccount(params: {
   password?: string | null;
   createIfMissing?: boolean;
 }): Promise<CloudSessionResult> {
-  if (auth.currentUser) {
+  const targetEmail = deriveCloudAuthEmail(params.email, params.username);
+  const targetPassword = deriveCloudAuthPassword(params.password, params.username);
+  const hasExplicitCreds = Boolean((params.email || '').trim() || (params.username || '').trim());
+
+  if (
+    auth.currentUser &&
+    !auth.currentUser.isAnonymous &&
+    (!hasExplicitCreds || auth.currentUser.email?.toLowerCase() === targetEmail)
+  ) {
     return {
       uid: auth.currentUser.uid,
       email: auth.currentUser.email,
       authProviderDisabled: false,
     };
   }
-
-  const targetEmail = deriveCloudAuthEmail(params.email, params.username);
-  const targetPassword = deriveCloudAuthPassword(params.password, params.username);
 
   try {
     if (params.createIfMissing) {
@@ -92,13 +98,11 @@ export async function ensureFirebaseSessionForAppAccount(params: {
             const signInCred = await signInWithEmailAndPassword(auth, targetEmail, targetPassword);
             return { uid: signInCred.user.uid, email: signInCred.user.email, authProviderDisabled: false };
           } catch {
-            // Fall through to anonymous fallback so device still connects cleanly
+            // Fall through to current/anonymous session so device still connects cleanly
           }
-        } else if (!isProviderDisabledError(createErr)) {
-          // Try anonymous auth fallback on unexpected email constraint
         }
       }
-    } else {
+    } else if (hasExplicitCreds) {
       try {
         const cred = await signInWithEmailAndPassword(auth, targetEmail, targetPassword);
         return { uid: cred.user.uid, email: cred.user.email, authProviderDisabled: false };
@@ -113,18 +117,26 @@ export async function ensureFirebaseSessionForAppAccount(params: {
             const created = await createUserWithEmailAndPassword(auth, targetEmail, targetPassword);
             return { uid: created.user.uid, email: created.user.email, authProviderDisabled: false };
           } catch {
-            // Fall through to anonymous auth
+            // Fall through to current/anonymous auth
           }
         }
       }
+    }
+
+    if (auth.currentUser) {
+      return {
+        uid: auth.currentUser.uid,
+        email: auth.currentUser.email,
+        authProviderDisabled: false,
+      };
     }
 
     const anonCred = await signInAnonymously(auth);
     return { uid: anonCred.user.uid, email: anonCred.user.email, authProviderDisabled: false };
   } catch (fallbackErr) {
     return {
-      uid: null,
-      email: null,
+      uid: auth.currentUser?.uid || null,
+      email: auth.currentUser?.email || null,
       authProviderDisabled: isProviderDisabledError(fallbackErr),
     };
   }
@@ -136,13 +148,14 @@ export async function signInCloudAccountWithCredentials(
 ): Promise<CloudSessionResult> {
   const cleanId = identifier.trim().toLowerCase().replace(/^@+/, '');
   if (!cleanId || !password.trim()) {
-    return { uid: null, email: null, authProviderDisabled: false };
+    return { uid: null, email: null, authProviderDisabled: false, errorReason: 'not-found' };
   }
 
   const emailCandidates = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanId)
     ? [cleanId]
     : [deriveCloudAuthEmail(null, cleanId)];
   const pwd = deriveCloudAuthPassword(password, cleanId);
+  let lastErrorReason: CloudSessionResult['errorReason'] = 'not-found';
 
   for (const candidateEmail of emailCandidates) {
     try {
@@ -150,12 +163,27 @@ export async function signInCloudAccountWithCredentials(
       return { uid: cred.user.uid, email: cred.user.email, authProviderDisabled: false };
     } catch (err) {
       if (isProviderDisabledError(err)) {
-        return { uid: null, email: null, authProviderDisabled: true };
+        return {
+          uid: null,
+          email: null,
+          authProviderDisabled: true,
+          errorReason: 'provider-disabled',
+        };
+      }
+      const code = getFirebaseErrorCode(err).toLowerCase();
+      if (code.includes('wrong-password')) {
+        lastErrorReason = 'wrong-password';
+      } else if (code.includes('invalid-credential') || code.includes('invalid-login-credentials')) {
+        lastErrorReason = 'wrong-password';
+      } else if (code.includes('user-not-found')) {
+        lastErrorReason = 'not-found';
+      } else {
+        lastErrorReason = 'unknown';
       }
     }
   }
 
-  return { uid: null, email: null, authProviderDisabled: false };
+  return { uid: null, email: null, authProviderDisabled: false, errorReason: lastErrorReason };
 }
 
 export enum OperationType {

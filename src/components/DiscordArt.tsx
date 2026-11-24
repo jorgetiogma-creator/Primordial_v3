@@ -73,6 +73,11 @@ export const GENERATED_ASSETS = {
   shopStrawberryBunnyArt: '/src/assets/images/shop_strawberry_bunny_art_1795352099320.jpg',
   shopCelestialMoonArt: '/src/assets/images/shop_celestial_moon_art_1795352098726.jpg',
   shopRawrSceneArt: '/src/assets/images/shop_rawr_scene_art_1795352102034.jpg',
+  narutoHeroArt: '/src/assets/images/naruto_shinobi_hero_1795516021505.jpg',
+  narutoKuramaArt: '/src/assets/images/naruto_kurama_baryon_1795516021593.jpg',
+  narutoMadaraObitoArt: '/src/assets/images/uchiha_madara_obito_1795516021950.jpg',
+  narutoSasukeBorutoArt: '/src/assets/images/sasuke_rinnegan_boruto_1795516023788.jpg',
+  narutoDoujutsuArt: '/src/assets/images/doujutsu_sharingan_eye_1795516022472.jpg',
 };
 
 export const SafeImage: React.FC<{
@@ -1680,6 +1685,474 @@ export const AvatarDecorationRing: React.FC<{
     );
   }
 
+  /* ================= NARUTO · 18 SHINOBI & DŌJUTSU DECORATIONS ================= */
+
+  /* N1. Naruto Sabio de los Seis Caminos — Rasenshuriken & Truth-Seeking Orbs */
+  if (decoration === 'naruto-sabio') {
+    const tone = accentColor || '#f59e0b';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <defs>
+            <linearGradient id="n-sabio-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#fef08a" />
+              <stop offset="50%" stopColor={tone} />
+              <stop offset="100%" stopColor="#ea580c" />
+            </linearGradient>
+          </defs>
+          <circle cx="60" cy="60" r="49" fill="none" stroke="url(#n-sabio-g)" strokeWidth="4.2" className="anim-ember" />
+          <g className="anim-spin-slow" style={{ transformOrigin: '60px 60px' }}>
+            <circle cx="60" cy="60" r="54" fill="none" stroke="#fde047" strokeWidth="1.2" strokeDasharray="6 6" opacity="0.7" />
+            {[0, 60, 120, 180, 240, 300].map((deg) => {
+              const rad = (deg * Math.PI) / 180;
+              const cx = 60 + Math.cos(rad) * 53;
+              const cy = 60 + Math.sin(rad) * 53;
+              return (
+                <g key={deg}>
+                  <circle cx={cx} cy={cy} r="5.2" fill="#09090b" stroke="#fde047" strokeWidth="1.4" />
+                  <circle cx={cx - 1.5} cy={cy - 1.5} r="1.4" fill="#fef08a" opacity="0.8" />
+                </g>
+              );
+            })}
+          </g>
+          {/* Konoha / Rikudō Crest Top */}
+          <path d="M51 11 H69 L65 18 H55 Z" fill="#09090b" stroke="#fbbf24" strokeWidth="1.4" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N2. Naruto Modo Barión — Nuclear Crimson & Solar Fox Chakra Blades */
+  if (decoration === 'naruto-barion') {
+    const tone = accentColor || '#ef4444';
+    return (
+      <div className="absolute -inset-[24%] w-[148%] h-[148%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-flame">
+          <defs>
+            <linearGradient id="n-baryon-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#fde047" />
+              <stop offset="45%" stopColor="#f97316" />
+              <stop offset="100%" stopColor={tone} />
+            </linearGradient>
+          </defs>
+          {/* Fox Ears */}
+          <path d="M22 40 L15 8 L43 24 Z" fill={tone} stroke="#fef08a" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M98 40 L105 8 L77 24 Z" fill={tone} stroke="#fef08a" strokeWidth="1.6" strokeLinejoin="round" />
+          {/* Blazing Baryon Ring */}
+          <circle cx="60" cy="60" r="49" fill="none" stroke="url(#n-baryon-g)" strokeWidth="5.5" />
+          <path
+            d="M14 74 Q4 96 26 106 Q18 92 24 80 M106 74 Q116 96 94 106 Q102 92 96 80"
+            fill="none"
+            stroke="#fb923c"
+            strokeWidth="4"
+            strokeLinecap="round"
+          />
+          <circle cx="60" cy="11" r="3.5" fill="#fef08a" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N3. Kurama (Kyūbi) — 9 Chakra Tails Crown */
+  if (decoration === 'kurama') {
+    const tone = accentColor || '#f97316';
+    return (
+      <div className="absolute -inset-[24%] w-[148%] h-[148%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-ember">
+          <circle cx="60" cy="60" r="48" fill="none" stroke={tone} strokeWidth="4.6" />
+          <circle cx="60" cy="60" r="52.5" fill="none" stroke="#fde047" strokeWidth="1.4" strokeDasharray="4 4" />
+          {/* 9 Chakra Tails Fanning Upward */}
+          {[-48, -36, -24, -12, 0, 12, 24, 36, 48].map((ang, idx) => {
+            const rad = ((ang - 90) * Math.PI) / 180;
+            const x1 = 60 + Math.cos(rad) * 46;
+            const y1 = 60 + Math.sin(rad) * 46;
+            const x2 = 60 + Math.cos(rad) * (idx % 2 === 0 ? 59 : 55);
+            const y2 = 60 + Math.sin(rad) * (idx % 2 === 0 ? 59 : 55);
+            return (
+              <path
+                key={ang}
+                d={`M${x1} ${y1} Q${(x1 + x2) / 2 + 3} ${(y1 + y2) / 2 - 2} ${x2} ${y2}`}
+                fill="none"
+                stroke={idx % 2 === 0 ? '#fde047' : tone}
+                strokeWidth="3.6"
+                strokeLinecap="round"
+              />
+            );
+          })}
+          {/* Kyūbi Slit Eyes Accent at Bottom */}
+          <path d="M44 106 L53 108 L46 111 Z" fill="#ef4444" />
+          <path d="M76 106 L67 108 L74 111 Z" fill="#ef4444" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N4. Sasuke Uchiha — Chidori Lightning Storm + Uchiha Fan Crest */
+  if (decoration === 'sasuke') {
+    const bolt = accentColor || '#38bdf8';
+    return (
+      <div className="absolute -inset-[22%] w-[144%] h-[144%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-holo-glow">
+          <circle cx="60" cy="60" r="49" fill="none" stroke="#6366f1" strokeWidth="4" />
+          <circle cx="60" cy="60" r="52.5" fill="none" stroke={bolt} strokeWidth="2" strokeDasharray="12 5" />
+          {/* Chidori Bolts */}
+          <path d="M22 24 L32 34 L25 38 L37 48" fill="none" stroke={bolt} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M98 24 L88 34 L95 38 L83 48" fill="none" stroke={bolt} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M18 82 L28 74 L24 66" fill="none" stroke="#e0f2fe" strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M102 82 L92 74 L96 66" fill="none" stroke="#e0f2fe" strokeWidth="2.2" strokeLinecap="round" />
+          {/* Mini Uchiha Crest Bottom */}
+          <path d="M53 107 A7 7 0 1 1 67 107 Z" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
+          <rect x="58.3" y="107" width="3.4" height="6" fill="#ffffff" rx="1" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N5. Sasuke Rinnegan Supremo — 6-Tomoe Rinnegan & Purple Susanoo Ribcage */
+  if (decoration === 'sasuke-rinnegan') {
+    const tone = accentColor || '#a855f7';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="4.4" />
+          <circle cx="60" cy="60" r="54" fill="none" stroke="#e9d5ff" strokeWidth="1.2" opacity="0.6" />
+          <g className="anim-spin-slow" style={{ transformOrigin: '60px 60px' }}>
+            {[0, 60, 120, 180, 240, 300].map((deg) => {
+              const rad = (deg * Math.PI) / 180;
+              const cx = 60 + Math.cos(rad) * 51;
+              const cy = 60 + Math.sin(rad) * 51;
+              return <circle key={deg} cx={cx} cy={cy} r="3.4" fill="#09090b" stroke="#f3e8ff" strokeWidth="1.4" />;
+            })}
+          </g>
+          {/* Susanoo Spectral Arrows Left & Right */}
+          <path d="M6 60 L18 52 L16 60 L18 68 Z" fill={tone} stroke="#ffffff" strokeWidth="1" />
+          <path d="M114 60 L102 52 L104 60 L102 68 Z" fill={tone} stroke="#ffffff" strokeWidth="1" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N6. Óbito Uchiha (Tobi) — Spiral Orange Mask Vortex */
+  if (decoration === 'obito-tobi') {
+    const tone = accentColor || '#f97316';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="5" />
+          <circle cx="60" cy="60" r="53" fill="none" stroke="#09090b" strokeWidth="2.2" strokeDasharray="10 4" className="anim-spin-slow" style={{ transformOrigin: '60px 60px' }} />
+          {/* Tobi Swirl Crest Top-Right */}
+          <g transform="translate(88, 22)">
+            <circle cx="0" cy="0" r="12" fill={tone} stroke="#09090b" strokeWidth="2" />
+            <path d="M0 0 C4 -4 8 -2 8 2 C8 7 1 10 -4 6 C-9 2 -7 -7 0 -8" fill="none" stroke="#09090b" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="1.5" cy="-1" r="2.6" fill="#ef4444" stroke="#09090b" strokeWidth="1" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  /* N7. Óbito Diez Colas (Jūbi) — Shakujō Rings & Rinnegan-Sharingan Halo */
+  if (decoration === 'obito-juubi') {
+    const tone = accentColor || '#e4e4e7';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-holo-glow">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="4.2" />
+          <circle cx="60" cy="60" r="54" fill="none" stroke="#ef4444" strokeWidth="1.4" strokeDasharray="3 5" />
+          {/* Shakujo Crescent Top */}
+          <path d="M44 13 A16 14 0 0 0 76 13" fill="none" stroke="#e4e4e7" strokeWidth="3.6" strokeLinecap="round" />
+          <circle cx="60" cy="11" r="5" fill="#09090b" stroke="#e4e4e7" strokeWidth="1.8" />
+          {/* Truth-Seeking Orbs */}
+          <circle cx="14" cy="40" r="4.5" fill="#09090b" stroke="#a855f7" strokeWidth="1.4" />
+          <circle cx="106" cy="40" r="4.5" fill="#09090b" stroke="#ef4444" strokeWidth="1.4" />
+          <circle cx="14" cy="80" r="4.5" fill="#09090b" stroke="#e4e4e7" strokeWidth="1.4" />
+          <circle cx="106" cy="80" r="4.5" fill="#09090b" stroke="#e4e4e7" strokeWidth="1.4" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N8. Madara Uchiha Edo Tensei — Crimson Gunbai & Susanoo Blades */
+  if (decoration === 'madara-edo') {
+    const tone = accentColor || '#dc2626';
+    return (
+      <div className="absolute -inset-[24%] w-[148%] h-[148%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <circle cx="60" cy="60" r="49" fill="none" stroke="#991b1b" strokeWidth="5" />
+          <circle cx="60" cy="60" r="53.5" fill="none" stroke={tone} strokeWidth="2" />
+          {/* Gunbai Fan Top Left */}
+          <g transform="translate(22, 22) rotate(-32)">
+            <circle cx="0" cy="0" r="10" fill="#7c2d12" stroke="#fef3c7" strokeWidth="1.6" />
+            <circle cx="-3" cy="-2" r="2.2" fill="#09090b" />
+            <circle cx="3" cy="-2" r="2.2" fill="#09090b" />
+            <circle cx="0" cy="4" r="2.2" fill="#09090b" />
+          </g>
+          {/* Edo Cracks Glow */}
+          <path d="M90 16 L96 26 L92 32 M28 96 L35 104" stroke="#fca5a5" strokeWidth="2" strokeLinecap="round" fill="none" />
+          {/* Royal Blue Susanoo Slash Bottom Right */}
+          <path d="M84 96 Q104 88 110 68" fill="none" stroke="#60a5fa" strokeWidth="3.5" strokeLinecap="round" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N9. Madara Sabio Rikudō — Celestial Horn Crown & Truth-Seeking Staff */
+  if (decoration === 'madara-rikudo') {
+    const tone = accentColor || '#e4e4e7';
+    return (
+      <div className="absolute -inset-[24%] w-[148%] h-[148%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-holo-glow">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="4.6" />
+          {/* Madara Forehead Horns + Third Rinne-Sharingan Eye */}
+          <path d="M36 18 L52 6 L60 15 L68 6 L84 18" fill="none" stroke="#f4f4f5" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
+          <ellipse cx="60" cy="11" rx="8.5" ry="5" fill="#dc2626" stroke="#09090b" strokeWidth="1.4" />
+          <circle cx="60" cy="11" r="2.2" fill="#09090b" />
+          {/* 8 Dark Orbs */}
+          {[30, 75, 110, 150, 210, 250, 285, 330].map((deg) => {
+            const rad = (deg * Math.PI) / 180;
+            return (
+              <circle
+                key={deg}
+                cx={60 + Math.cos(rad) * 54}
+                cy={60 + Math.sin(rad) * 54}
+                r="3.8"
+                fill="#09090b"
+                stroke="#f4f4f5"
+                strokeWidth="1.3"
+              />
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  /* N10. Boruto Karma / Jōgan — Cyan Karma Circuit & Glowing Jōgan Moon */
+  if (decoration === 'boruto-karma') {
+    const tone = accentColor || '#22d3ee';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-holo-glow">
+          <circle cx="60" cy="60" r="49" fill="none" stroke="#09090b" strokeWidth="5.5" />
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="3.2" strokeDasharray="18 6 6 6" />
+          {/* Karma Seal Markings */}
+          <path d="M18 32 L28 32 L34 40 M102 88 L92 88 L86 80" fill="none" stroke={tone} strokeWidth="3.2" strokeLinecap="round" />
+          <polygon points="94,16 102,24 94,32 86,24" fill="#09090b" stroke={tone} strokeWidth="2.2" />
+          {/* Jōgan Eye Crest */}
+          <circle cx="24" cy="92" r="8" fill="#09090b" stroke={tone} strokeWidth="2" />
+          <circle cx="24" cy="92" r="4" fill="#bae6fd" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N11. Rinnegan Supremo (Deva) — Concentric Lavender Ripples */
+  if (decoration === 'rinnegan-deva') {
+    const tone = accentColor || '#c084fc';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <circle cx="60" cy="60" r="47" fill="none" stroke={tone} strokeWidth="2.4" opacity="0.9" />
+          <circle cx="60" cy="60" r="51" fill="none" stroke="#e9d5ff" strokeWidth="1.8" opacity="0.75" />
+          <circle cx="60" cy="60" r="55" fill="none" stroke="#a855f7" strokeWidth="1.8" opacity="0.6" />
+          <circle cx="60" cy="60" r="59" fill="none" stroke="#09090b" strokeWidth="1.3" strokeDasharray="6 6" className="anim-spin-slow" style={{ transformOrigin: '60px 60px' }} />
+          {/* Top & Bottom Rinnegan Eyes */}
+          {[10, 110].map((cyPos) => (
+            <g key={cyPos} transform={`translate(60, ${cyPos})`}>
+              <ellipse cx="0" cy="0" rx="13" ry="7.5" fill="#d8b4fe" stroke="#09090b" strokeWidth="1.8" />
+              <ellipse cx="0" cy="0" rx="8.5" ry="5" fill="none" stroke="#4c1d95" strokeWidth="1.1" />
+              <circle cx="0" cy="0" r="2.4" fill="#09090b" />
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
+  /* N12. Rinne-Sharingan Lunar — Crimson Concentric Moon Eye + 9 Tomoe */
+  if (decoration === 'rinne-sharingan') {
+    const tone = accentColor || '#ef4444';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-ember">
+          <circle cx="60" cy="60" r="47.5" fill="none" stroke={tone} strokeWidth="2.8" />
+          <circle cx="60" cy="60" r="52" fill="none" stroke="#991b1b" strokeWidth="2" />
+          <circle cx="60" cy="60" r="56.5" fill="none" stroke="#fecaca" strokeWidth="1.2" opacity="0.75" />
+          <g className="anim-spin-slow" style={{ transformOrigin: '60px 60px' }}>
+            {[0, 40, 80, 120, 160, 200, 240, 280, 320].map((deg) => {
+              const rad = (deg * Math.PI) / 180;
+              return (
+                <circle
+                  key={deg}
+                  cx={60 + Math.cos(rad) * 52}
+                  cy={60 + Math.sin(rad) * 52}
+                  r="3.2"
+                  fill="#09090b"
+                  stroke="#fca5a5"
+                  strokeWidth="1"
+                />
+              );
+            })}
+          </g>
+          <circle cx="60" cy="9" r="5" fill={tone} stroke="#09090b" strokeWidth="1.5" />
+          <circle cx="60" cy="9" r="2" fill="#09090b" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N13. Sharingan 3 Tomoe — Iconic Rotating Crimson 3-Tomoe Halo */
+  if (decoration === 'sharingan-3tomoe') {
+    const tone = accentColor || '#ef4444';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="4.6" />
+          <circle cx="60" cy="60" r="53" fill="none" stroke="#09090b" strokeWidth="2" />
+          <g className="anim-spin-slow" style={{ transformOrigin: '60px 60px' }}>
+            {[0, 120, 240].map((deg) => {
+              const rad = ((deg - 90) * Math.PI) / 180;
+              const cx = 60 + Math.cos(rad) * 50.5;
+              const cy = 60 + Math.sin(rad) * 50.5;
+              return (
+                <g key={deg} transform={`translate(${cx}, ${cy}) rotate(${deg})`}>
+                  <circle cx="0" cy="0" r="5.2" fill="#09090b" stroke="#fca5a5" strokeWidth="1.1" />
+                  <path d="M2 -4 Q7 -1 4 4" fill="none" stroke="#09090b" strokeWidth="2.4" strokeLinecap="round" />
+                </g>
+              );
+            })}
+          </g>
+          {/* Featured Top Sharingan Emblem */}
+          <circle cx="60" cy="10" r="8" fill={tone} stroke="#09090b" strokeWidth="1.8" />
+          <circle cx="60" cy="10" r="4.5" fill="none" stroke="#09090b" strokeWidth="1" />
+          <circle cx="60" cy="10" r="2" fill="#09090b" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* N14. Mangekyō Sharingan Itachi — Amaterasu Black Flames + Tsukuyomi Pinwheel */
+  if (decoration === 'sharingan-itachi') {
+    const tone = accentColor || '#dc2626';
+    return (
+      <div className="absolute -inset-[24%] w-[148%] h-[148%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-ember">
+          <circle cx="60" cy="60" r="49" fill="none" stroke="#09090b" strokeWidth="6" />
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="2.6" />
+          {/* Amaterasu Black Flame Tongues */}
+          <path d="M18 42 Q6 24 24 14 Q20 28 30 32 Z" fill="#09090b" stroke={tone} strokeWidth="1.3" />
+          <path d="M102 42 Q114 24 96 14 Q100 28 90 32 Z" fill="#09090b" stroke={tone} strokeWidth="1.3" />
+          <path d="M22 86 Q10 100 28 106 Q26 96 34 92 Z" fill="#09090b" stroke={tone} strokeWidth="1.3" />
+          {/* Top Itachi Pinwheel Badge */}
+          <g transform="translate(60, 11)">
+            <circle cx="0" cy="0" r="9.5" fill={tone} stroke="#09090b" strokeWidth="1.8" />
+            <path d="M0 -8 Q5 -3 0 0 Q5 3 7 6 M0 0 Q-5 3 -7 6 M0 0 Q-5 -3 0 -8" fill="#09090b" stroke="#09090b" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="0" cy="0" r="2.2" fill={tone} />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  /* N15. Mangekyō Sharingan Kakashi / Óbito — Kamui Dimensional Vortex */
+  if (decoration === 'sharingan-kamui') {
+    const tone = accentColor || '#ef4444';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="4.2" />
+          <g className="anim-spin-reverse" style={{ transformOrigin: '60px 60px' }}>
+            <path d="M60 8 A52 52 0 0 1 112 60" fill="none" stroke="#fca5a5" strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M60 112 A52 52 0 0 1 8 60" fill="none" stroke="#818cf8" strokeWidth="2.4" strokeLinecap="round" />
+          </g>
+          {/* Kamui Shuriken Badge */}
+          <g transform="translate(60, 11)">
+            <circle cx="0" cy="0" r="9.5" fill={tone} stroke="#09090b" strokeWidth="1.8" />
+            {[0, 120, 240].map((rot) => (
+              <path
+                key={rot}
+                d="M0 -8 Q5 -4 3 0 Q1 -2 0 0 Z"
+                fill="#09090b"
+                transform={`rotate(${rot})`}
+              />
+            ))}
+            <circle cx="0" cy="0" r="2.4" fill="#ef4444" stroke="#09090b" strokeWidth="1.2" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  /* N16. Mangekyō Sharingan Shisui — Kotoamatsukami 4-Point Windmill */
+  if (decoration === 'sharingan-shisui') {
+    const tone = accentColor || '#ef4444';
+    return (
+      <div className="absolute -inset-[23%] w-[146%] h-[146%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="4.4" />
+          <circle cx="60" cy="60" r="53.5" fill="none" stroke="#4ade80" strokeWidth="1.4" strokeDasharray="5 5" opacity="0.75" />
+          <g transform="translate(60, 11)">
+            <circle cx="0" cy="0" r="10" fill={tone} stroke="#09090b" strokeWidth="1.8" />
+            {[0, 90, 180, 270].map((rot) => (
+              <path
+                key={rot}
+                d="M0 -9 L3 -2 L0 0 L-2 -3 Z"
+                fill="#09090b"
+                transform={`rotate(${rot})`}
+              />
+            ))}
+            <circle cx="0" cy="0" r="2.3" fill={tone} stroke="#09090b" strokeWidth="1.2" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  /* N17. Mangekyō Eterno Sasuke — Hexagram Atom Star Halo */
+  if (decoration === 'ems-sasuke') {
+    const tone = accentColor || '#dc2626';
+    return (
+      <div className="absolute -inset-[24%] w-[148%] h-[148%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-holo-glow">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="4.6" />
+          <circle cx="60" cy="60" r="53.5" fill="none" stroke="#a855f7" strokeWidth="1.8" />
+          {/* Top Sasuke EMS Crest */}
+          <g transform="translate(60, 11)">
+            <circle cx="0" cy="0" r="10.5" fill={tone} stroke="#09090b" strokeWidth="1.8" />
+            <ellipse cx="0" cy="0" rx="8.5" ry="3.2" fill="none" stroke="#09090b" strokeWidth="1.6" />
+            <ellipse cx="0" cy="0" rx="8.5" ry="3.2" fill="none" stroke="#09090b" strokeWidth="1.6" transform="rotate(60)" />
+            <ellipse cx="0" cy="0" rx="8.5" ry="3.2" fill="none" stroke="#09090b" strokeWidth="1.6" transform="rotate(120)" />
+            <circle cx="0" cy="0" r="2.2" fill="#ef4444" stroke="#09090b" strokeWidth="1.2" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  /* N18. Mangekyō Eterno Madara — Eternal Linked Triple Blades */
+  if (decoration === 'ems-madara') {
+    const tone = accentColor || '#b91c1c';
+    return (
+      <div className="absolute -inset-[24%] w-[148%] h-[148%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-ember">
+          <circle cx="60" cy="60" r="49" fill="none" stroke={tone} strokeWidth="5" />
+          <circle cx="60" cy="60" r="53.5" fill="none" stroke="#fef2f2" strokeWidth="1.4" opacity="0.7" />
+          {/* Top Madara EMS Crest */}
+          <g transform="translate(60, 11)">
+            <circle cx="0" cy="0" r="10.5" fill="#ef4444" stroke="#09090b" strokeWidth="1.8" />
+            <circle cx="0" cy="0" r="6.5" fill="none" stroke="#09090b" strokeWidth="1.8" />
+            {[0, 120, 240].map((rot) => (
+              <g key={rot} transform={`rotate(${rot})`}>
+                <line x1="0" y1="0" x2="0" y2="-9" stroke="#09090b" strokeWidth="2.2" strokeLinecap="round" />
+                <circle cx="0" cy="-6" r="2.1" fill="#ef4444" stroke="#09090b" strokeWidth="1.1" />
+              </g>
+            ))}
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
   /* 36. Fallback Premium Iridescent Ring (ofrenda / enfado / etc.) */
   return (
     <div className="absolute -inset-[18%] w-[136%] h-[136%] pointer-events-none z-10">
@@ -1904,6 +2377,72 @@ export const ProfileFrameArtwork: React.FC<{
           <path d="M16 40 Q42 18 82 28 Q128 18 184 40" fill="none" stroke="#1e293b" strokeWidth="5" strokeLinecap="round" />
           <path d="M46 24 Q52 14 60 22 L54 27 Z" fill="#09090b" />
           <path d="M116 20 Q122 10 130 18 L124 23 Z" fill="#09090b" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* Naruto N1: Sharingan Ring Profile Frame */
+  if (frame === 'sharingan-ring') {
+    const tone = accentColor || '#ef4444';
+    return (
+      <div className="absolute -inset-2 pointer-events-none z-20 overflow-visible">
+        <div className="w-full h-full rounded-2xl border-2 border-red-500/80 shadow-[0_0_28px_rgba(239,68,68,0.42)]" />
+        <svg viewBox="0 0 200 180" className="absolute -inset-1 w-[calc(100%+8px)] h-[calc(100%+8px)] overflow-visible">
+          <circle cx="100" cy="4" r="10" fill={tone} stroke="#09090b" strokeWidth="2" />
+          <circle cx="100" cy="4" r="5.5" fill="none" stroke="#09090b" strokeWidth="1.2" />
+          <circle cx="100" cy="4" r="2.2" fill="#09090b" />
+          <circle cx="10" cy="14" r="4" fill={tone} stroke="#09090b" strokeWidth="1.4" />
+          <circle cx="190" cy="14" r="4" fill={tone} stroke="#09090b" strokeWidth="1.4" />
+          <circle cx="10" cy="166" r="4" fill={tone} stroke="#09090b" strokeWidth="1.4" />
+          <circle cx="190" cy="166" r="4" fill={tone} stroke="#09090b" strokeWidth="1.4" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* Naruto N2: Rinnegan Aura Profile Frame */
+  if (frame === 'rinnegan-aura') {
+    const tone = accentColor || '#a855f7';
+    return (
+      <div className="absolute -inset-2 pointer-events-none z-20 overflow-visible">
+        <div className="w-full h-full rounded-2xl border-2 border-purple-400/80 shadow-[0_0_30px_rgba(168,85,247,0.45)]" />
+        <svg viewBox="0 0 200 180" className="absolute -inset-1 w-[calc(100%+8px)] h-[calc(100%+8px)] overflow-visible anim-holo-glow">
+          <path d="M16 4 H184 M16 176 H184" stroke={tone} strokeWidth="2.5" strokeDasharray="8 6" />
+          <ellipse cx="100" cy="5" rx="14" ry="8" fill="#d8b4fe" stroke="#09090b" strokeWidth="1.8" />
+          <ellipse cx="100" cy="5" rx="9" ry="5" fill="none" stroke="#4c1d95" strokeWidth="1.2" />
+          <circle cx="100" cy="5" r="2.4" fill="#09090b" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* Naruto N3: Kurama Chakra Tails Profile Frame */
+  if (frame === 'kurama-tails') {
+    const tone = accentColor || '#f97316';
+    return (
+      <div className="absolute -inset-2 pointer-events-none z-20 overflow-visible">
+        <div className="w-full h-full rounded-2xl border-2 border-amber-400/85 shadow-[0_0_30px_rgba(249,115,22,0.45)]" />
+        <svg viewBox="0 0 200 180" className="absolute -top-6 inset-x-0 w-full h-auto overflow-visible anim-ember">
+          <path d="M22 44 Q12 10 38 4 Q32 24 44 38 Z" fill={tone} stroke="#fef08a" strokeWidth="1.3" />
+          <path d="M62 36 Q66 6 88 4 Q80 22 86 36 Z" fill="#fbbf24" stroke="#7c2d12" strokeWidth="1.3" />
+          <path d="M138 36 Q134 6 112 4 Q120 22 114 36 Z" fill="#fbbf24" stroke="#7c2d12" strokeWidth="1.3" />
+          <path d="M178 44 Q188 10 162 4 Q168 24 156 38 Z" fill={tone} stroke="#fef08a" strokeWidth="1.3" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* Naruto N4: Susanoo Armor Profile Frame */
+  if (frame === 'susanoo-armor') {
+    const tone = accentColor || '#6366f1';
+    return (
+      <div className="absolute -inset-2 pointer-events-none z-20 overflow-visible">
+        <div className="w-full h-full rounded-2xl border-2 border-indigo-400/85 shadow-[0_0_30px_rgba(99,102,241,0.48)]" />
+        <svg viewBox="0 0 200 180" className="absolute -inset-1 w-[calc(100%+8px)] h-[calc(100%+8px)] overflow-visible anim-holo-glow">
+          <path d="M4 54 L14 38 M4 90 L14 78 M4 126 L14 114" stroke={tone} strokeWidth="4" strokeLinecap="round" />
+          <path d="M196 54 L186 38 M196 90 L186 78 M196 126 L186 114" stroke={tone} strokeWidth="4" strokeLinecap="round" />
+          <polygon points="88,4 100,-5 112,4 100,11" fill="#c7d2fe" stroke="#312e81" strokeWidth="1.4" />
         </svg>
       </div>
     );
@@ -2195,6 +2734,17 @@ export const getNameplateArtworkUrl = (nameplate: NameplateId): string | null =>
       return GENERATED_ASSETS.deadpoolBanner;
     case 'vice-city':
       return GENERATED_ASSETS.viceCityBanner;
+    case 'kurama':
+    case 'naruto-sabio':
+      return GENERATED_ASSETS.narutoKuramaArt;
+    case 'uchiha-sharingan':
+    case 'obito-kamui':
+    case 'madara-susanoo':
+      return GENERATED_ASSETS.narutoMadaraObitoArt;
+    case 'rinnegan':
+      return GENERATED_ASSETS.narutoDoujutsuArt;
+    case 'boruto-karma':
+      return GENERATED_ASSETS.narutoSasukeBorutoArt;
     default:
       return null;
   }
@@ -2380,6 +2930,51 @@ export const NameplateRowDecor: React.FC<{ nameplate: NameplateId }> = ({ namepl
         <circle cx="16" cy="21" r="4" fill={petal} />
         <circle cx="20" cy="21" r="4" fill={petal} />
         <circle cx="18" cy="16" r="2.6" fill="#fde047" />
+      </svg>
+    );
+  }
+
+  if (nameplate === 'uchiha-sharingan' || nameplate === 'obito-kamui') {
+    const tone = nameplate === 'obito-kamui' ? '#f97316' : '#ef4444';
+    return (
+      <svg viewBox="0 0 36 32" className="w-8 h-7 shrink-0 z-10 anim-spin-slow">
+        <circle cx="18" cy="16" r="10" fill={tone} stroke="#09090b" strokeWidth="1.6" />
+        <circle cx="18" cy="16" r="5.5" fill="none" stroke="#09090b" strokeWidth="1.1" />
+        <circle cx="18" cy="16" r="2.2" fill="#09090b" />
+        <circle cx="18" cy="10.5" r="1.4" fill="#09090b" />
+        <circle cx="13.2" cy="18.8" r="1.4" fill="#09090b" />
+        <circle cx="22.8" cy="18.8" r="1.4" fill="#09090b" />
+      </svg>
+    );
+  }
+
+  if (nameplate === 'rinnegan' || nameplate === 'madara-susanoo') {
+    const tone = nameplate === 'rinnegan' ? '#c084fc' : '#6366f1';
+    return (
+      <svg viewBox="0 0 36 32" className="w-8 h-7 shrink-0 z-10 anim-holo-glow">
+        <circle cx="18" cy="16" r="10" fill={tone} stroke="#09090b" strokeWidth="1.5" />
+        <circle cx="18" cy="16" r="6.5" fill="none" stroke="#3b0764" strokeWidth="1.2" />
+        <circle cx="18" cy="16" r="3" fill="#09090b" />
+      </svg>
+    );
+  }
+
+  if (nameplate === 'kurama' || nameplate === 'naruto-sabio') {
+    const tone = nameplate === 'naruto-sabio' ? '#fbbf24' : '#f97316';
+    return (
+      <svg viewBox="0 0 36 32" className="w-8 h-7 shrink-0 z-10 anim-ember">
+        <circle cx="18" cy="16" r="9.5" fill="none" stroke={tone} strokeWidth="2.4" />
+        <path d="M12 10 Q18 3 24 10" stroke="#fef08a" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <circle cx="18" cy="16" r="3" fill="#fef08a" />
+      </svg>
+    );
+  }
+
+  if (nameplate === 'boruto-karma') {
+    return (
+      <svg viewBox="0 0 36 32" className="w-8 h-7 shrink-0 z-10 anim-holo-glow">
+        <polygon points="18,6 28,16 18,26 8,16" fill="#09090b" stroke="#22d3ee" strokeWidth="2" />
+        <circle cx="18" cy="16" r="2.8" fill="#bae6fd" />
       </svg>
     );
   }
@@ -2635,6 +3230,62 @@ export const PROFILE_EFFECT_META: Record<
     primary: '#ef4444',
     secondary: '#fb7185',
     particles: 'embers',
+  },
+  kurama: {
+    title: 'CHAKRA DE KURAMA',
+    primary: '#f97316',
+    secondary: '#fbbf24',
+    artUrl: GENERATED_ASSETS.narutoKuramaArt,
+    particles: 'embers',
+  },
+  'tsukuyomi-sharingan': {
+    title: 'TSUKUYOMI INFINITO',
+    primary: '#dc2626',
+    secondary: '#09090b',
+    artUrl: GENERATED_ASSETS.narutoDoujutsuArt,
+    particles: 'horror',
+  },
+  'rinnegan-chibaku': {
+    title: 'CHIBAKU TENSEI',
+    primary: '#a855f7',
+    secondary: '#c084fc',
+    artUrl: GENERATED_ASSETS.narutoDoujutsuArt,
+    particles: 'sparks',
+  },
+  'kamui-vortex': {
+    title: 'VÓRTICE KAMUI',
+    primary: '#f97316',
+    secondary: '#ef4444',
+    artUrl: GENERATED_ASSETS.narutoMadaraObitoArt,
+    particles: 'slashes',
+  },
+  'susanoo-madara': {
+    title: 'SUSANOO PERFECTO',
+    primary: '#6366f1',
+    secondary: '#ef4444',
+    artUrl: GENERATED_ASSETS.narutoMadaraObitoArt,
+    particles: 'slashes',
+  },
+  'chidori-sasuke': {
+    title: 'CHIDORI KIRIN',
+    primary: '#38bdf8',
+    secondary: '#818cf8',
+    artUrl: GENERATED_ASSETS.narutoSasukeBorutoArt,
+    particles: 'lightning',
+  },
+  'baryon-mode': {
+    title: 'MODO BARIÓN',
+    primary: '#ef4444',
+    secondary: '#f59e0b',
+    artUrl: GENERATED_ASSETS.narutoKuramaArt,
+    particles: 'embers',
+  },
+  'karma-boruto': {
+    title: 'SELLO KARMA',
+    primary: '#22d3ee',
+    secondary: '#6366f1',
+    artUrl: GENERATED_ASSETS.narutoSasukeBorutoArt,
+    particles: 'cyber',
   },
 };
 
