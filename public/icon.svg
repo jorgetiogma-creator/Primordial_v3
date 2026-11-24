@@ -1,17 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <radialGradient id="narutoOrangeBg" cx="38%" cy="30%" r="76%">
-      <stop offset="0%" stop-color="#fb923c" />
-      <stop offset="55%" stop-color="#f97316" />
-      <stop offset="100%" stop-color="#c2410c" />
+    <radialGradient id="primordialBg" cx="38%" cy="30%" r="76%">
+      <stop offset="0%" stop-color="#6d78ff" />
+      <stop offset="55%" stop-color="#5865F2" />
+      <stop offset="100%" stop-color="#3730a3" />
     </radialGradient>
-    <linearGradient id="konohaMetal" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="100%" stop-color="#fed7aa" />
-    </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="116" fill="url(#narutoOrangeBg)" />
-  <circle cx="256" cy="256" r="176" fill="#0f0907" fill-opacity="0.28" stroke="#fde047" stroke-width="10" stroke-opacity="0.65" />
-  <path d="M138 164 C138 128 168 104 204 104 H308 C344 104 374 128 374 164 V290 C374 326 344 352 308 352 H224 L158 408 V352 C144 342 138 318 138 290 Z" fill="#0e0a09" stroke="url(#konohaMetal)" stroke-width="14" stroke-linejoin="round" />
-  <path d="M258 176 C222 176 196 204 196 236 C196 266 220 286 248 286 C268 286 282 272 282 254 C282 238 270 228 256 228 C244 228 236 238 238 248 M290 198 L334 156 M206 278 L174 294 L196 246" fill="none" stroke="url(#konohaMetal)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+  <rect width="512" height="512" rx="116" fill="url(#primordialBg)" />
+  <circle cx="256" cy="256" r="174" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="10" />
+  <path d="M168 352 V164 C168 150 179 140 194 140 H276 C324 140 356 170 356 214 C356 258 324 288 276 288 H214 V352 Z M214 184 V244 H272 C296 244 310 232 310 214 C310 196 296 184 272 184 Z" fill="#ffffff" />
 </svg>

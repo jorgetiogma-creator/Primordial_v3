@@ -128,6 +128,8 @@ import { BoostGemIcon, ServerBoostView } from './components/ServerBoostView';
 import { ServerSettingsView } from './components/ServerSettingsView';
 import { UserProfileModal } from './components/UserProfileModal';
 import { OwnerPanelModal } from './components/OwnerPanelModal';
+import { PrimordialSplashScreen } from './components/PrimordialSplashScreen';
+import { ScreenShareStudioModal } from './components/ScreenShareStudioModal';
 import { sanitizeUserShopCosmetics } from './utils/shopOwnership';
 import {
   canManageServer,
@@ -471,6 +473,9 @@ export default function App() {
   const [remoteVideoStream, setRemoteVideoStream] = useState<MediaStream | null>(null);
   const [remoteAudioStream, setRemoteAudioStream] = useState<MediaStream | null>(null);
   const [incomingCalls, setIncomingCalls] = useState<IncomingDmCall[]>([]);
+  const [showIntroSplash, setShowIntroSplash] = useState(true);
+  const [showScreenStudio, setShowScreenStudio] = useState(false);
+  const [screenStudioNotice, setScreenStudioNotice] = useState<string | null>(null);
   const autoLinkedUidRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -3129,6 +3134,8 @@ export default function App() {
       setLocalVideoStream(null);
       setRemoteVideoStream(null);
       setRemoteAudioStream(null);
+      setShowScreenStudio(false);
+      setScreenStudioNotice(null);
 
       if (prevSession.serverId && prevSession.channelId && firebaseUid) {
         void removeVoiceChannelPresence(prevSession.serverId, prevSession.channelId, firebaseUid);
@@ -3198,23 +3205,19 @@ export default function App() {
       let videoStream: MediaStream | null = null;
       let screenActive = false;
       let cameraActive = false;
+      let pendingStudioNotice: string | null = null;
 
       if (params.screen) {
-        try {
-          videoStream = await captureLocalScreen();
-          if (videoStream) {
-            screenActive = true;
-            attachScreenEndedListener(videoStream);
-            handleLogStreamHour();
-          } else {
-            showToastMsg('No se inició la pantalla compartida. Puedes activarla desde la llamada.');
-          }
-        } catch (err: unknown) {
-          showToastMsg(
-            err instanceof Error
-              ? err.message
-              : 'Este dispositivo/navegador no permite compartir pantalla.'
-          );
+        const screenRes = await captureLocalScreen();
+        if (screenRes.ok) {
+          videoStream = screenRes.stream;
+          screenActive = true;
+          attachScreenEndedListener(videoStream);
+          handleLogStreamHour();
+        } else if (screenRes.reason === 'cancelled') {
+          showToastMsg('Captura cancelada. Puedes compartir pantalla o usar el Estudio desde la llamada.');
+        } else {
+          pendingStudioNotice = screenRes.message;
         }
       } else if (params.video) {
         videoStream = await captureLocalCamera();
@@ -3222,6 +3225,11 @@ export default function App() {
         if (!videoStream) {
           showToastMsg('No se pudo acceder a la cámara; llamada iniciada solo con voz.');
         }
+      }
+
+      if (pendingStudioNotice) {
+        setScreenStudioNotice(pendingStudioNotice);
+        setShowScreenStudio(true);
       }
 
       localVideoStreamRef.current = videoStream;
@@ -3523,14 +3531,44 @@ export default function App() {
     }
   }, [firebaseUid, stopStreamTracks, user]);
 
+  const applySharedVideoStream = useCallback(
+    async (stream: MediaStream, label?: string) => {
+      const current = voiceSessionRef.current;
+      stopStreamTracks(localVideoStreamRef.current);
+      localVideoStreamRef.current = stream;
+      setLocalVideoStream(stream);
+      attachScreenEndedListener(stream);
+      handleLogStreamHour();
+      setVoiceSession((v) => ({ ...v, screenSharing: true, videoOn: false }));
+      const track = stream.getVideoTracks()[0] || null;
+      await rtcControllerRef.current?.setVideoTrack(track, true);
+      await rtcControllerRef.current?.updateMediaFlags({ screenSharing: true, videoOn: false });
+      if (current.serverId && current.channelId && firebaseUid) {
+        void upsertVoiceChannelPresence({
+          serverId: current.serverId,
+          channelId: current.channelId,
+          currentUser: user,
+          muted: current.muted,
+          videoOn: false,
+          screenSharing: true,
+        });
+      }
+      if (label) {
+        showToastMsg(`Compartiendo: ${label}`);
+      }
+    },
+    [attachScreenEndedListener, firebaseUid, stopStreamTracks, user]
+  );
+
   const handleToggleVoiceScreen = useCallback(async () => {
     const current = voiceSessionRef.current;
     if (current.screenSharing) {
       stopStreamTracks(localVideoStreamRef.current);
       localVideoStreamRef.current = null;
       setLocalVideoStream(null);
+      setShowScreenStudio(false);
       setVoiceSession((v) => ({ ...v, screenSharing: false }));
-      await rtcControllerRef.current?.setVideoTrack(null);
+      await rtcControllerRef.current?.setVideoTrack(null, false);
       await rtcControllerRef.current?.updateMediaFlags({ screenSharing: false });
       if (current.serverId && current.channelId && firebaseUid) {
         void upsertVoiceChannelPresence({
@@ -3545,39 +3583,33 @@ export default function App() {
       return;
     }
 
-    try {
-      const scrStream = await captureLocalScreen();
-      if (!scrStream) {
-        showToastMsg('Captura de pantalla cancelada');
-        return;
-      }
-      stopStreamTracks(localVideoStreamRef.current);
-      localVideoStreamRef.current = scrStream;
-      setLocalVideoStream(scrStream);
-      attachScreenEndedListener(scrStream);
-      handleLogStreamHour();
-      setVoiceSession((v) => ({ ...v, screenSharing: true, videoOn: false }));
-      const track = scrStream.getVideoTracks()[0] || null;
-      await rtcControllerRef.current?.setVideoTrack(track);
-      await rtcControllerRef.current?.updateMediaFlags({ screenSharing: true, videoOn: false });
-      if (current.serverId && current.channelId && firebaseUid) {
-        void upsertVoiceChannelPresence({
-          serverId: current.serverId,
-          channelId: current.channelId,
-          currentUser: user,
-          muted: current.muted,
-          videoOn: false,
-          screenSharing: true,
-        });
-      }
-    } catch (err: unknown) {
-      showToastMsg(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo compartir pantalla en este navegador.'
-      );
+    const screenRes = await captureLocalScreen();
+    if (screenRes.ok) {
+      setScreenStudioNotice(null);
+      await applySharedVideoStream(screenRes.stream, 'Pantalla en vivo');
+      return;
     }
-  }, [attachScreenEndedListener, firebaseUid, stopStreamTracks, user]);
+
+    if (screenRes.reason === 'cancelled') {
+      showToastMsg(screenRes.message);
+      return;
+    }
+
+    setScreenStudioNotice(screenRes.message);
+    setShowScreenStudio(true);
+  }, [applySharedVideoStream, firebaseUid, stopStreamTracks, user]);
+
+  const handleTryNativeScreenFromStudio = useCallback(async () => {
+    const screenRes = await captureLocalScreen();
+    if (screenRes.ok) {
+      setShowScreenStudio(false);
+      setScreenStudioNotice(null);
+      await applySharedVideoStream(screenRes.stream, 'Pantalla en vivo');
+      return;
+    }
+    setScreenStudioNotice(screenRes.message);
+    showToastMsg(screenRes.message);
+  }, [applySharedVideoStream]);
 
   const handleDisconnectVoice = useCallback(() => {
     playUiSound('voiceLeave', appPreferences.soundsEnabled);
@@ -4042,6 +4074,17 @@ export default function App() {
         onToggleDmMute={() => activeDm && handleToggleDmMute(activeDm.id)}
         onToggleReaction={handleToggleReaction}
         onStartCall={(video, screen) => {
+          if (
+            screen &&
+            voiceSession.active &&
+            ((activeContext.type === 'dm' && activeDm && voiceSession.dmId === activeDm.id) ||
+              (activeContext.type === 'server' &&
+                activeChannelObj &&
+                voiceSession.channelId === activeChannelObj.id))
+          ) {
+            void handleToggleVoiceScreen();
+            return;
+          }
           void startCallSession({
             dm: activeContext.type === 'dm' ? activeDm : undefined,
             serverId: activeContext.type === 'server' ? activeServer?.id : undefined,
@@ -4080,24 +4123,27 @@ export default function App() {
     'servidor-ajustes',
   ].includes(screen);
 
-  if (!activeAccountId) {
-    return (
-      <AuthView
-        accounts={accounts}
-        onLoginAccount={handleLoginAccount}
-        onCloudLogin={handleCloudLogin}
-        onRegisterAccount={handleRegisterAccount}
-        onResetPassword={handleResetAccountPassword}
-      />
-    );
-  }
-
   return (
-    <I18nProvider language={appPreferences.language || 'es'}>
-    <MotionConfig reducedMotion="user">
-    <div
-      className={`w-screen h-screen flex flex-col bg-[var(--dc-bg-rail)] text-[var(--dc-text-primary)] overflow-hidden ${themeClass}`}
-    >
+    <>
+      <AnimatePresence>
+        {showIntroSplash && (
+          <PrimordialSplashScreen onFinish={() => setShowIntroSplash(false)} />
+        )}
+      </AnimatePresence>
+      {!activeAccountId ? (
+        <AuthView
+          accounts={accounts}
+          onLoginAccount={handleLoginAccount}
+          onCloudLogin={handleCloudLogin}
+          onRegisterAccount={handleRegisterAccount}
+          onResetPassword={handleResetAccountPassword}
+        />
+      ) : (
+        <I18nProvider language={appPreferences.language || 'es'}>
+        <MotionConfig reducedMotion="user">
+        <div
+          className={`w-screen h-screen flex flex-col bg-[var(--dc-bg-rail)] text-[var(--dc-text-primary)] overflow-hidden ${themeClass}`}
+        >
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#23a55a] text-white text-xs font-bold shadow-2xl pointer-events-none">
           {toast}
@@ -4320,6 +4366,10 @@ export default function App() {
               onToggleDeafen={handleToggleVoiceDeafen}
               onToggleVideo={() => void handleToggleVoiceVideo()}
               onToggleScreen={() => void handleToggleVoiceScreen()}
+              onOpenScreenStudio={() => {
+                setScreenStudioNotice(null);
+                setShowScreenStudio(true);
+              }}
               onDisconnect={handleDisconnectVoice}
             />
           </div>
@@ -4988,9 +5038,30 @@ export default function App() {
           onNotify={showToastMsg}
         />
       )}
+      {voiceSession.active && (
+        <ScreenShareStudioModal
+          isOpen={showScreenStudio}
+          isSharing={voiceSession.screenSharing}
+          notice={screenStudioNotice}
+          onClose={() => setShowScreenStudio(false)}
+          onTryNativeScreen={() => void handleTryNativeScreenFromStudio()}
+          onStartStudioStream={async (stream, label) => {
+            await applySharedVideoStream(stream, label);
+          }}
+          onStopSharing={() => {
+            if (voiceSession.screenSharing) {
+              void handleToggleVoiceScreen();
+            } else {
+              setShowScreenStudio(false);
+            }
+          }}
+        />
+      )}
       <OfflineIndicator />
     </div>
     </MotionConfig>
     </I18nProvider>
+      )}
+    </>
   );
 }

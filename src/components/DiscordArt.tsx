@@ -130,13 +130,14 @@ export const PrimordialAppIcon: React.FC<{ className?: string }> = ({
   className = 'w-16 h-16 rounded-2xl',
 }) => (
   <div
-    className={`relative overflow-hidden select-none bg-gradient-to-br from-[#fb923c] via-[#f97316] to-[#c2410c] ring-1 ring-inset ring-orange-200/40 shadow-[0_6px_20px_-4px_rgba(249,115,22,0.65)] ${className}`}
+    className={`relative overflow-hidden select-none bg-gradient-to-br from-[#5865F2] via-[#4752c4] to-[#3730a3] ring-1 ring-inset ring-white/20 shadow-[0_6px_20px_-4px_rgba(88,101,242,0.55)] ${className}`}
   >
     <SafeImage
-      src={GENERATED_ASSETS.narutoCollabIcon}
-      alt="Primordial × Naruto"
-      fallbackGradient="from-[#fb923c] via-[#f97316] to-[#c2410c]"
-      className="w-full h-full object-cover scale-[1.03]"
+      src="/icon-512.png"
+      alt="Primordial"
+      fallbackGradient="from-[#5865F2] via-[#4752c4] to-[#3730a3]"
+      fallbackLabel="P"
+      className="w-full h-full object-cover"
     />
   </div>
 );

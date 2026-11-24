@@ -78,21 +78,84 @@ export async function captureLocalCamera(): Promise<MediaStream | null> {
   }
 }
 
-export async function captureLocalScreen(): Promise<MediaStream | null> {
+export type ScreenCaptureResult =
+  | { ok: true; stream: MediaStream }
+  | { ok: false; reason: 'cancelled' | 'unsupported' | 'policy-blocked' | 'error'; message: string };
+
+export async function captureLocalScreen(): Promise<ScreenCaptureResult> {
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) {
-    throw new Error('Tu navegador o app no soporta compartir pantalla en este dispositivo.');
+    return {
+      ok: false,
+      reason: 'unsupported',
+      message:
+        'Tu navegador o app no soporta captura nativa de pantalla. Usa el Estudio para transmitir imagen, pizarra o video en vivo.',
+    };
   }
+
+  const classifyError = (err: unknown): Extract<ScreenCaptureResult, { ok: false }> => {
+    const name =
+      typeof err === 'object' && err !== null && 'name' in err
+        ? String((err as { name: unknown }).name)
+        : '';
+    const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+
+    if (
+      msg.includes('permissions policy') ||
+      msg.includes('feature policy') ||
+      msg.includes('disallowed')
+    ) {
+      return {
+        ok: false,
+        reason: 'policy-blocked',
+        message:
+          'Este entorno bloquea la captura nativa de pantalla. Usa el Estudio para transmitir imagen, pizarra o video en vivo.',
+      };
+    }
+
+    if (name === 'AbortError' || name === 'NotAllowedError') {
+      return {
+        ok: false,
+        reason: 'cancelled',
+        message: 'Captura de pantalla cancelada.',
+      };
+    }
+
+    if (name === 'NotSupportedError' || name === 'TypeError') {
+      return {
+        ok: false,
+        reason: 'unsupported',
+        message:
+          'Captura nativa no disponible en este dispositivo. Usa el Estudio para compartir en vivo.',
+      };
+    }
+
+    return {
+      ok: false,
+      reason: 'error',
+      message: 'No se pudo capturar la pantalla; puedes usar el Estudio para compartir en vivo.',
+    };
+  };
+
   try {
-    return await navigator.mediaDevices.getDisplayMedia({
-      video: { cursor: 'always' } as MediaTrackConstraints,
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 30, max: 60 } },
       audio: true,
     });
+    return { ok: true, stream };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.toLowerCase().includes('notallowed') || msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('abort')) {
-      return null;
+    const firstPass = classifyError(err);
+    if (firstPass.reason === 'cancelled' || firstPass.reason === 'policy-blocked') {
+      return firstPass;
     }
-    return await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    try {
+      const fallbackStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+      return { ok: true, stream: fallbackStream };
+    } catch (fallbackErr) {
+      return classifyError(fallbackErr);
+    }
   }
 }
 
@@ -107,7 +170,10 @@ export class DmWebRtcController {
   private remoteStream = new MediaStream();
   private unsubDoc: Unsubscribe | null = null;
   private unsubCands: Unsubscribe | null = null;
+  private appliedOfferSeq = 1;
   private appliedAnswerSeq = 0;
+  private localOfferSeq = 1;
+  private localAnswerSeq = 1;
   private addedCandIds = new Set<string>();
   private queuedIce: RTCIceCandidateInit[] = [];
   private disposed = false;
@@ -130,18 +196,27 @@ export class DmWebRtcController {
     this.pc.ontrack = (event) => {
       if (this.disposed) return;
       const track = event.track;
+      const emitStream = () => {
+        if (!this.disposed) {
+          this.callbacks.onRemoteStream(new MediaStream(this.remoteStream.getTracks()));
+        }
+      };
       const alreadyHas = this.remoteStream.getTracks().some((t) => t.id === track.id);
       if (!alreadyHas) {
         this.remoteStream.addTrack(track);
       }
+      track.onunmute = emitStream;
+      track.onended = emitStream;
       if (event.streams && event.streams[0]) {
         event.streams[0].getTracks().forEach((t) => {
           if (!this.remoteStream.getTracks().some((existing) => existing.id === t.id)) {
             this.remoteStream.addTrack(t);
+            t.onunmute = emitStream;
+            t.onended = emitStream;
           }
         });
       }
-      this.callbacks.onRemoteStream(new MediaStream(this.remoteStream.getTracks()));
+      emitStream();
     };
 
     this.pc.onicecandidate = (event) => {
@@ -168,13 +243,44 @@ export class DmWebRtcController {
     this.videoTransceiver =
       existing.find((t) => t.sender.track?.kind === 'video' || t.receiver.track?.kind === 'video') ||
       null;
-    if (this.role === 'caller') {
-      if (!this.audioTransceiver) {
-        this.audioTransceiver = this.pc.addTransceiver('audio', { direction: 'sendrecv' });
+    if (!this.audioTransceiver && this.role === 'caller') {
+      this.audioTransceiver = this.pc.addTransceiver('audio', { direction: 'sendrecv' });
+    }
+    if (!this.videoTransceiver && this.role === 'caller') {
+      this.videoTransceiver = this.pc.addTransceiver('video', { direction: 'sendrecv' });
+    }
+    if (this.audioTransceiver) {
+      try {
+        this.audioTransceiver.direction = 'sendrecv';
+      } catch {
+        /* ignore */
       }
-      if (!this.videoTransceiver) {
-        this.videoTransceiver = this.pc.addTransceiver('video', { direction: 'sendrecv' });
+    }
+    if (this.videoTransceiver) {
+      try {
+        this.videoTransceiver.direction = 'sendrecv';
+      } catch {
+        /* ignore */
       }
+    }
+  }
+
+  private async renegotiate() {
+    if (this.disposed || this.pc.signalingState !== 'stable') return;
+    try {
+      const offer = await this.pc.createOffer();
+      await this.pc.setLocalDescription(offer);
+      this.localOfferSeq += 1;
+      await updateDoc(doc(db, 'dms', this.dmId, 'rtc', 'active'), {
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp || '',
+          seq: this.localOfferSeq,
+        },
+        updatedAt: serverTimestamp(),
+      });
+    } catch {
+      /* ignore */
     }
   }
 
@@ -188,13 +294,37 @@ export class DmWebRtcController {
     }
   }
 
-  async setVideoTrack(track: MediaStreamTrack | null) {
+  async setVideoTrack(track: MediaStreamTrack | null, isScreen = false) {
     if (this.disposed) return;
     this.ensureTransceivers();
+    if (track && isScreen && 'contentHint' in track) {
+      try {
+        track.contentHint = 'detail';
+      } catch {
+        /* ignore */
+      }
+    }
     if (this.videoTransceiver) {
+      this.videoTransceiver.direction = 'sendrecv';
       await this.videoTransceiver.sender.replaceTrack(track).catch(() => undefined);
+      if (track) {
+        try {
+          const params = this.videoTransceiver.sender.getParameters();
+          if (params.encodings && params.encodings.length > 0) {
+            params.encodings[0].maxBitrate = isScreen ? 2500000 : 1400000;
+            await this.videoTransceiver.sender.setParameters(params).catch(() => undefined);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      const dir = this.videoTransceiver.currentDirection;
+      if (track && (dir === 'recvonly' || dir === 'inactive' || dir === null)) {
+        await this.renegotiate();
+      }
     } else if (track) {
       this.videoTransceiver = this.pc.addTransceiver(track, { direction: 'sendrecv' });
+      await this.renegotiate();
     }
   }
 
@@ -228,7 +358,7 @@ export class DmWebRtcController {
 
     this.ensureTransceivers();
     if (audioTrack) await this.setAudioTrack(audioTrack);
-    if (videoTrack) await this.setVideoTrack(videoTrack);
+    if (videoTrack) await this.setVideoTrack(videoTrack, screenSharing);
 
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
@@ -272,7 +402,7 @@ export class DmWebRtcController {
     await this.pc.setRemoteDescription(new RTCSessionDescription(offer));
     this.ensureTransceivers();
     if (audioTrack) await this.setAudioTrack(audioTrack);
-    if (videoTrack) await this.setVideoTrack(videoTrack);
+    if (videoTrack) await this.setVideoTrack(videoTrack, screenSharing);
 
     for (const c of this.queuedIce) {
       await this.pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => undefined);
@@ -321,6 +451,29 @@ export class DmWebRtcController {
             await this.pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => undefined);
           }
           this.queuedIce = [];
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (this.role === 'callee' && d.offer && d.offer.sdp && d.offer.seq > this.appliedOfferSeq) {
+        this.appliedOfferSeq = d.offer.seq;
+        try {
+          await this.pc.setRemoteDescription(
+            new RTCSessionDescription({ type: d.offer.type, sdp: d.offer.sdp })
+          );
+          this.ensureTransceivers();
+          const answer = await this.pc.createAnswer();
+          await this.pc.setLocalDescription(answer);
+          this.localAnswerSeq += 1;
+          await updateDoc(rtcRef, {
+            answer: {
+              type: answer.type,
+              sdp: answer.sdp || '',
+              seq: this.localAnswerSeq,
+            },
+            updatedAt: serverTimestamp(),
+          });
         } catch {
           /* ignore */
         }

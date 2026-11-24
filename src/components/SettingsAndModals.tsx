@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, AtSign, Award, Bell, Check, CheckCheck, ChevronRight, Clapperboard, Clock, Gamepad2, Globe, Headphones, HeadphoneOff, HelpCircle, Info, Languages, Link2, LogOut, MessageSquare, MessageSquareMore, Mic, MicOff, Monitor, Music, Palette, PhoneCall, PhoneOff, Plus, QrCode, Search, Settings, Shield, Smartphone, Sparkles, Store, Trash2, Upload, User, UserCheck, UserPlus, Users, Video, VideoOff, Volume2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, AtSign, Award, Bell, Check, CheckCheck, ChevronRight, Clapperboard, Clock, Gamepad2, Globe, Headphones, HeadphoneOff, HelpCircle, Info, Languages, Link2, LogOut, Maximize2, MessageSquare, MessageSquareMore, Mic, MicOff, Minimize2, Monitor, Music, Palette, PenTool, PhoneCall, PhoneOff, Plus, QrCode, Search, Settings, Shield, Smartphone, Sparkles, Store, Trash2, Upload, User, UserCheck, UserPlus, Users, Video, VideoOff, Volume2, X } from 'lucide-react';
 import {
   AppLanguage,
   AppPreferences,
@@ -400,13 +400,13 @@ export const SettingsView: React.FC<{
             <p className="font-bold text-base">{activeSubPanel}</p>
             {activeSubPanel === 'Icono de la aplicación' ? (
               <div className="flex items-center gap-4 p-3 rounded-xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)]">
-                <PrimordialAppIcon className="w-16 h-16 rounded-2xl shadow-lg border border-orange-300/35 shrink-0" />
+                <PrimordialAppIcon className="w-16 h-16 rounded-2xl shadow-lg border border-indigo-300/35 shrink-0" />
                 <div>
                   <p className="font-display font-bold text-sm text-[var(--dc-text-primary)]">
-                    Primordial × Naruto · Emblema Oficial
+                    Primordial · Emblema Oficial
                   </p>
                   <p className="text-xs text-[var(--dc-text-secondary)] mt-0.5">
-                    Edición especial naranja Konoha activa en la app web, PWA y Android.
+                    Icono original de Primordial activo en la app web, PWA y Android.
                   </p>
                 </div>
               </div>
@@ -1492,6 +1492,7 @@ export const VoiceOverlay: React.FC<{
   onToggleDeafen: () => void;
   onToggleVideo: () => void;
   onToggleScreen: () => void;
+  onOpenScreenStudio?: () => void;
   onDisconnect: () => void;
 }> = ({
   voice,
@@ -1504,9 +1505,11 @@ export const VoiceOverlay: React.FC<{
   onToggleDeafen,
   onToggleVideo,
   onToggleScreen,
+  onOpenScreenStudio,
   onDisconnect,
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const [fullscreenTarget, setFullscreenTarget] = useState<'local' | 'remote' | null>(null);
   const [showSoundboard, setShowSoundboard] = useState(false);
   const [activeClipLabel, setActiveClipLabel] = useState<string | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -1519,6 +1522,10 @@ export const VoiceOverlay: React.FC<{
   const hasRemoteVideo = Boolean(
     remoteVideoStream && remoteVideoStream.getVideoTracks().some((t) => t.readyState === 'live')
   );
+  const firstParticipant = voice.participants[0];
+  const remoteMediaActive = Boolean(
+    firstParticipant?.videoOn || firstParticipant?.screenSharing
+  );
 
   useEffect(() => {
     if (voice.active && voice.callNonce) {
@@ -1526,6 +1533,7 @@ export const VoiceOverlay: React.FC<{
     }
     if (!voice.active) {
       setExpanded(false);
+      setFullscreenTarget(null);
       setShowSoundboard(false);
     }
   }, [voice.active, voice.callNonce]);
@@ -1539,18 +1547,18 @@ export const VoiceOverlay: React.FC<{
     } else {
       el.srcObject = null;
     }
-  }, [localVideoStream, hasLocalVideo, expanded]);
+  }, [localVideoStream, hasLocalVideo, expanded, voice.videoOn, voice.screenSharing, fullscreenTarget]);
 
   useEffect(() => {
     const el = remoteVideoRef.current;
     if (!el) return;
-    if (hasRemoteVideo && remoteVideoStream) {
+    if (hasRemoteVideo && remoteVideoStream && remoteMediaActive) {
       el.srcObject = remoteVideoStream;
       void el.play().catch(() => undefined);
     } else {
       el.srcObject = null;
     }
-  }, [remoteVideoStream, hasRemoteVideo, expanded]);
+  }, [remoteVideoStream, hasRemoteVideo, remoteMediaActive, expanded, fullscreenTarget]);
 
   useEffect(() => {
     const el = remoteAudioRef.current;
@@ -1698,84 +1706,119 @@ export const VoiceOverlay: React.FC<{
           </div>
 
           <div
-            className={`grid gap-3.5 max-w-4xl mx-auto w-full my-auto py-3 ${
-              voice.participants.length <= 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'
+            className={`grid gap-3.5 max-w-5xl mx-auto w-full my-auto py-3 ${
+              fullscreenTarget
+                ? 'grid-cols-1'
+                : voice.participants.length <= 1
+                ? 'grid-cols-1 sm:grid-cols-2'
+                : 'grid-cols-2 sm:grid-cols-3'
             }`}
           >
-            <div
-              className={`rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
-                voice.screenSharing && !anyRemoteScreen
-                  ? 'col-span-full aspect-video max-h-[52vh]'
-                  : 'aspect-video sm:aspect-square'
-              } ${
-                !voice.muted
-                  ? 'border-[#23a55a]/70 shadow-[0_0_24px_rgba(35,165,90,0.22)]'
-                  : 'border-[#2e3035]'
-              }`}
-              style={{
-                background: `radial-gradient(circle at 50% 42%, ${selfTint}66 0%, #1c1d22 72%, #111214 100%)`,
-              }}
-            >
-              {hasLocalVideo && (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={`absolute inset-0 w-full h-full ${
-                    voice.screenSharing ? 'object-contain bg-black' : 'object-cover -scale-x-100'
-                  }`}
-                />
-              )}
-              {voice.videoOn && !voice.screenSharing && (
-                <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full bg-black/65 border border-white/15 text-[10.5px] font-bold text-[#23a55a] flex items-center gap-1">
-                  <Video className="w-3 h-3" />
-                  <span>Cámara activa</span>
-                </div>
-              )}
-              {voice.screenSharing && (
-                <div className="absolute top-3 right-3 z-10 px-2.5 py-0.5 rounded-full bg-[#5865F2] text-[10.5px] font-bold text-white flex items-center gap-1 shadow">
-                  <Monitor className="w-3 h-3" />
-                  <span>Compartiendo pantalla</span>
-                </div>
-              )}
-              {!hasLocalVideo && (
+            {fullscreenTarget !== 'remote' && (
+              <div
+                className={`rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
+                  fullscreenTarget === 'local'
+                    ? 'col-span-full h-[64vh] min-h-[280px] bg-black'
+                    : voice.screenSharing && !anyRemoteScreen
+                    ? 'col-span-full aspect-video max-h-[56vh]'
+                    : 'aspect-video sm:aspect-square'
+                } ${
+                  !voice.muted
+                    ? 'border-[#23a55a]/70 shadow-[0_0_24px_rgba(35,165,90,0.22)]'
+                    : 'border-[#2e3035]'
+                }`}
+                style={{
+                  background: `radial-gradient(circle at 50% 42%, ${selfTint}66 0%, #1c1d22 72%, #111214 100%)`,
+                }}
+              >
+                {hasLocalVideo && (
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={`absolute inset-0 w-full h-full ${
+                      voice.screenSharing ? 'object-contain bg-black' : 'object-cover -scale-x-100'
+                    }`}
+                  />
+                )}
+                {hasLocalVideo && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFullscreenTarget((curr) => (curr === 'local' ? null : 'local'))
+                    }
+                    title={fullscreenTarget === 'local' ? 'Salir de pantalla completa' : 'Ampliar pantalla'}
+                    className="absolute bottom-3 right-3 z-20 w-10 h-10 rounded-full bg-black/70 hover:bg-black text-white border border-white/15 flex items-center justify-center cursor-pointer"
+                  >
+                    {fullscreenTarget === 'local' ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+                {voice.videoOn && !voice.screenSharing && (
+                  <div className="absolute top-3 left-3 z-10 px-2.5 py-0.5 rounded-full bg-black/65 border border-white/15 text-[11px] font-bold text-[#23a55a] flex items-center gap-1">
+                    <Video className="w-3 h-3" />
+                    <span>Cámara activa</span>
+                  </div>
+                )}
+                {voice.screenSharing && (
+                  <div className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full bg-[#5865F2] text-[11px] font-bold text-white flex items-center gap-1.5 shadow">
+                    <Monitor className="w-3.5 h-3.5" />
+                    <span>Compartiendo pantalla</span>
+                  </div>
+                )}
+                {!hasLocalVideo && (
+                  <div
+                    className={`rounded-full p-1 transition-all ${
+                      !voice.muted && !voice.deafened
+                        ? 'ring-3 ring-[#23a55a] shadow-[0_0_22px_rgba(35,165,90,0.65)]'
+                        : ''
+                    }`}
+                  >
+                    <UserAvatar
+                      avatar={currentUser.avatar}
+                      customAvatarUrl={currentUser.customAvatarUrl}
+                      size="xl"
+                      showStatus={false}
+                    />
+                  </div>
+                )}
                 <div
-                  className={`rounded-full p-1 transition-all ${
-                    !voice.muted && !voice.deafened
-                      ? 'ring-3 ring-[#23a55a] shadow-[0_0_22px_rgba(35,165,90,0.65)]'
-                      : ''
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 z-10 ${
+                    hasLocalVideo ? 'absolute bottom-3 left-3' : ''
                   }`}
                 >
-                  <UserAvatar
-                    avatar={currentUser.avatar}
-                    customAvatarUrl={currentUser.customAvatarUrl}
-                    size="xl"
-                    showStatus={false}
-                  />
+                  <span className="text-sm font-bold text-white">{currentUser.displayName} (Tú)</span>
+                  {voice.muted && <MicOff className="w-3.5 h-3.5 text-[#f23f43]" />}
+                  {voice.deafened && <HeadphoneOff className="w-3.5 h-3.5 text-[#f23f43]" />}
                 </div>
-              )}
-              <div
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 z-10 ${
-                  hasLocalVideo ? 'absolute bottom-3 left-3' : ''
-                }`}
-              >
-                <span className="text-sm font-bold text-white">{currentUser.displayName} (Tú)</span>
-                {voice.muted && <MicOff className="w-3.5 h-3.5 text-[#f23f43]" />}
-                {voice.deafened && <HeadphoneOff className="w-3.5 h-3.5 text-[#f23f43]" />}
               </div>
-            </div>
+            )}
 
             {voice.participants.map((p, idx) => {
+              if (fullscreenTarget === 'local') return null;
+              if (fullscreenTarget === 'remote' && idx !== 0) return null;
               const pTint = getAvatarBackdrop(p.avatar);
               const isSpeaking = Boolean(p.speaking && !p.muted);
-              const showRemoteVideoHere = idx === 0 && hasRemoteVideo;
-              const spotlightRemote = idx === 0 && (Boolean(p.screenSharing) || (hasRemoteVideo && !voice.screenSharing));
+              const showRemoteVideoHere =
+                idx === 0 && hasRemoteVideo && (Boolean(p.videoOn) || Boolean(p.screenSharing));
+              const spotlightRemote =
+                idx === 0 &&
+                (fullscreenTarget === 'remote' ||
+                  Boolean(p.screenSharing) ||
+                  (showRemoteVideoHere && !voice.screenSharing));
               return (
                 <div
                   key={p.id}
                   className={`rounded-3xl border flex flex-col items-center justify-center gap-2.5 relative overflow-hidden transition-all ${
-                    spotlightRemote ? 'col-span-full aspect-video max-h-[56vh]' : 'aspect-video sm:aspect-square'
+                    fullscreenTarget === 'remote'
+                      ? 'col-span-full h-[64vh] min-h-[280px] bg-black'
+                      : spotlightRemote
+                      ? 'col-span-full aspect-video max-h-[58vh]'
+                      : 'aspect-video sm:aspect-square'
                   } ${
                     isSpeaking
                       ? 'border-[#23a55a]/75 shadow-[0_0_24px_rgba(35,165,90,0.25)]'
@@ -1796,14 +1839,34 @@ export const VoiceOverlay: React.FC<{
                       }`}
                     />
                   )}
+                  {showRemoteVideoHere && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFullscreenTarget((curr) => (curr === 'remote' ? null : 'remote'))
+                      }
+                      title={
+                        fullscreenTarget === 'remote'
+                          ? 'Salir de pantalla completa'
+                          : 'Ampliar pantalla'
+                      }
+                      className="absolute bottom-3 right-3 z-20 w-10 h-10 rounded-full bg-black/70 hover:bg-black text-white border border-white/15 flex items-center justify-center cursor-pointer"
+                    >
+                      {fullscreenTarget === 'remote' ? (
+                        <Minimize2 className="w-4 h-4" />
+                      ) : (
+                        <Maximize2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
                   {p.screenSharing && (
-                    <div className="absolute top-3 right-3 z-10 px-2.5 py-0.5 rounded-full bg-[#5865F2] text-[10.5px] font-bold text-white flex items-center gap-1 shadow">
-                      <Monitor className="w-3 h-3" />
+                    <div className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full bg-[#5865F2] text-[11px] font-bold text-white flex items-center gap-1.5 shadow">
+                      <Monitor className="w-3.5 h-3.5" />
                       <span>Pantalla en vivo</span>
                     </div>
                   )}
                   {p.videoOn && !p.screenSharing && (
-                    <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full bg-black/65 border border-white/15 text-[10.5px] font-bold text-sky-300 flex items-center gap-1">
+                    <div className="absolute top-3 left-3 z-10 px-2.5 py-0.5 rounded-full bg-black/65 border border-white/15 text-[11px] font-bold text-sky-300 flex items-center gap-1">
                       <Video className="w-3 h-3" />
                       <span>Video en vivo</span>
                     </div>
@@ -1888,6 +1951,15 @@ export const VoiceOverlay: React.FC<{
               >
                 <Monitor className="w-5 h-5" />
               </button>
+              {onOpenScreenStudio && (
+                <button
+                  onClick={onOpenScreenStudio}
+                  title="Estudio (Pizarra / Captura / Video en vivo)"
+                  className="w-12 h-12 rounded-full bg-[#26272f] hover:bg-[#31333d] text-white flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  <PenTool className="w-5 h-5" />
+                </button>
+              )}
               <button
                 onClick={() => setShowSoundboard((s) => !s)}
                 title="Caja de resonancia"
