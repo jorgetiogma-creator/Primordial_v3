@@ -158,14 +158,14 @@ const BUILTIN_STICKERS: { id: string; name: string; emoji: string; bg: string }[
 ];
 
 const SAMPLE_CHAT_PHOTOS = [
-  { label: 'Vice City', url: '/src/assets/images/banner_vice_city_1795280073889.jpg' },
+  { label: 'Konoha', url: '/src/assets/images/naruto_theme_konoha_1795517348276.jpg' },
   { label: 'Arrakis', url: '/src/assets/images/banner_dune_1795280073636.jpg' },
   { label: 'Miyabi', url: '/src/assets/images/shop_miyabi_art_1795281106262.jpg' },
   { label: 'Lofi', url: '/src/assets/images/shop_lofi_plants_1795281107687.jpg' },
 ];
 
 const BUILTIN_GIFS: { id: string; name: string; emoji: string; imageUrl: string }[] = [
-  { id: 'gif-vice', name: 'Vice City Vibes', emoji: '🌴', imageUrl: '/src/assets/images/banner_vice_city_1795280073889.jpg' },
+  { id: 'gif-konoha', name: 'Konoha Chakra', emoji: '🍥', imageUrl: '/src/assets/images/naruto_theme_konoha_1795517348276.jpg' },
   { id: 'gif-dune', name: 'Arrakis Storm', emoji: '🏜️', imageUrl: '/src/assets/images/banner_dune_1795280073636.jpg' },
   { id: 'gif-miyabi', name: 'Miyabi Slash', emoji: '❄️', imageUrl: '/src/assets/images/shop_miyabi_art_1795281106262.jpg' },
   { id: 'gif-lofi', name: 'Lofi Chill', emoji: '🎧', imageUrl: '/src/assets/images/shop_lofi_plants_1795281107687.jpg' },

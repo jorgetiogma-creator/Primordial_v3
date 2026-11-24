@@ -181,7 +181,7 @@ const PROFILE_EFFECT_OPTIONS: { id: ProfileEffectId; label: string; desc: string
   { id: 'dbd', label: 'La Entidad · DBD', desc: 'Niebla carmesí del Ente' },
   { id: 'sparks', label: 'Chispas Neón', desc: 'Destellos eléctricos flotantes' },
   { id: 'cyber', label: 'Lluvia Cibernética', desc: 'Holograma táctico oscuro' },
-  { id: 'crimson', label: 'Aura Carmesí', desc: 'Resplandor rojo intenso GTA' },
+  { id: 'crimson', label: 'Aura Carmesí', desc: 'Resplandor rojo chakra intenso' },
 ];
 
 const PROFILE_FRAME_OPTIONS: {
@@ -198,7 +198,7 @@ const PROFILE_FRAME_OPTIONS: {
   },
   {
     id: 'crimson',
-    label: 'Carmesí GTA',
+    label: 'Carmesí Shinobi',
     borderClass: 'ring-2 ring-[#ef4444]/80 shadow-[0_0_28px_rgba(239,68,68,0.28)]',
   },
   {
@@ -286,7 +286,7 @@ const NAMEPLATE_OPTIONS: { id: NameplateId; label: string; gradient?: string }[]
   { id: 'yuji', label: 'Yuji Itadori', gradient: 'from-pink-500/35 to-rose-950/70' },
   { id: 'lobo', label: 'Lobo y Luna', gradient: 'from-violet-600/35 to-indigo-950/75' },
   { id: 'sakura', label: 'Sakura', gradient: 'from-pink-500/30 to-rose-900/40' },
-  { id: 'vice-city', label: 'Vice City', gradient: 'from-cyan-500/30 to-amber-500/30' },
+  { id: 'konoha-naranja', label: 'Konoha Naranja', gradient: 'from-orange-500/35 to-amber-950/75' },
   { id: 'miyabi', label: 'Miyabi', gradient: 'from-sky-500/30 to-slate-900/50' },
   { id: 'deadpool', label: 'Deadpool', gradient: 'from-red-600/35 to-zinc-900/60' },
   { id: 'wolverine', label: 'Wolverine', gradient: 'from-yellow-500/30 to-zinc-900/60' },
@@ -1335,24 +1335,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       </div>
 
-      {/* Floating Bottom Pill Dock (Discord Mobile Profile Capsule) */}
-      <div className="absolute bottom-4 inset-x-0 flex justify-center px-4 pointer-events-none z-20">
+      {/* Frosted Obsidian Architectural Floating Dock */}
+      <div className="absolute bottom-3.5 inset-x-0 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] pointer-events-none z-20">
         <nav
           aria-label="Accesos de perfil"
-          className="pointer-events-auto relative w-full max-w-[364px] rounded-full bg-[#1a1b20]/95 backdrop-blur-2xl border border-white/[0.08] px-3 py-2 shadow-[0_18px_40px_rgba(0,0,0,0.72),0_4px_12px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.07)] grid grid-cols-4 items-center"
+          className="pointer-events-auto relative w-full max-w-[388px] h-[64px] rounded-2xl bg-[#0c0d13]/92 backdrop-blur-2xl border border-white/[0.1] px-2 shadow-[0_20px_48px_-10px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] grid grid-cols-4 items-center gap-1"
         >
           <button
             type="button"
             onClick={() => onNavigate('misiones')}
-            className="group relative flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-full transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.94] cursor-pointer"
+            className="group relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.95] cursor-pointer"
           >
-            <div className="relative w-7 h-6 flex items-center justify-center">
-              <LaurelQuestIcon className="w-[22px] h-[22px] text-[#e6e8ec] group-hover:text-white transition-colors" />
+            <div className="relative w-8 h-6 flex items-center justify-center">
+              <LaurelQuestIcon className="w-[20px] h-[20px] text-zinc-200 group-hover:text-white transition-colors" />
               {hasUnclaimedQuests && (
-                <span className="absolute -top-0.5 right-0 w-2.5 h-2.5 rounded-full bg-[#f23f43] ring-2 ring-[#1a1b20]" />
+                <span className="absolute top-0 right-1 w-2 h-2 rounded-full bg-[#f97316] ring-2 ring-[#0c0d13]" />
               )}
             </div>
-            <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
+            <span className="text-[11px] font-semibold leading-none tracking-[-0.01em] text-zinc-300 group-hover:text-white transition-colors">
               {t('nav.quests')}
             </span>
           </button>
@@ -1360,12 +1360,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigate('tienda')}
-            className="group relative flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-full transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.94] cursor-pointer"
+            className="group relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.95] cursor-pointer"
           >
-            <div className="relative w-7 h-6 flex items-center justify-center">
-              <FilledStoreIcon className="w-[21px] h-[21px] text-[#e6e8ec] group-hover:text-white transition-colors" />
+            <div className="relative w-8 h-6 flex items-center justify-center">
+              <FilledStoreIcon className="w-[20px] h-[20px] text-orange-300 group-hover:text-orange-200 transition-colors" />
             </div>
-            <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
+            <span className="text-[11px] font-semibold leading-none tracking-[-0.01em] text-zinc-200 group-hover:text-white transition-colors">
               {t('nav.shop')}
             </span>
           </button>
@@ -1373,28 +1373,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigate('nitro')}
-            className="group relative flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-full transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.94] cursor-pointer"
+            className="group relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-150 hover:bg-fuchsia-500/[0.1] active:scale-[0.95] cursor-pointer"
           >
-            <div className="relative w-7 h-6 flex items-center justify-center">
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute w-8 h-8 rounded-full bg-[radial-gradient(circle,rgba(232,121,249,0.34)_0%,rgba(168,85,247,0.14)_52%,transparent_75%)]"
-              />
-              <NitroWheelIcon className="relative z-10 w-[22px] h-[22px] text-white drop-shadow-[0_0_8px_rgba(232,121,249,0.72)] transition-transform duration-200 group-hover:scale-105" />
-              <svg
-                viewBox="0 0 16 16"
-                aria-hidden="true"
-                className="pointer-events-none absolute -top-0.5 -right-0.5 z-20 w-2.5 h-2.5 text-fuchsia-200 anim-twinkle drop-shadow-[0_0_4px_rgba(255,255,255,0.95)]"
-                fill="currentColor"
-              >
-                <path d="M8 0L9.8 6.2L16 8L9.8 9.8L8 16L6.2 9.8L0 8L6.2 6.2Z" />
-              </svg>
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute bottom-0 left-0 z-20 w-1 h-1 rounded-full bg-white/90 anim-twinkle"
-              />
+            <div className="relative w-8 h-6 flex items-center justify-center">
+              <NitroWheelIcon className="w-[20px] h-[20px] text-fuchsia-300 group-hover:text-fuchsia-200 transition-transform duration-200 group-hover:scale-105" />
             </div>
-            <span className="relative z-10 text-[11.5px] font-semibold leading-none tracking-[-0.01em] bg-gradient-to-r from-white via-fuchsia-200 to-white bg-clip-text text-transparent dc-name-glow-shimmer drop-shadow-[0_0_6px_rgba(232,121,249,0.45)]">
+            <span className="text-[11px] font-semibold leading-none tracking-[-0.01em] text-fuchsia-200 group-hover:text-white transition-colors">
               {t('nav.nitro')}
             </span>
           </button>
@@ -1402,12 +1386,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigate('ajustes')}
-            className="group relative flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-full transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.94] cursor-pointer"
+            className="group relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-150 hover:bg-white/[0.06] active:scale-[0.95] cursor-pointer"
           >
-            <div className="relative w-7 h-6 flex items-center justify-center">
-              <FilledSettingsIcon className="w-[21px] h-[21px] text-[#e6e8ec] group-hover:text-white transition-colors" />
+            <div className="relative w-8 h-6 flex items-center justify-center">
+              <FilledSettingsIcon className="w-[20px] h-[20px] text-zinc-200 group-hover:text-white transition-colors" />
             </div>
-            <span className="text-[11.5px] font-semibold leading-none tracking-[-0.01em] text-[#e6e8ec] group-hover:text-white transition-colors">
+            <span className="text-[11px] font-semibold leading-none tracking-[-0.01em] text-zinc-300 group-hover:text-white transition-colors">
               {t('nav.settings')}
             </span>
           </button>

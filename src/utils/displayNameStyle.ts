@@ -8,7 +8,7 @@ export interface DisplayNameFontOption {
 }
 
 export const DISPLAY_NAME_FONT_OPTIONS: DisplayNameFontOption[] = [
-  { id: 'gta', label: 'Grand Theft Auto', desc: 'Trazos urbanos y sombra dura' },
+  { id: 'shinobi', label: 'Konoha Shinobi', desc: 'Trazos afilados y aura Hokage' },
   { id: 'gothic', label: 'Gótica / Medieval', desc: 'Caligrafía oscura tipo rawr' },
   { id: 'neon', label: 'Neón Cibernético', desc: 'Estilo limpio con resplandor' },
   { id: 'sakura', label: 'Imperial Serif', desc: 'Elegante con contraste real' },
@@ -78,8 +78,8 @@ export const DISPLAY_NAME_COLOR_OPTIONS: DisplayNameColorOption[] = [
 
 export function getDisplayNameStyleClass(style?: DisplayNameStyle): string {
   switch (style) {
-    case 'gta':
-      return 'font-gta';
+    case 'shinobi':
+      return 'font-shinobi';
     case 'gothic':
       return 'font-gothic';
     case 'neon':

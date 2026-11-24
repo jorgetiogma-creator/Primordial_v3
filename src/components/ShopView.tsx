@@ -28,11 +28,12 @@ import {
 import {
   AvatarArtwork,
   AvatarDecorationRing,
-  DiscordLogo,
+  CollectorAvatarCore,
   GENERATED_ASSETS,
   NameplateRowDecor,
   NameplateStripBackground,
   OrbsCrystalIcon,
+  PrimordialAppIcon,
   ProfileEffectAnimationOverlay,
   ProfileFrameArtwork,
   SafeImage,
@@ -115,8 +116,8 @@ const getBundleArtUrl = (variant: ShopBundle['artVariant']): string | null => {
     case 'luna-oscura-marco':
     case 'cuervos-luna':
       return GENERATED_ASSETS.shopLoboLuna;
-    case 'vice-city':
-      return GENERATED_ASSETS.viceCityBanner;
+    case 'konoha':
+      return GENERATED_ASSETS.narutoThemeKonoha;
     case 'dune':
       return GENERATED_ASSETS.duneBanner;
     case 'croma':
@@ -173,23 +174,24 @@ const getBundleArtUrl = (variant: ShopBundle['artVariant']): string | null => {
     case 'kurama':
       return GENERATED_ASSETS.narutoKuramaArt;
     case 'sasuke':
+      return GENERATED_ASSETS.narutoSasukeBorutoArt;
     case 'sasuke-rinnegan':
     case 'boruto-karma':
-      return GENERATED_ASSETS.narutoSasukeBorutoArt;
+    case 'rinnegan-deva':
+    case 'rinne-sharingan':
+      return GENERATED_ASSETS.narutoRinneganSusanoo;
     case 'obito-tobi':
     case 'obito-juubi':
     case 'madara-edo':
     case 'madara-rikudo':
       return GENERATED_ASSETS.narutoMadaraObitoArt;
-    case 'rinnegan-deva':
-    case 'rinne-sharingan':
     case 'sharingan-3tomoe':
     case 'sharingan-itachi':
     case 'sharingan-kamui':
     case 'sharingan-shisui':
     case 'ems-sasuke':
     case 'ems-madara':
-      return GENERATED_ASSETS.narutoDoujutsuArt;
+      return GENERATED_ASSETS.narutoSharinganMedallions;
     default:
       return null;
   }
@@ -446,11 +448,11 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
         glow: 'rgba(249, 168, 212, 0.32)',
         stageBg: '#0d0c13',
       };
-    case 'vice-city':
+    case 'konoha':
       return {
-        gradient: 'from-[#2b0b29] via-[#1c0c2e] to-[#26160a]',
-        glow: 'rgba(232, 121, 249, 0.38)',
-        stageBg: '#14091e',
+        gradient: 'from-[#2e1105] via-[#1b0904] to-[#080403]',
+        glow: 'rgba(249, 115, 22, 0.48)',
+        stageBg: '#140703',
       };
     case 'dune':
       return {
@@ -520,9 +522,9 @@ const COLLECTION_META: Record<ShopCollectionId, CollectionMeta> = {
     id: 'naruto',
     title: 'NARUTO · SHINOBI & DŌJUTSU',
     subtitle: '18 coleccionables oficiales: Sharingan, Mangekyō Eterno, Rinnegan, Kurama, Naruto, Sasuke, Óbito, Madara y Boruto',
-    backdropUrl: GENERATED_ASSETS.narutoHeroArt,
-    accentGradient: 'from-[#240608]/95 via-[#14080a]/82 to-[#060608]/96',
-    titleStyleClass: 'font-sakura font-extrabold tracking-[0.06em] uppercase text-white drop-shadow-[0_2px_16px_rgba(239,68,68,0.55)]',
+    backdropUrl: GENERATED_ASSETS.narutoThemeKonoha,
+    accentGradient: 'from-[#2b0b04]/95 via-[#170805]/82 to-[#060608]/96',
+    titleStyleClass: 'font-sakura font-extrabold tracking-[0.06em] uppercase text-white drop-shadow-[0_2px_16px_rgba(249,115,22,0.55)]',
   },
   'night-terrors': {
     id: 'night-terrors',
@@ -632,8 +634,8 @@ const COLLECTION_META: Record<ShopCollectionId, CollectionMeta> = {
     id: 'banners',
     title: 'Banners de perfil',
     subtitle: 'Fondos panorámicos de alta definición para la cabecera de tu perfil',
-    backdropUrl: GENERATED_ASSETS.viceCityBanner,
-    accentGradient: 'from-[#1f0a22]/95 via-[#17100b]/80 to-[#08090d]/95',
+    backdropUrl: GENERATED_ASSETS.narutoThemeKonoha,
+    accentGradient: 'from-[#261005]/95 via-[#140c08]/80 to-[#08090d]/95',
     titleStyleClass: 'font-display font-black tracking-tight text-white',
   },
 };
@@ -688,9 +690,13 @@ const CollectibleCardStage: React.FC<{
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c11] via-black/20 to-black/15" />
         <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 z-10">
-          <div className="w-9 h-9 rounded-full bg-[#0c0d12] p-0.5 border border-white/25 shrink-0 relative">
-            <div className="w-full h-full rounded-full bg-gradient-to-br from-[#5865F2] to-[#3b47c9] flex items-center justify-center">
-              <DiscordLogo className="w-4.5 h-4.5 text-white" />
+          <div className="w-9 h-9 rounded-full bg-[#0c0d12] p-0.5 border border-white/30 shrink-0 relative shadow-lg">
+            <div className="w-full h-full rounded-full overflow-hidden">
+              <CollectorAvatarCore
+                variant={bundle.artVariant}
+                accentColor={activeSwatch}
+                fallbackArtUrl={artUrl}
+              />
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23a55a] border-2 border-[#0c0d12]" />
           </div>
@@ -721,8 +727,12 @@ const CollectibleCardStage: React.FC<{
           }}
         />
         <div className="absolute left-4 bottom-4 z-10 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-          <div className="w-[68px] h-[68px] rounded-full bg-sky-900/60 border border-white/45 flex items-center justify-center shadow-xl">
-            <DiscordLogo className="w-8 h-8 text-white" />
+          <div className="w-[68px] h-[68px] rounded-full bg-sky-900/60 border border-white/45 overflow-hidden shadow-xl">
+            <CollectorAvatarCore
+              variant={bundle.artVariant}
+              accentColor={activeSwatch}
+              fallbackArtUrl={artUrl}
+            />
           </div>
         </div>
       </div>
@@ -742,10 +752,25 @@ const CollectibleCardStage: React.FC<{
           }}
         />
         <div className="relative w-[76%] h-[82%] rounded-xl bg-gradient-to-b from-[#1a1c25] to-[#111218] border border-white/15 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]">
-          <div className="h-[40%] w-full rounded-t-xl bg-gradient-to-r from-[#272a36] to-[#1f222d] border-b border-white/10" />
+          <div className="h-[40%] w-full rounded-t-xl bg-gradient-to-r from-[#272a36] to-[#1f222d] border-b border-white/10 overflow-hidden relative">
+            {artUrl && (
+              <img
+                src={artUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover opacity-55"
+              />
+            )}
+          </div>
           <div className="px-2.5 -mt-4 relative z-10 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[#363945] border-2 border-[#16171e] flex items-center justify-center relative">
-              <DiscordLogo className="w-4 h-4 text-zinc-200" />
+            <div className="w-8 h-8 rounded-full bg-[#16171e] border-2 border-[#16171e] relative">
+              <div className="w-full h-full rounded-full overflow-hidden">
+                <CollectorAvatarCore
+                  variant={bundle.artVariant}
+                  accentColor={activeSwatch}
+                  fallbackArtUrl={artUrl}
+                />
+              </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23a55a] border-2 border-[#16171e]" />
             </div>
           </div>
@@ -764,9 +789,7 @@ const CollectibleCardStage: React.FC<{
     const plateId: NameplateId = nameplateItem.nameplateId;
     const isLightPlate = plateId === 'rama';
     return (
-      <div
-        className="relative w-full aspect-[4/3] overflow-hidden p-3.5 flex flex-col justify-center gap-2.5 bg-[#0e0f15]"
-      >
+      <div className="relative w-full aspect-[4/3] overflow-hidden p-3.5 flex flex-col justify-center gap-2.5 bg-[#0e0f15]">
         <div
           className="absolute inset-0 pointer-events-none opacity-70"
           style={{
@@ -781,13 +804,19 @@ const CollectibleCardStage: React.FC<{
         <div className="relative z-10 h-13.5 rounded-xl overflow-hidden border border-white/20 shadow-xl flex items-center justify-between px-2.5 bg-[#171822] anim-shimmer group-hover:scale-[1.02] transition-transform duration-300">
           <NameplateStripBackground nameplate={plateId} accentColor={activeSwatch} />
           <div className="relative z-10 flex items-center gap-2 min-w-0">
-            <span className="w-6.5 h-6.5 rounded-full bg-black/55 border border-white/40 flex items-center justify-center shrink-0 relative">
-              <DiscordLogo className="w-3.5 h-3.5 text-white/95" />
+            <span className="w-6.5 h-6.5 rounded-full bg-black/55 border border-white/40 shrink-0 relative">
+              <span className="block w-full h-full rounded-full overflow-hidden">
+                <CollectorAvatarCore
+                  variant={bundle.artVariant}
+                  accentColor={activeSwatch}
+                  fallbackArtUrl={artUrl}
+                />
+              </span>
               <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#23a55a] border border-black" />
             </span>
             <span
               className={`h-2 w-14 rounded-full ${
-                isLightPlate ? 'bg-zinc-900/60' : 'bg-white/65'
+                isLightPlate ? 'bg-zinc-900/60' : 'bg-white/75'
               }`}
             />
           </div>
@@ -814,20 +843,19 @@ const CollectibleCardStage: React.FC<{
             background: `radial-gradient(circle at 50% 46%, ${glowColor} 0%, rgba(10,11,16,0.72) 56%, rgba(5,5,8,0.98) 100%)`,
           }}
         />
-        <div className="absolute w-32 h-32 rounded-full border border-white/[0.06] pointer-events-none transition-transform duration-500 group-hover:scale-110" />
+        <div className="absolute w-36 h-36 rounded-full border border-white/[0.08] pointer-events-none transition-transform duration-500 group-hover:scale-110" />
         <div
-          className="absolute w-32 h-32 rounded-full blur-2xl opacity-45 transition-all duration-300 group-hover:opacity-70 pointer-events-none"
+          className="absolute w-32 h-32 rounded-full blur-2xl opacity-50 transition-all duration-300 group-hover:opacity-75 pointer-events-none"
           style={{ backgroundColor: activeSwatch || theme.glow }}
         />
 
         <div className="relative z-10 flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-108">
-          <div
-            className="w-[72px] h-[72px] rounded-full border border-white/20 flex items-center justify-center shadow-[0_14px_34px_rgba(0,0,0,0.9)] overflow-hidden relative"
-            style={{
-              backgroundColor: activeSwatch ? `${activeSwatch}22` : '#1f212b',
-            }}
-          >
-            <DiscordLogo className="w-8.5 h-8.5 text-white/75 relative z-10" />
+          <div className="w-[78px] h-[78px] rounded-full border border-white/25 shadow-[0_14px_34px_rgba(0,0,0,0.92)] overflow-hidden relative bg-[#0c0d13]">
+            <CollectorAvatarCore
+              variant={bundle.artVariant}
+              accentColor={activeSwatch}
+              fallbackArtUrl={artUrl}
+            />
           </div>
           <AvatarDecorationRing decoration={firstDeco} accentColor={activeSwatch} />
         </div>
@@ -858,8 +886,14 @@ const CollectibleCardStage: React.FC<{
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-[#090a0f] via-black/25 to-black/15" />
         <div className="absolute inset-x-3 bottom-3 top-7 rounded-xl border border-white/15 bg-black/30 backdrop-blur-[1.5px] pointer-events-none flex flex-col justify-end p-2.5">
-          <div className="w-8 h-8 rounded-full bg-[#1e1f27]/90 border border-white/30 flex items-center justify-center mb-1.5 relative">
-            <DiscordLogo className="w-4 h-4 text-white/75" />
+          <div className="w-8 h-8 rounded-full bg-[#1e1f27]/90 border border-white/30 mb-1.5 relative">
+            <div className="w-full h-full rounded-full overflow-hidden">
+              <CollectorAvatarCore
+                variant={bundle.artVariant}
+                accentColor={activeSwatch}
+                fallbackArtUrl={artUrl}
+              />
+            </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23a55a] border-2 border-[#1e1f27]" />
           </div>
           <div className="h-1.5 w-16 rounded-full bg-white/35" />
@@ -869,29 +903,34 @@ const CollectibleCardStage: React.FC<{
     );
   }
 
-  /* 7. Multi-Item Collector Bundle Collage (Tilted Profile Card + Nameplate Strip + Floating Hero Deco) */
+  /* 7. Multi-Item Collector Bundle Collage (Tilted Profile Card + Nameplate Strip + Bespoke Dōjutsu / Character Medallion) */
   return (
     <div
       className={`relative w-full aspect-[4/3] overflow-hidden bg-gradient-to-br ${theme.gradient}`}
     >
       <div
-        className="absolute inset-0 pointer-events-none opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+        className="absolute inset-0 pointer-events-none opacity-95 group-hover:opacity-100 transition-opacity duration-300"
         style={{
-          background: `radial-gradient(circle at 26% 32%, ${glowColor} 0%, transparent 58%), radial-gradient(circle at 78% 68%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
+          background: `radial-gradient(circle at 28% 36%, ${glowColor} 0%, transparent 58%), radial-gradient(circle at 80% 72%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
         }}
       />
+      <div className="absolute -left-6 -top-6 w-36 h-36 rounded-full border border-white/[0.06] pointer-events-none" />
 
-      {/* Right Tilted Profile Card with Artwork & Frame */}
-      <div className="absolute right-2.5 top-3 bottom-2.5 w-[57%] rounded-xl border border-white/20 shadow-[0_16px_32px_-6px_rgba(0,0,0,0.92)] transform rotate-2 group-hover:rotate-0 transition-transform duration-300 ease-out bg-[#121319]">
+      {/* Right Tilted Profile Card with High-Craft Studio Artwork & Frame */}
+      <div className="absolute right-2.5 top-2.5 bottom-2.5 w-[58%] rounded-xl border border-white/22 shadow-[0_18px_36px_-6px_rgba(0,0,0,0.95)] transform rotate-2 group-hover:rotate-0 transition-transform duration-300 ease-out bg-[#101118]">
         <div className="w-full h-full rounded-xl overflow-hidden relative">
           <ThematicBundleArtwork variant={bundle.artVariant} />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/15" />
-          <div className="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-[#1d1e27]/90 border border-white/30 flex items-center justify-center">
-            <DiscordLogo className="w-3.5 h-3.5 text-white/85" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-black/10" />
+          <div className="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-[#12131b] border border-white/35 overflow-hidden shadow-md">
+            <CollectorAvatarCore
+              variant={bundle.artVariant}
+              accentColor={activeSwatch}
+              fallbackArtUrl={artUrl}
+            />
           </div>
           <div className="absolute bottom-2.5 left-2.5 right-2.5 space-y-1">
-            <div className="h-1.5 w-14 rounded-full bg-white/80" />
-            <div className="h-1 w-18 rounded-full bg-white/40" />
+            <div className="h-1.5 w-14 rounded-full bg-white/85" />
+            <div className="h-1 w-18 rounded-full bg-white/45" />
           </div>
         </div>
         {frameItem?.profileFrameId && (
@@ -901,27 +940,43 @@ const CollectibleCardStage: React.FC<{
 
       {/* Slanted Bottom-Left Nameplate Strip */}
       {nameplateItem ? (
-        <div className="absolute left-2 bottom-3 w-[62%] h-7.5 rounded-lg bg-[#14151c] border border-white/25 shadow-[0_10px_22px_rgba(0,0,0,0.82)] transform -rotate-4 group-hover:-rotate-2 transition-transform duration-300 flex items-center justify-between px-2 z-10 overflow-hidden">
+        <div className="absolute left-2 bottom-2.5 w-[64%] h-8 rounded-lg bg-[#14151c] border border-white/25 shadow-[0_12px_24px_rgba(0,0,0,0.88)] transform -rotate-3 group-hover:-rotate-1 transition-transform duration-300 flex items-center justify-between px-2 z-10 overflow-hidden">
           <NameplateStripBackground nameplate={nameplateItem.nameplateId || 'none'} accentColor={activeSwatch} />
-          <span className="relative z-10 w-4.5 h-4.5 rounded-full bg-black/55 border border-white/40 flex items-center justify-center shrink-0">
-            <DiscordLogo className="w-2.5 h-2.5 text-white/90" />
+          <span className="relative z-10 w-5 h-5 rounded-full bg-black/65 border border-white/45 overflow-hidden shrink-0">
+            <CollectorAvatarCore
+              variant={bundle.artVariant}
+              accentColor={activeSwatch}
+              fallbackArtUrl={artUrl}
+            />
           </span>
           <NameplateRowDecor nameplate={nameplateItem.nameplateId || 'none'} />
         </div>
       ) : (
-        <div className="absolute left-2.5 bottom-3 w-[52%] h-7 rounded-lg bg-[#14151c]/95 border border-white/20 shadow-lg transform -rotate-3 group-hover:-rotate-1 transition-transform duration-300 flex items-center gap-2 px-2 z-10">
-          <span className="w-4 h-4 rounded-full overflow-hidden border border-white/30 shrink-0">
-            <AvatarArtwork avatar="madara" />
+        <div className="absolute left-2.5 bottom-2.5 w-[54%] h-7.5 rounded-lg bg-[#12131a]/95 border border-white/20 shadow-lg transform -rotate-2 group-hover:rotate-0 transition-transform duration-300 flex items-center gap-2 px-2 z-10">
+          <span className="w-4.5 h-4.5 rounded-full overflow-hidden border border-white/35 shrink-0">
+            <CollectorAvatarCore
+              variant={bundle.artVariant}
+              accentColor={activeSwatch}
+              fallbackArtUrl={artUrl}
+            />
           </span>
-          <span className="h-1.5 w-14 rounded-full bg-white/45" />
+          <span className="h-1.5 w-16 rounded-full bg-white/55" />
         </div>
       )}
 
-      {/* Floating Top-Left Hero Avatar Decoration */}
+      {/* Floating Top-Left Hero Collectible Medallion */}
       {firstDeco && (
-        <div className="absolute top-3.5 left-3.5 z-20 w-14 h-14 flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-110">
-          <div className="w-11 h-11 rounded-full bg-[#1e2029] border border-white/25 flex items-center justify-center shadow-[0_12px_26px_rgba(0,0,0,0.92)]">
-            <DiscordLogo className="w-5 h-5 text-white/90" />
+        <div className="absolute top-3 left-3 z-20 w-[68px] h-[68px] flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-110">
+          <div
+            className="absolute inset-0 rounded-full blur-lg opacity-55 pointer-events-none"
+            style={{ backgroundColor: activeSwatch || theme.glow }}
+          />
+          <div className="w-[54px] h-[54px] rounded-full bg-[#111218] border border-white/35 overflow-hidden relative z-10 shadow-[0_14px_28px_rgba(0,0,0,0.95)]">
+            <CollectorAvatarCore
+              variant={bundle.artVariant}
+              accentColor={activeSwatch}
+              fallbackArtUrl={artUrl}
+            />
           </div>
           <AvatarDecorationRing decoration={firstDeco} accentColor={activeSwatch} />
         </div>
@@ -1541,11 +1596,11 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       setActiveCategory(cat.id);
                       setFilterWishlistOnly(false);
                     }}
-                    className={`h-9 px-4 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-all ${
+                    className={`h-9 px-4 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-all ${
                       active
                         ? cat.id === 'naruto'
-                          ? 'bg-red-600 text-white shadow-[0_4px_16px_-4px_rgba(220,38,38,0.65)]'
-                          : 'bg-[#5865F2] text-white shadow'
+                          ? 'bg-gradient-to-r from-[#f97316] to-[#dc2626] text-white shadow-[0_6px_18px_-4px_rgba(249,115,22,0.65)]'
+                          : 'bg-[var(--dc-blurple)] text-white shadow'
                         : 'bg-[#14151c] hover:bg-[#1c1e27] text-zinc-300 border border-white/[0.07]'
                     }`}
                   >
@@ -1604,38 +1659,50 @@ export const ShopView: React.FC<ShopViewProps> = ({
                 </div>
               ) : (
                 <div className="px-4 pt-5 space-y-9">
-                  {/* FEATURED DROP: NARUTO · SHINOBI & DŌJUTSU (18 ITEMS) */}
-                  <section className="space-y-4">
-                    <div className="relative rounded-3xl overflow-hidden border border-red-500/25 bg-[#0c080a] shadow-[0_24px_60px_-16px_rgba(220,38,38,0.3)]">
+                  {/* FEATURED DROP: NARUTO · SHINOBI & DŌJUTSU (18 COLLECTIBLES) */}
+                  <section className="space-y-5">
+                    <div className="relative rounded-3xl overflow-hidden border border-orange-500/30 bg-[#120704] shadow-[0_24px_64px_-16px_rgba(249,115,22,0.34)]">
                       <div className="grid grid-cols-1 md:grid-cols-12 items-stretch">
-                        <div className="md:col-span-7 relative min-h-[210px] sm:min-h-[260px] overflow-hidden">
+                        <div className="md:col-span-7 relative min-h-[225px] sm:min-h-[270px] overflow-hidden">
                           <img
-                            src={GENERATED_ASSETS.narutoHeroArt}
-                            alt="Colección Naruto Shinobi y Dōjutsu"
+                            src={GENERATED_ASSETS.narutoThemeKonoha}
+                            alt="Colaboración Primordial × Naruto"
                             referrerPolicy="no-referrer"
                             className="absolute inset-0 w-full h-full object-cover object-center"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-transparent via-[#0c080a]/25 to-[#0c080a]" />
+                          <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/35 via-[#120704]/30 to-[#120704]" />
+
+                          {/* Collector Dōjutsu Iris Showcase Strip */}
+                          <div className="absolute bottom-3.5 left-4 z-10 flex items-center gap-2">
+                            <PrimordialAppIcon className="w-10 h-10 rounded-xl border border-orange-200/45 shadow-lg" />
+                            <div className="flex -space-x-2">
+                              {(['sharingan-itachi', 'ems-sasuke', 'sasuke-rinnegan', 'rinne-sharingan', 'kurama'] as const).map((v) => (
+                                <div key={v} className="w-9 h-9 rounded-full border-2 border-[#120704] overflow-hidden shadow-lg bg-black">
+                                  <CollectorAvatarCore variant={v} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="md:col-span-5 p-6 sm:p-7 flex flex-col justify-center gap-3 relative z-10 bg-gradient-to-b md:bg-gradient-to-l from-[#0c080a] via-[#0c080a] to-[#0c080a]/90">
-                          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-red-400">
+                        <div className="md:col-span-5 p-6 sm:p-7 flex flex-col justify-center gap-3 relative z-10 bg-gradient-to-b md:bg-gradient-to-l from-[#120704] via-[#120704] to-[#120704]/90">
+                          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-400">
                             <Flame className="w-3.5 h-3.5" />
-                            <span>Colección Estelar · {narutoBundles.length} Artículos</span>
+                            <span>Edición Coleccionista · {narutoBundles.length} Artículos</span>
                           </div>
                           <h2 className="font-sakura font-extrabold text-2xl sm:text-[28px] text-white leading-tight">
                             Naruto · Shinobi &amp; Dōjutsu
                           </h2>
                           <p className="text-xs sm:text-[13px] text-zinc-300 leading-relaxed">
-                            Naruto Sabio y Modo Barión, Kurama, Sasuke, Óbito, Madara Susanoo, Boruto Karma, Rinnegan, Rinne-Sharingan y cada Mangekyō Sharingan.
+                            Naruto Sabio y Barión, Kurama, Sasuke, Óbito, Madara Susanoo, Boruto Karma, Rinnegan, Rinne-Sharingan y cada Mangekyō Sharingan.
                           </p>
                           <div className="flex flex-wrap items-center gap-2.5 pt-1">
                             <button
                               type="button"
                               onClick={() => openCollectionPage('naruto')}
-                              className="h-11 px-5 rounded-full bg-red-600 hover:bg-red-500 text-white font-display font-bold text-xs sm:text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-[0_8px_24px_-6px_rgba(220,38,38,0.65)]"
+                              className="h-11 px-5 rounded-xl bg-gradient-to-r from-[#f97316] to-[#dc2626] hover:brightness-110 text-white font-display font-bold text-xs sm:text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-[0_10px_28px_-6px_rgba(249,115,22,0.7)]"
                             >
-                              <span>Ver los 18 coleccionables</span>
+                              <span>Explorar colección ({narutoBundles.length})</span>
                               <ChevronRight className="w-4 h-4" />
                             </button>
                           </div>
@@ -1644,21 +1711,26 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     </div>
 
                     <div className="flex items-center justify-between px-0.5">
-                      <h3 className="font-display font-bold text-base sm:text-lg text-white">
-                        Destacados de Naruto &amp; Sharingan
-                      </h3>
+                      <div>
+                        <h3 className="font-display font-bold text-base sm:text-lg text-white">
+                          Catálogo Completo de Naruto &amp; Dōjutsu ({narutoBundles.length})
+                        </h3>
+                        <p className="text-xs text-zinc-400">
+                          Toca cualquier ojo o personaje para probarlo en vivo sobre tu perfil
+                        </p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => openCollectionPage('naruto')}
-                        className="text-xs font-semibold text-red-400 hover:text-red-300 inline-flex items-center gap-1 cursor-pointer"
+                        className="text-xs font-semibold text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 cursor-pointer shrink-0"
                       >
-                        <span>Ver todos ({narutoBundles.length})</span>
+                        <span>Ver página dedicada</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
-                      {narutoBundles.slice(0, 8).map((b) => (
+                      {narutoBundles.map((b) => (
                         <BundleCard
                           key={b.id}
                           bundle={b}
@@ -2381,7 +2453,13 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       >
                         {item.kind === 'Decoración de avatar' && item.decorationId ? (
                           <div className="w-10 h-10 relative flex items-center justify-center">
-                            <DiscordLogo className="w-6 h-6 text-zinc-400" />
+                            <div className="w-9 h-9 rounded-full overflow-hidden border border-white/25 bg-[#0e0f15]">
+                              <CollectorAvatarCore
+                                variant={selectedBundle.artVariant}
+                                accentColor={modalSwatch}
+                                fallbackArtUrl={getBundleArtUrl(selectedBundle.artVariant)}
+                              />
+                            </div>
                             <AvatarDecorationRing
                               decoration={item.decorationId}
                               accentColor={modalSwatch}

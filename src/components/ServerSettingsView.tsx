@@ -98,7 +98,7 @@ const ADMIN_ONLY_SECTIONS = new Set<ServerSettingsSection>([
 ]);
 
 const BANNER_PRESETS = [
-  { id: 'vice', name: 'Vice City Neon', url: '/src/assets/images/banner_vice_city_1795280073889.jpg' },
+  { id: 'konoha', name: 'Konoha Sunset', url: '/src/assets/images/naruto_theme_konoha_1795517348276.jpg' },
   { id: 'dune', name: 'Arrakis Gold', url: '/src/assets/images/banner_dune_1795280073636.jpg' },
   { id: 'dp', name: 'Marvel Duo', url: '/src/assets/images/banner_deadpool_duo_1795280758288.jpg' },
   { id: 'miyabi', name: 'Hoshimi Miyabi', url: '/src/assets/images/shop_miyabi_art_1795281106262.jpg' },

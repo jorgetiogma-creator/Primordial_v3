@@ -714,11 +714,11 @@ export const ServerBoostView: React.FC<ServerBoostViewProps> = ({
           </section>
         </div>
 
-        {/* Floating Bottom Sticky Pill Bar */}
-        <div className="absolute bottom-4 inset-x-0 px-4 flex justify-center pointer-events-none z-20">
-          <div className="pointer-events-auto w-full max-w-md rounded-full p-2 pl-2.5 flex items-center justify-between gap-3 shadow-2xl border border-white/15 bg-[#0f1014]/95 backdrop-blur-md">
+        {/* Frosted Obsidian Architectural Bottom Action Bar */}
+        <div className="absolute bottom-3.5 inset-x-0 px-4 pb-[env(safe-area-inset-bottom)] flex justify-center pointer-events-none z-20">
+          <div className="pointer-events-auto w-full max-w-md rounded-2xl p-2 pl-2.5 flex items-center justify-between gap-3 shadow-[0_20px_44px_-10px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.08)] border border-white/[0.1] bg-[#0c0d13]/92 backdrop-blur-2xl">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 border border-white/25">
+              <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 border border-white/20">
                 <ServerIconArt server={selectedServer} />
               </div>
               <span className="font-display font-bold text-[15px] text-white truncate">
@@ -728,7 +728,7 @@ export const ServerBoostView: React.FC<ServerBoostViewProps> = ({
 
             <button
               onClick={() => setShowBoostModal(true)}
-              className="px-6 py-2 rounded-full dc-btn-primary text-[14px] font-bold shrink-0 cursor-pointer shadow-lg"
+              className="px-5 py-2.5 min-h-[44px] rounded-xl dc-btn-primary text-[14px] font-bold shrink-0 cursor-pointer shadow-lg"
             >
               Mejora
             </button>

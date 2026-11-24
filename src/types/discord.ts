@@ -1,5 +1,5 @@
 export type PresenceStatus = 'online' | 'idle' | 'dnd' | 'offline';
-export type ThemeMode = 'onyx' | 'dark' | 'vice-city' | 'light';
+export type ThemeMode = 'onyx' | 'dark' | 'naruto' | 'light';
 export type MainScreen =
   | 'inicio'
   | 'notificaciones'
@@ -164,7 +164,7 @@ export type DecorationId =
 export type NameplateId =
   | 'none'
   | 'sakura'
-  | 'vice-city'
+  | 'konoha-naranja'
   | 'miyabi'
   | 'deadpool'
   | 'wolverine'
@@ -231,7 +231,7 @@ export interface BadgeDefinition {
   tiers: BadgeTier[];
 }
 
-export type DisplayNameStyle = 'default' | 'gta' | 'neon' | 'retro' | 'gothic' | 'sakura';
+export type DisplayNameStyle = 'default' | 'shinobi' | 'neon' | 'retro' | 'gothic' | 'sakura';
 export type DisplayNameColorPreset =
   | 'none'
   | 'crimson-cyan'
@@ -712,7 +712,7 @@ export interface ShopBundle {
     | 'gato'
     | 'almas'
     | 'observador'
-    | 'vice-city'
+    | 'konoha'
     | 'dune'
     | 'pesadilla'
     | 'pato'

@@ -316,7 +316,7 @@ export const SettingsView: React.FC<{
                 { id: 'light', label: t('theme.light'), swatch: '#ffffff' },
                 { id: 'onyx', label: t('theme.onyx'), swatch: '#0e0e11' },
                 { id: 'dark', label: t('theme.dark'), swatch: '#313338' },
-                { id: 'vice-city', label: t('theme.viceCity'), swatch: '#361c4d' },
+                { id: 'naruto', label: t('theme.naruto'), swatch: '#f97316' },
               ] as { id: ThemeMode; label: string; swatch: string }[]
             ).map((tItem) => (
               <button
@@ -400,13 +400,13 @@ export const SettingsView: React.FC<{
             <p className="font-bold text-base">{activeSubPanel}</p>
             {activeSubPanel === 'Icono de la aplicación' ? (
               <div className="flex items-center gap-4 p-3 rounded-xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)]">
-                <PrimordialAppIcon className="w-16 h-16 rounded-2xl shadow-lg border border-white/15 shrink-0" />
+                <PrimordialAppIcon className="w-16 h-16 rounded-2xl shadow-lg border border-orange-300/35 shrink-0" />
                 <div>
                   <p className="font-display font-bold text-sm text-[var(--dc-text-primary)]">
-                    Primordial · Emblema Oficial
+                    Primordial × Naruto · Emblema Oficial
                   </p>
                   <p className="text-xs text-[var(--dc-text-secondary)] mt-0.5">
-                    Activo en la aplicación web, PWA y acceso directo de Android.
+                    Edición especial naranja Konoha activa en la app web, PWA y Android.
                   </p>
                 </div>
               </div>
@@ -619,8 +619,8 @@ export const SettingsView: React.FC<{
                           <span className="text-xs text-[var(--dc-text-muted)] capitalize">
                             {theme === 'light'
                               ? t('theme.light')
-                              : theme === 'vice-city'
-                              ? t('theme.viceCity')
+                              : theme === 'naruto'
+                              ? t('theme.naruto')
                               : theme === 'dark'
                               ? t('theme.dark')
                               : t('theme.onyx')}

@@ -226,9 +226,13 @@ export default function App() {
         const parsedUser = parsed.user;
         const owned: string[] = parsed.ownedBundleIds || [];
         if (parsedUser) {
+          const rawStyle = parsedUser.displayNameStyle as string | undefined;
+          const rawPlate = parsedUser.nameplate as string | undefined;
           const merged: UserProfile = {
             ...INITIAL_USER,
             ...parsedUser,
+            displayNameStyle: rawStyle === 'gta' ? 'shinobi' : parsedUser.displayNameStyle,
+            nameplate: rawPlate === 'vice-city' ? 'konoha-naranja' : parsedUser.nameplate,
             orbs: normalizeOrbs(parsedUser.orbs),
             unlockedBadgeIds: parsedUser.unlockedBadgeIds || INITIAL_USER.unlockedBadgeIds,
             equippedBadgeIds: parsedUser.equippedBadgeIds || INITIAL_USER.equippedBadgeIds,
@@ -326,7 +330,11 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw).theme || 'onyx';
+      if (raw) {
+        const storedTheme = JSON.parse(raw).theme;
+        if (storedTheme === 'vice-city') return 'naruto';
+        return storedTheme || 'onyx';
+      }
     } catch {
       /* ignore */
     }
@@ -1092,8 +1100,8 @@ export default function App() {
   const hasUnclaimedQuests = quests.some((q) => !q.claimed);
 
   const themeClass =
-    theme === 'vice-city'
-      ? 'theme-vice-city'
+    theme === 'naruto'
+      ? 'theme-naruto'
       : theme === 'dark'
       ? 'theme-dark'
       : theme === 'light'
@@ -3667,10 +3675,10 @@ export default function App() {
           theme={theme}
           onBack={() => setScreen('inicio')}
           onClaimQuest={handleClaimQuest}
-          onApplyViceCityTheme={() => {
-            setTheme((t) => (t === 'vice-city' ? 'onyx' : 'vice-city'));
+          onApplyNarutoTheme={() => {
+            setTheme((t) => (t === 'naruto' ? 'onyx' : 'naruto'));
             showToastMsg(
-              theme === 'vice-city' ? 'Tema Onyx restaurado' : 'Tema Vice City aplicado'
+              theme === 'naruto' ? 'Tema Onyx restaurado' : 'Tema Naruto · Konoha aplicado'
             );
           }}
           onOpenNitro={() => setScreen('nitro')}
@@ -4278,79 +4286,6 @@ export default function App() {
               onToggleScreen={() => void handleToggleVoiceScreen()}
               onDisconnect={handleDisconnectVoice}
             />
-
-            {/* Mobile Bottom Primary Tabs — 3 Clean Centered Tabs */}
-            <nav
-              aria-label="Navegación principal móvil"
-              className="md:hidden bg-[var(--dc-bg-rail)] border-t border-[var(--dc-border)] h-[60px] shrink-0 flex items-center justify-center px-3"
-            >
-              <div className="grid grid-cols-3 w-full max-w-md mx-auto h-full">
-                <button
-                  onClick={() => {
-                    setScreen('inicio');
-                    setMobileChatOpen(false);
-                  }}
-                  className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors cursor-pointer ${
-                    screen === 'inicio'
-                      ? 'text-[var(--dc-text-primary)]'
-                      : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-secondary)]'
-                  }`}
-                >
-                  <Home className={`w-5 h-5 ${screen === 'inicio' ? 'text-[#5865F2]' : ''}`} />
-                  <span>{tApp('nav.home')}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setScreen('notificaciones');
-                    setMobileChatOpen(false);
-                  }}
-                  className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors cursor-pointer relative ${
-                    screen === 'notificaciones'
-                      ? 'text-[var(--dc-text-primary)]'
-                      : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-secondary)]'
-                  }`}
-                >
-                  <div className="relative">
-                    <Bell className={`w-5 h-5 ${screen === 'notificaciones' ? 'text-[#5865F2]' : ''}`} />
-                    {unreadNotificationsCount > 0 && (
-                      <span className="absolute -top-1 -right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#da373c] text-white text-[9.5px] font-bold tabular-nums flex items-center justify-center border-2 border-[var(--dc-bg-rail)] leading-none">
-                        {unreadNotificationsCount}
-                      </span>
-                    )}
-                  </div>
-                  <span>{tApp('nav.notifications')}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setProfileViewTrigger((k) => k + 1);
-                    setScreen('tu');
-                  }}
-                  className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors cursor-pointer ${
-                    screen === 'tu'
-                      ? 'text-[var(--dc-text-primary)]'
-                      : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-secondary)]'
-                  }`}
-                >
-                  <div
-                    className={`rounded-full p-[1.5px] transition-all ${
-                      screen === 'tu' ? 'ring-2 ring-[#5865F2]' : ''
-                    }`}
-                  >
-                    <UserAvatar
-                      avatar={user.avatar}
-                      customAvatarUrl={user.customAvatarUrl}
-                      status={user.status}
-                      size="xs"
-                      borderColor="var(--dc-bg-rail)"
-                      showStatus={true}
-                    />
-                  </div>
-                  <span>{tApp('nav.you')}</span>
-                </button>
-              </div>
-            </nav>
           </div>
         </div>
 
@@ -4360,9 +4295,9 @@ export default function App() {
             isMobileOverlayScreen || mobileChatOpen ? 'flex' : 'hidden md:flex'
           }`}
         >
-          {/* Desktop Top Quick Switcher Bar */}
-          <div className="hidden md:flex h-11 px-4 bg-[var(--dc-bg-rail)] border-b border-[var(--dc-border)] items-center justify-between gap-4 shrink-0">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {/* Desktop Top Architectural Navigation Bar */}
+          <div className="hidden md:flex h-12 px-4 bg-[var(--dc-bg-rail)]/95 backdrop-blur-xl border-b border-[var(--dc-border)] items-center justify-between gap-4 shrink-0">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
               {[
                 { id: 'inicio' as const, label: tApp('nav.chat'), icon: Home },
                 { id: 'notificaciones' as const, label: tApp('nav.notifications'), icon: Bell },
@@ -4386,18 +4321,18 @@ export default function App() {
                       if (item.id === 'tu') setProfileViewTrigger((k) => k + 1);
                       setScreen(item.id);
                     }}
-                    className={`relative overflow-hidden inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
+                    className={`relative h-8 inline-flex items-center gap-1.5 px-3 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
                       active
-                        ? 'dc-btn-primary'
+                        ? 'bg-[var(--dc-blurple)] text-white shadow-[0_4px_14px_-4px_rgba(88,101,242,0.55)]'
                         : isNitroBtn
-                        ? 'anim-shimmer bg-gradient-to-r from-fuchsia-500/15 to-violet-500/15 border border-fuchsia-400/35 text-fuchsia-100 hover:brightness-110 shadow-[0_0_12px_-3px_rgba(217,70,239,0.55)] transition-all'
-                        : 'text-[var(--dc-text-secondary)] hover:bg-black/5 dark:hover:bg-white/10 hover:text-[var(--dc-text-primary)] transition-colors'
+                        ? 'bg-fuchsia-500/12 border border-fuchsia-400/25 text-fuchsia-200 hover:bg-fuchsia-500/20'
+                        : 'text-[var(--dc-text-secondary)] hover:bg-black/5 dark:hover:bg-white/[0.07] hover:text-[var(--dc-text-primary)]'
                     }`}
                   >
                     {Icon && (
                       <Icon
                         className={`w-3.5 h-3.5 ${
-                          isNitroBtn ? 'text-fuchsia-300 drop-shadow-[0_0_6px_rgba(217,70,239,0.8)]' : ''
+                          isNitroBtn && !active ? 'text-fuchsia-300' : ''
                         }`}
                       />
                     )}
@@ -4410,18 +4345,39 @@ export default function App() {
             <div className="flex items-center gap-2 shrink-0">
               <PWAInstallButton variant="compact" />
               <button
-                onClick={() => setTheme((t) => (t === 'light' ? 'onyx' : 'light'))}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full dc-btn-secondary text-xs font-semibold cursor-pointer"
+                onClick={() =>
+                  setTheme((t) =>
+                    t === 'onyx' ? 'naruto' : t === 'naruto' ? 'light' : 'onyx'
+                  )
+                }
+                title="Cambiar tema (Onyx / Naruto / Claro)"
+                className={`h-8 inline-flex items-center gap-1.5 px-3 rounded-xl text-xs font-semibold cursor-pointer border transition-colors ${
+                  theme === 'naruto'
+                    ? 'bg-orange-500/15 border-orange-400/40 text-orange-300 hover:bg-orange-500/25'
+                    : 'bg-[var(--dc-bg-card)] border-[var(--dc-border)] text-[var(--dc-text-primary)] hover:bg-[var(--dc-bg-elevated)]'
+                }`}
               >
-                {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
-                <span>{theme === 'light' ? tApp('theme.onyx') : tApp('theme.light')}</span>
+                {theme === 'light' ? (
+                  <Sun className="w-3.5 h-3.5" />
+                ) : theme === 'naruto' ? (
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_#f97316]" />
+                ) : (
+                  <Moon className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {theme === 'light'
+                    ? tApp('theme.light')
+                    : theme === 'naruto'
+                    ? tApp('theme.naruto')
+                    : tApp('theme.onyx')}
+                </span>
               </button>
               <button
                 onClick={() => setScreen('misiones')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full dc-btn-secondary text-xs font-bold tabular-nums cursor-pointer"
+                className="h-8 inline-flex items-center gap-1.5 px-3 rounded-xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] text-xs font-bold tabular-nums cursor-pointer transition-colors"
               >
                 <OrbsCrystalIcon className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{user.orbs.toLocaleString('es-ES')} Orbs</span>
+                <span>{user.orbs.toLocaleString('es-ES')}</span>
               </button>
             </div>
           </div>
@@ -4442,6 +4398,151 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      {/* Full-Width Frosted Obsidian Mobile Bottom Bar */}
+      {!isMobileOverlayScreen && !mobileChatOpen && (
+        <nav
+          aria-label="Navegación principal móvil"
+          className="md:hidden w-full bg-[var(--dc-bg-rail)]/95 backdrop-blur-2xl border-t border-white/[0.08] shadow-[0_-10px_30px_-8px_rgba(0,0,0,0.6)] pb-[env(safe-area-inset-bottom)] shrink-0 z-30"
+        >
+          <div className="grid grid-cols-5 w-full max-w-lg mx-auto h-[62px] px-1.5 items-center">
+            <button
+              type="button"
+              onClick={() => {
+                setScreen('inicio');
+                setMobileChatOpen(false);
+              }}
+              className={`relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl text-[10.5px] font-semibold transition-all active:scale-95 cursor-pointer ${
+                screen === 'inicio'
+                  ? 'text-[var(--dc-text-primary)]'
+                  : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-secondary)]'
+              }`}
+            >
+              {screen === 'inicio' && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-0.5 w-6 h-[2.5px] rounded-full bg-[var(--dc-blurple)]"
+                />
+              )}
+              <div
+                className={`w-10 h-6.5 rounded-xl flex items-center justify-center transition-colors ${
+                  screen === 'inicio' ? 'bg-[var(--dc-blurple)]/15' : ''
+                }`}
+              >
+                <Home
+                  className={`w-[19px] h-[19px] ${
+                    screen === 'inicio' ? 'text-[var(--dc-blurple)]' : ''
+                  }`}
+                />
+              </div>
+              <span className="leading-none">{tApp('nav.home')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setScreen('amigos');
+                setMobileChatOpen(false);
+              }}
+              className={`relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl text-[10.5px] font-semibold transition-all active:scale-95 cursor-pointer ${
+                screen === 'amigos'
+                  ? 'text-[var(--dc-text-primary)]'
+                  : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-secondary)]'
+              }`}
+            >
+              <div className="relative w-10 h-6.5 rounded-xl flex items-center justify-center">
+                <UserPlus className="w-[19px] h-[19px]" />
+                {friendRequests.length > 0 && (
+                  <span className="absolute -top-0.5 right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#da373c] text-white text-[9px] font-bold tabular-nums flex items-center justify-center border-2 border-[var(--dc-bg-rail)] leading-none">
+                    {friendRequests.length}
+                  </span>
+                )}
+              </div>
+              <span className="leading-none">{tApp('nav.friends')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setScreen('tienda');
+                setMobileChatOpen(false);
+              }}
+              className="relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl text-[10.5px] font-semibold text-orange-300 hover:text-orange-200 transition-all active:scale-95 cursor-pointer"
+            >
+              <div className="w-10 h-6.5 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/15 border border-orange-400/25 flex items-center justify-center">
+                <Store className="w-[18px] h-[18px] text-orange-400" />
+              </div>
+              <span className="leading-none">{tApp('nav.shop')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setScreen('notificaciones');
+                setMobileChatOpen(false);
+              }}
+              className={`relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl text-[10.5px] font-semibold transition-all active:scale-95 cursor-pointer ${
+                screen === 'notificaciones'
+                  ? 'text-[var(--dc-text-primary)]'
+                  : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-secondary)]'
+              }`}
+            >
+              {screen === 'notificaciones' && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-0.5 w-6 h-[2.5px] rounded-full bg-[var(--dc-blurple)]"
+                />
+              )}
+              <div
+                className={`relative w-10 h-6.5 rounded-xl flex items-center justify-center transition-colors ${
+                  screen === 'notificaciones' ? 'bg-[var(--dc-blurple)]/15' : ''
+                }`}
+              >
+                <Bell
+                  className={`w-[19px] h-[19px] ${
+                    screen === 'notificaciones' ? 'text-[var(--dc-blurple)]' : ''
+                  }`}
+                />
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-0.5 right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#da373c] text-white text-[9px] font-bold tabular-nums flex items-center justify-center border-2 border-[var(--dc-bg-rail)] leading-none">
+                    {unreadNotificationsCount}
+                  </span>
+                )}
+              </div>
+              <span className="leading-none">{tApp('nav.notifications')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setProfileViewTrigger((k) => k + 1);
+                setScreen('tu');
+              }}
+              className={`relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl text-[10.5px] font-semibold transition-all active:scale-95 cursor-pointer ${
+                screen === 'tu'
+                  ? 'text-[var(--dc-text-primary)]'
+                  : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-secondary)]'
+              }`}
+            >
+              <div
+                className={`rounded-full p-[1.5px] transition-all ${
+                  screen === 'tu' ? 'ring-2 ring-[var(--dc-blurple)]' : ''
+                }`}
+              >
+                <UserAvatar
+                  avatar={user.avatar}
+                  customAvatarUrl={user.customAvatarUrl}
+                  status={user.status}
+                  size="xs"
+                  borderColor="var(--dc-bg-rail)"
+                  showStatus={true}
+                />
+              </div>
+              <span className="leading-none">{tApp('nav.you')}</span>
+            </button>
+          </div>
+        </nav>
+      )}
 
       <CreateServerModal
         open={showCreateServer}

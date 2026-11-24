@@ -52,8 +52,8 @@ export function getOwnedCosmetics(
     if (bundle.id === 'bundle-rama') {
       nameplates.add('sakura');
     }
-    if (bundle.id === 'bundle-banner-vice') {
-      nameplates.add('vice-city');
+    if (bundle.id === 'bundle-banner-konoha') {
+      nameplates.add('konoha-naranja');
     }
   }
 
@@ -88,8 +88,8 @@ export function findBundleForCosmetic(
   if (params.nameplateId === 'sakura') {
     return bundles.find((b) => b.id === 'bundle-rama');
   }
-  if (params.nameplateId === 'vice-city') {
-    return bundles.find((b) => b.id === 'bundle-banner-vice');
+  if (params.nameplateId === 'konoha-naranja') {
+    return bundles.find((b) => b.id === 'bundle-banner-konoha');
   }
   return undefined;
 }
@@ -139,8 +139,10 @@ export function sanitizeUserShopCosmetics(
   const currentFrame = user.profileFrame || 'none';
   const safeFrame: ProfileFrameId = owned.frames.has(currentFrame) ? currentFrame : 'none';
 
-  const safeNameplate: NameplateId = owned.nameplates.has(user.nameplate)
-    ? user.nameplate
+  const normalizedPlate =
+    (user.nameplate as string) === 'vice-city' ? 'konoha-naranja' : user.nameplate;
+  const safeNameplate: NameplateId = owned.nameplates.has(normalizedPlate)
+    ? normalizedPlate
     : 'none';
 
   const isCustomUploadBanner = Boolean(user.bannerImage && user.bannerImage.startsWith('data:'));

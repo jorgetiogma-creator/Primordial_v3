@@ -19,7 +19,10 @@ export const GENERATED_ASSETS = {
   coffeeAvatar: '/src/assets/images/avatar_desk_coffee_1795349126809.jpg',
   hoyoverseIcon: '/src/assets/images/server_hoyoverse_1795280758930.jpg',
   reboIcon: '/src/assets/images/server_rebo_1795280759300.jpg',
-  viceCityBanner: '/src/assets/images/banner_vice_city_1795280073889.jpg',
+  narutoThemeKonoha: '/src/assets/images/naruto_theme_konoha_1795517348276.jpg',
+  narutoCollabIcon: '/src/assets/images/naruto_collab_app_icon_1795517346173.jpg',
+  narutoSharinganMedallions: '/src/assets/images/naruto_sharingan_medallions_1795517348726.jpg',
+  narutoRinneganSusanoo: '/src/assets/images/naruto_rinnegan_susanoo_1795517349154.jpg',
   zzzEllenBanner: '/src/assets/images/banner_zzz_ellen_1795280074875.jpg',
   deadpoolBanner: '/src/assets/images/banner_deadpool_duo_1795280758288.jpg',
   dbdBanner: '/src/assets/images/banner_dbd_1795280075129.jpg',
@@ -125,12 +128,366 @@ export const SafeImage: React.FC<{
 export const PrimordialAppIcon: React.FC<{ className?: string }> = ({
   className = 'w-16 h-16 rounded-2xl',
 }) => (
-  <img
-    src="/icon-192.png?v=2"
-    alt="Primordial"
-    className={`object-cover select-none ${className}`}
-  />
+  <div
+    className={`relative overflow-hidden select-none bg-gradient-to-br from-[#fb923c] via-[#f97316] to-[#c2410c] ring-1 ring-inset ring-orange-200/40 shadow-[0_6px_20px_-4px_rgba(249,115,22,0.65)] ${className}`}
+  >
+    <SafeImage
+      src={GENERATED_ASSETS.narutoCollabIcon}
+      alt="Primordial × Naruto"
+      fallbackGradient="from-[#fb923c] via-[#f97316] to-[#c2410c]"
+      className="w-full h-full object-cover scale-[1.03]"
+    />
+  </div>
 );
+
+export const CollectorAvatarCore: React.FC<{
+  variant: string;
+  accentColor?: string;
+  fallbackArtUrl?: string | null;
+}> = ({ variant, accentColor, fallbackArtUrl }) => {
+  /* Authentic Crystalline Dōjutsu Iris Medallions */
+  if (variant === 'sharingan-3tomoe') {
+    const red = accentColor || '#ef4444';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="sh3-iris" cx="46%" cy="44%" r="54%">
+            <stop offset="0%" stopColor="#ff6b6b" />
+            <stop offset="45%" stopColor={red} />
+            <stop offset="84%" stopColor="#7f1d1d" />
+            <stop offset="100%" stopColor="#180406" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#sh3-iris)" />
+        <circle cx="50" cy="50" r="29" fill="none" stroke="#09090b" strokeWidth="2.4" opacity="0.88" />
+        {[0, 120, 240].map((deg) => {
+          const rad = ((deg - 90) * Math.PI) / 180;
+          const x = 50 + Math.cos(rad) * 29;
+          const y = 50 + Math.sin(rad) * 29;
+          return (
+            <g key={deg} transform={`translate(${x}, ${y}) rotate(${deg})`}>
+              <circle cx="0" cy="0" r="6.5" fill="#09090b" />
+              <path d="M3 -5 Q10 0 4 6" fill="none" stroke="#09090b" strokeWidth="3.5" strokeLinecap="round" />
+            </g>
+          );
+        })}
+        <circle cx="50" cy="50" r="10.5" fill="#09090b" />
+        <ellipse cx="38" cy="34" rx="9" ry="5" fill="#ffffff" opacity="0.34" transform="rotate(-28 38 34)" />
+        <circle cx="62" cy="64" r="2.6" fill="#fecaca" opacity="0.35" />
+      </svg>
+    );
+  }
+
+  if (variant === 'sharingan-itachi') {
+    const red = accentColor || '#dc2626';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="itachi-iris" cx="46%" cy="44%" r="55%">
+            <stop offset="0%" stopColor="#f87171" />
+            <stop offset="42%" stopColor={red} />
+            <stop offset="85%" stopColor="#450a0a" />
+            <stop offset="100%" stopColor="#090304" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#itachi-iris)" />
+        <circle cx="50" cy="50" r="35" fill="none" stroke="#09090b" strokeWidth="1.6" opacity="0.55" />
+        {[0, 120, 240].map((rot) => (
+          <path
+            key={rot}
+            d="M50 50 C52 34 62 20 50 14 C40 20 42 36 50 50 Z"
+            fill="#09090b"
+            transform={`rotate(${rot} 50 50)`}
+          />
+        ))}
+        <circle cx="50" cy="50" r="8.5" fill={red} stroke="#09090b" strokeWidth="2.5" />
+        <circle cx="50" cy="50" r="3.4" fill="#09090b" />
+        <ellipse cx="36" cy="34" rx="9" ry="4.5" fill="#ffffff" opacity="0.28" transform="rotate(-30 36 34)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'sharingan-kamui') {
+    const red = accentColor || '#ef4444';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="kamui-iris" cx="48%" cy="46%" r="54%">
+            <stop offset="0%" stopColor="#fb7185" />
+            <stop offset="44%" stopColor={red} />
+            <stop offset="84%" stopColor="#7f1d1d" />
+            <stop offset="100%" stopColor="#140305" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#kamui-iris)" />
+        {[0, 120, 240].map((rot) => (
+          <path
+            key={rot}
+            d="M50 40 C66 20 82 28 70 46 C64 36 56 40 50 50 Z"
+            fill="#09090b"
+            transform={`rotate(${rot} 50 50)`}
+          />
+        ))}
+        <circle cx="50" cy="50" r="14" fill="none" stroke="#09090b" strokeWidth="4.2" />
+        <circle cx="50" cy="50" r="8.5" fill={red} />
+        <ellipse cx="37" cy="35" rx="8.5" ry="4.5" fill="#ffffff" opacity="0.28" transform="rotate(-25 37 35)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'sharingan-shisui') {
+    const red = accentColor || '#ef4444';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="shisui-iris" cx="46%" cy="44%" r="54%">
+            <stop offset="0%" stopColor="#fca5a5" />
+            <stop offset="42%" stopColor={red} />
+            <stop offset="84%" stopColor="#7f1d1d" />
+            <stop offset="100%" stopColor="#140406" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#shisui-iris)" />
+        {[0, 90, 180, 270].map((rot) => (
+          <path
+            key={rot}
+            d="M50 44 L59 13 L45 25 L46 44 Z"
+            fill="#09090b"
+            transform={`rotate(${rot} 50 50)`}
+          />
+        ))}
+        <circle cx="50" cy="50" r="12" fill="#09090b" />
+        <circle cx="50" cy="50" r="5" fill={red} />
+        <ellipse cx="37" cy="34" rx="8" ry="4.2" fill="#ffffff" opacity="0.3" transform="rotate(-25 37 34)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'ems-sasuke') {
+    const red = accentColor || '#dc2626';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="ems-s-iris" cx="48%" cy="46%" r="54%">
+            <stop offset="0%" stopColor="#ff4d6d" />
+            <stop offset="45%" stopColor={red} />
+            <stop offset="86%" stopColor="#450a0a" />
+            <stop offset="100%" stopColor="#090204" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#ems-s-iris)" />
+        <g stroke="#09090b" strokeWidth="5.2" fill="none">
+          <ellipse cx="50" cy="50" rx="34" ry="13" />
+          <ellipse cx="50" cy="50" rx="34" ry="13" transform="rotate(60 50 50)" />
+          <ellipse cx="50" cy="50" rx="34" ry="13" transform="rotate(120 50 50)" />
+        </g>
+        <circle cx="50" cy="50" r="10.5" fill="#ef4444" stroke="#09090b" strokeWidth="2.8" />
+        <circle cx="50" cy="50" r="4.2" fill="#09090b" />
+        <ellipse cx="36" cy="34" rx="8" ry="4" fill="#ffffff" opacity="0.3" transform="rotate(-28 36 34)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'ems-madara') {
+    const red = accentColor || '#b91c1c';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="ems-m-iris" cx="48%" cy="46%" r="54%">
+            <stop offset="0%" stopColor="#fb7185" />
+            <stop offset="45%" stopColor={red} />
+            <stop offset="86%" stopColor="#450a0a" />
+            <stop offset="100%" stopColor="#080203" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#ems-m-iris)" />
+        <circle cx="50" cy="50" r="24" fill="none" stroke="#09090b" strokeWidth="5.2" />
+        {[0, 120, 240].map((rot) => (
+          <g key={rot} transform={`rotate(${rot} 50 50)`}>
+            <line x1="50" y1="50" x2="50" y2="12" stroke="#09090b" strokeWidth="6" strokeLinecap="round" />
+            <circle cx="50" cy="24" r="7.5" fill="#ef4444" stroke="#09090b" strokeWidth="2.8" />
+          </g>
+        ))}
+        <circle cx="50" cy="50" r="9.5" fill="#09090b" />
+        <circle cx="50" cy="50" r="4" fill="#ef4444" />
+        <ellipse cx="37" cy="35" rx="8" ry="4" fill="#ffffff" opacity="0.28" transform="rotate(-25 37 35)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'rinnegan-deva' || variant === 'sasuke-rinnegan') {
+    const violet = accentColor || '#c084fc';
+    const hasTomoe = variant === 'sasuke-rinnegan';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id={`rinn-${variant}`} cx="46%" cy="44%" r="55%">
+            <stop offset="0%" stopColor="#f5d0fe" />
+            <stop offset="45%" stopColor={violet} />
+            <stop offset="85%" stopColor="#581c87" />
+            <stop offset="100%" stopColor="#1e0633" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill={`url(#rinn-${variant})`} />
+        {[40, 31, 22, 13].map((r) => (
+          <circle key={r} cx="50" cy="50" r={r} fill="none" stroke="#1e0633" strokeWidth="2.3" opacity="0.88" />
+        ))}
+        {hasTomoe &&
+          [0, 60, 120, 180, 240, 300].map((deg) => {
+            const rad = (deg * Math.PI) / 180;
+            const ring = deg % 120 === 0 ? 31 : 22;
+            return (
+              <circle
+                key={deg}
+                cx={50 + Math.cos(rad) * ring}
+                cy={50 + Math.sin(rad) * ring}
+                r="4.2"
+                fill="#09090b"
+              />
+            );
+          })}
+        <circle cx="50" cy="50" r="6" fill="#09090b" />
+        <ellipse cx="36" cy="34" rx="8.5" ry="4.5" fill="#ffffff" opacity="0.34" transform="rotate(-28 36 34)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'rinne-sharingan') {
+    const red = accentColor || '#ef4444';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="rs-iris" cx="46%" cy="44%" r="55%">
+            <stop offset="0%" stopColor="#fecaca" />
+            <stop offset="42%" stopColor={red} />
+            <stop offset="84%" stopColor="#7f1d1d" />
+            <stop offset="100%" stopColor="#1c0406" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#rs-iris)" />
+        {[38, 28, 18].map((r) => (
+          <circle key={r} cx="50" cy="50" r={r} fill="none" stroke="#09090b" strokeWidth="2.2" />
+        ))}
+        {[0, 120, 240].map((deg) => {
+          const rad = ((deg - 90) * Math.PI) / 180;
+          return <circle key={`a-${deg}`} cx={50 + Math.cos(rad) * 18} cy={50 + Math.sin(rad) * 18} r="4.2" fill="#09090b" />;
+        })}
+        {[60, 180, 300].map((deg) => {
+          const rad = ((deg - 90) * Math.PI) / 180;
+          return <circle key={`b-${deg}`} cx={50 + Math.cos(rad) * 28} cy={50 + Math.sin(rad) * 28} r="4.2" fill="#09090b" />;
+        })}
+        {[20, 140, 260].map((deg) => {
+          const rad = ((deg - 90) * Math.PI) / 180;
+          return <circle key={`c-${deg}`} cx={50 + Math.cos(rad) * 38} cy={50 + Math.sin(rad) * 38} r="4.2" fill="#09090b" />;
+        })}
+        <circle cx="50" cy="50" r="6.5" fill="#09090b" />
+        <ellipse cx="36" cy="34" rx="8.5" ry="4.5" fill="#ffffff" opacity="0.3" transform="rotate(-28 36 34)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'naruto-sabio') {
+    const gold = accentColor || '#f59e0b';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="nr-sabio-eye" cx="46%" cy="44%" r="55%">
+            <stop offset="0%" stopColor="#fef9c3" />
+            <stop offset="48%" stopColor={gold} />
+            <stop offset="88%" stopColor="#b45309" />
+            <stop offset="100%" stopColor="#451a03" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#nr-sabio-eye)" />
+        <rect x="20" y="45" width="60" height="10" rx="5" fill="#09090b" />
+        <ellipse cx="50" cy="50" rx="6" ry="26" fill="#09090b" />
+        <ellipse cx="37" cy="34" rx="8" ry="4" fill="#ffffff" opacity="0.38" transform="rotate(-28 37 34)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'kurama' || variant === 'naruto-barion') {
+    const tone = accentColor || (variant === 'naruto-barion' ? '#ef4444' : '#f97316');
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id={`kurama-eye-${variant}`} cx="50%" cy="46%" r="56%">
+            <stop offset="0%" stopColor="#fde047" />
+            <stop offset="42%" stopColor={tone} />
+            <stop offset="84%" stopColor="#7f1d1d" />
+            <stop offset="100%" stopColor="#140404" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill={`url(#kurama-eye-${variant})`} />
+        <ellipse cx="50" cy="50" rx="6.5" ry="34" fill="#09090b" />
+        <ellipse cx="36" cy="34" rx="7" ry="4" fill="#ffffff" opacity="0.34" transform="rotate(-25 36 34)" />
+      </svg>
+    );
+  }
+
+  if (variant === 'obito-tobi') {
+    const orange = accentColor || '#f97316';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="tobi-mask" cx="44%" cy="42%" r="60%">
+            <stop offset="0%" stopColor="#fb923c" />
+            <stop offset="65%" stopColor={orange} />
+            <stop offset="100%" stopColor="#7c2d12" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#tobi-mask)" />
+        <path
+          d="M58 48 C68 38 78 44 76 58 C73 76 50 84 34 72 C16 58 20 30 42 22 C66 13 88 32 86 60"
+          fill="none"
+          stroke="#180803"
+          strokeWidth="3.8"
+          strokeLinecap="round"
+        />
+        <circle cx="58" cy="48" r="14" fill="#09090b" />
+        <circle cx="58" cy="48" r="9.5" fill="#ef4444" />
+        <circle cx="58" cy="48" r="3.4" fill="#09090b" />
+      </svg>
+    );
+  }
+
+  if (variant === 'boruto-karma') {
+    const cyan = accentColor || '#22d3ee';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="jogan-eye" cx="46%" cy="44%" r="56%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="35%" stopColor="#bae6fd" />
+            <stop offset="70%" stopColor={cyan} />
+            <stop offset="100%" stopColor="#09090b" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="#06080f" />
+        <circle cx="50" cy="50" r="30" fill="url(#jogan-eye)" />
+        <circle cx="50" cy="50" r="9" fill="#0f172a" />
+        <ellipse cx="41" cy="39" rx="6" ry="3.5" fill="#ffffff" opacity="0.65" transform="rotate(-25 41 39)" />
+      </svg>
+    );
+  }
+
+  /* Rich Illustration Crop inside Collector Medallion for Characters & All Other Bundles */
+  if (fallbackArtUrl) {
+    return (
+      <SafeImage
+        src={fallbackArtUrl}
+        alt=""
+        className="w-full h-full object-cover object-center"
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#2b2d3a] via-[#1c1e28] to-[#0f1016] flex items-center justify-center">
+      <DiscordLogo className="w-7 h-7 text-white/80" />
+    </div>
+  );
+};
 
 export const DiscordLogo: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
   <svg viewBox="0 0 127.14 96.36" fill="currentColor" className={className} aria-hidden="true">
@@ -2196,7 +2553,7 @@ export const ProfileFrameArtwork: React.FC<{
     );
   }
 
-  /* 2. Carmesí GTA — Metallic Vice Racing Frame & Ruby Locks */
+  /* 2. Carmesí Shinobi — Metallic Akatsuki Racing Frame & Ruby Locks */
   if (frame === 'crimson') {
     return (
       <div className="absolute -inset-2 pointer-events-none z-20 overflow-visible">
@@ -2732,8 +3089,8 @@ export const getNameplateArtworkUrl = (nameplate: NameplateId): string | null =>
     case 'deadpool':
     case 'wolverine':
       return GENERATED_ASSETS.deadpoolBanner;
-    case 'vice-city':
-      return GENERATED_ASSETS.viceCityBanner;
+    case 'konoha-naranja':
+      return GENERATED_ASSETS.narutoThemeKonoha;
     case 'kurama':
     case 'naruto-sabio':
       return GENERATED_ASSETS.narutoKuramaArt;

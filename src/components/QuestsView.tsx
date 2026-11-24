@@ -18,6 +18,7 @@ import {
   LaurelQuestIcon,
   NitroWheelIcon,
   OrbsCrystalIcon,
+  PrimordialAppIcon,
   SafeImage,
 } from './DiscordArt';
 
@@ -27,7 +28,7 @@ interface QuestsViewProps {
   theme: ThemeMode;
   onBack: () => void;
   onClaimQuest: (questId: string) => void;
-  onApplyViceCityTheme: () => void;
+  onApplyNarutoTheme: () => void;
   onOpenNitro: () => void;
   onJoinDuneServer: () => void;
 }
@@ -141,7 +142,7 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
   theme,
   onBack,
   onClaimQuest,
-  onApplyViceCityTheme,
+  onApplyNarutoTheme,
   onOpenNitro,
   onJoinDuneServer,
 }) => {
@@ -150,7 +151,7 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [activeVideoQuest, setActiveVideoQuest] = useState<Quest | null>(null);
   const [watchProgress, setWatchProgress] = useState(0);
-  const [showVicePreview, setShowVicePreview] = useState(false);
+  const [showNarutoPreview, setShowNarutoPreview] = useState(false);
 
   useEffect(() => {
     if (!activeVideoQuest) return;
@@ -248,89 +249,90 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
 
       <div className="flex-1 overflow-y-auto pb-10">
         <div className="max-w-xl mx-auto">
-          {/* GTA VI Vice City Sponsored Banner with Generated High-Res Artwork */}
+          {/* Naruto Shippuden Konoha Sponsored Theme Banner */}
           <div className="relative">
-            <div className="h-64 w-full relative overflow-hidden">
+            <div className="h-64 w-full relative overflow-hidden bg-[#1a0a04]">
               <img
-                src={GENERATED_ASSETS.viceCityBanner}
-                alt="Grand Theft Auto VI Vice City"
+                src={GENERATED_ASSETS.narutoThemeKonoha}
+                alt="Naruto Shippuden · Aldea de Konoha"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-black/25" />
 
-              <div className="absolute top-4 left-4 bg-black/35 backdrop-blur-sm px-2.5 py-1.5 rounded-xl border border-white/15">
-                <span className="font-display font-black italic text-sm tracking-tight bg-gradient-to-r from-pink-400 via-purple-300 to-amber-300 bg-clip-text text-transparent">
-                  grand theft auto VI
+              <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl border border-orange-400/35 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-400 shadow-[0_0_8px_#fb923c]" />
+                <span className="font-sakura font-extrabold text-xs tracking-widest uppercase bg-gradient-to-r from-orange-300 via-amber-200 to-orange-400 bg-clip-text text-transparent">
+                  NARUTO × PRIMORDIAL
                 </span>
               </div>
 
-              <span className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/55 backdrop-blur-sm text-white text-xs font-semibold">
-                Patrocinada
+              <span className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm text-orange-100 text-xs font-semibold border border-orange-400/25">
+                Colaboración Oficial
               </span>
             </div>
 
-            <div className="mx-3.5 -mt-12 relative z-10 rounded-3xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] p-4 shadow-2xl">
-              <div className="h-36 w-full rounded-2xl bg-[#15151b] relative overflow-hidden flex items-center justify-center mb-3 border border-white/10">
+            <div className="mx-3.5 -mt-12 relative z-10 rounded-3xl bg-[var(--dc-bg-card)] border border-orange-500/25 p-4 shadow-2xl">
+              <div className="h-36 w-full rounded-2xl bg-[#160b06] relative overflow-hidden flex items-center justify-center mb-3 border border-orange-400/20">
                 <SafeImage
-                  src={GENERATED_ASSETS.viceCityBanner}
-                  alt="Vista previa Vice City"
-                  className="absolute inset-0 w-full h-full object-cover opacity-55"
+                  src={GENERATED_ASSETS.narutoThemeKonoha}
+                  alt="Vista previa Konoha"
+                  className="absolute inset-0 w-full h-full object-cover opacity-60"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#240a36]/85 via-[#240a36]/55 to-[#16091f]/85" />
-                <div className="relative z-10 w-60 h-24 rounded-xl bg-black/55 backdrop-blur-md border border-pink-400/30 p-2.5 flex flex-col justify-between shadow-2xl">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#240d04]/85 via-[#180a05]/55 to-[#120704]/85" />
+                <div className="relative z-10 w-60 h-24 rounded-xl bg-black/60 backdrop-blur-md border border-orange-400/35 p-2.5 flex flex-col justify-between shadow-2xl">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-pink-400" />
-                    <span className="text-[10px] font-bold tracking-wide text-pink-200">
-                      # vice-city-general
+                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                    <span className="text-[10px] font-bold tracking-wide text-orange-200">
+                      # aldea-de-la-hoja
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-500 to-amber-400 flex items-center justify-center text-[10px] font-black text-white">
-                      V
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-[10px] font-black text-white">
+                      木
                     </div>
                     <div className="space-y-1 flex-1">
-                      <div className="w-24 h-2 rounded-full bg-gradient-to-r from-pink-300 to-amber-200 opacity-85" />
+                      <div className="w-24 h-2 rounded-full bg-gradient-to-r from-orange-400 to-amber-200 opacity-90" />
                       <div className="w-36 h-1.5 rounded-full bg-white/45" />
                     </div>
                   </div>
                 </div>
-                <div className="absolute left-5 bottom-2.5 w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 via-pink-500 to-purple-700 flex items-center justify-center shadow-lg -rotate-6 border border-white/25 z-20">
-                  <DiscordLogo className="w-6 h-6 text-white" />
+                <div className="absolute left-4 bottom-2.5 shadow-xl -rotate-6 z-20">
+                  <PrimordialAppIcon className="w-11 h-11 rounded-2xl border border-orange-200/40" />
                 </div>
-                <div className="absolute right-4 top-2.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-br from-[#312e81]/95 to-[#1e1b4b]/95 border border-indigo-400/40 shadow-xl rotate-3 z-20">
+                <div className="absolute right-4 top-2.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-br from-[#7c2d12]/95 to-[#431407]/95 border border-orange-400/45 shadow-xl rotate-3 z-20">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center text-[9px] font-bold text-white">
-                      M
+                    <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-[9px] font-bold text-white">
+                      火
                     </div>
-                    <span className="font-display font-black text-[10.5px] tracking-wider text-white">
-                      VICE THEME
+                    <span className="font-display font-black text-[10.5px] tracking-wider text-orange-100">
+                      NARUTO THEME
                     </span>
                   </div>
                 </div>
               </div>
 
               <h2 className="font-display font-bold text-[19px] leading-snug text-[var(--dc-text-primary)]">
-                Dale a Discord un cambio de imagen al estilo Vice City
+                Transforma tu app con el tema Naruto · Konoha Naranja
               </h2>
               <p className="text-[13.5px] text-[var(--dc-text-secondary)] mt-1.5 leading-relaxed">
-                Aplica el tema de colores, el icono de la aplicación y el estilo de nombre de visualización.
+                Aplica la paleta obsidiana y naranja atardecer de Konoha, el emblema Naruto y tipografía shinobi.
               </p>
               <p className="text-[12.5px] text-[var(--dc-text-muted)] mt-2.5">
-                Promocionado por Rockstar Games.{' '}
+                Colección especial Primordial × Naruto.{' '}
                 <button
-                  onClick={() => setShowVicePreview(true)}
-                  className="text-[#4ea1ff] hover:underline cursor-pointer"
+                  onClick={() => setShowNarutoPreview(true)}
+                  className="text-orange-400 hover:underline font-semibold cursor-pointer"
                 >
                   Más información
                 </button>
               </p>
 
               <button
-                onClick={() => setShowVicePreview(true)}
-                className="w-full mt-4 h-11 rounded-full dc-btn-white font-bold text-[14.5px] cursor-pointer whitespace-nowrap"
+                onClick={() => setShowNarutoPreview(true)}
+                className="w-full mt-4 h-11 rounded-full bg-gradient-to-r from-[#f97316] to-[#ea580c] hover:brightness-110 text-white font-bold text-[14.5px] cursor-pointer whitespace-nowrap shadow-[0_10px_24px_-8px_rgba(249,115,22,0.7)] transition-all"
               >
-                {theme === 'vice-city' ? 'Tema Vice City activo ✓' : 'Previsualizar tema'}
+                {theme === 'naruto' ? 'Tema Naruto · Konoha activo ✓' : 'Previsualizar tema Naruto'}
               </button>
             </div>
           </div>
@@ -492,41 +494,41 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
         </div>
       </div>
 
-      {showVicePreview && (
+      {showNarutoPreview && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-gradient-to-b from-[#2b163d] to-[#16091f] border border-pink-400/30 p-5 space-y-4 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl bg-gradient-to-b from-[#291105] to-[#120804] border border-orange-400/35 p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-pink-400" />
+              <div className="flex items-center gap-2.5">
+                <PrimordialAppIcon className="w-8 h-8 rounded-xl border border-orange-300/35" />
                 <h3 className="font-display font-bold text-lg text-white">
-                  Tema Vice City · GTA VI
+                  Tema Naruto · Aldea de Konoha
                 </h3>
               </div>
               <button
-                onClick={() => setShowVicePreview(false)}
+                onClick={() => setShowNarutoPreview(false)}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-sm text-pink-100/85 leading-relaxed">
-              Transforma los paneles de Discord con tonos púrpura neón y acentos rosa atardecer de Vice City.
+            <p className="text-sm text-orange-100/85 leading-relaxed">
+              Viste toda la interfaz con obsidiana cálida, acentos naranja chakra de Konoha y el sello de colaboración oficial con Naruto.
             </p>
             <div className="flex gap-2.5 pt-2">
               <button
-                onClick={() => setShowVicePreview(false)}
+                onClick={() => setShowNarutoPreview(false)}
                 className="flex-1 h-11 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white text-sm font-semibold cursor-pointer transition-colors"
               >
                 Cerrar
               </button>
               <button
                 onClick={() => {
-                  onApplyViceCityTheme();
-                  setShowVicePreview(false);
+                  onApplyNarutoTheme();
+                  setShowNarutoPreview(false);
                 }}
-                className="flex-1 h-11 rounded-full bg-gradient-to-r from-pink-500 to-amber-400 text-[#16091f] text-sm font-extrabold cursor-pointer shadow-lg hover:brightness-105 transition-all"
+                className="flex-1 h-11 rounded-full bg-gradient-to-r from-[#f97316] to-[#ea580c] text-white text-sm font-extrabold cursor-pointer shadow-lg hover:brightness-110 transition-all"
               >
-                {theme === 'vice-city' ? 'Volver a Onyx' : 'Aplicar tema'}
+                {theme === 'naruto' ? 'Volver a Onyx' : 'Aplicar tema Naruto'}
               </button>
             </div>
           </div>

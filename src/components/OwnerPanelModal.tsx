@@ -188,7 +188,7 @@ const ALL_PLATE_CHOICES: { id: NameplateId; label: string }[] = [
   { id: 'yuji', label: 'Yuji Itadori' },
   { id: 'lobo', label: 'Lobo y Luna' },
   { id: 'sakura', label: 'Sakura' },
-  { id: 'vice-city', label: 'Vice City' },
+  { id: 'konoha-naranja', label: 'Konoha Naranja' },
   { id: 'miyabi', label: 'Miyabi' },
   { id: 'deadpool', label: 'Deadpool' },
   { id: 'wolverine', label: 'Wolverine' },

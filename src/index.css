@@ -26,17 +26,17 @@
     --dc-yellow: #f0b232;
   }
 
-  .theme-vice-city {
-    --dc-bg-rail: #16091f;
-    --dc-bg-sidebar: #1d0d29;
-    --dc-bg-chat: #221130;
-    --dc-bg-card: #2b163d;
-    --dc-bg-elevated: #361c4d;
-    --dc-bg-input: #311945;
-    --dc-bg-sheet: #241233;
-    --dc-border: rgba(255, 110, 199, 0.16);
-    --dc-blurple: #ff5ea8;
-    --dc-blurple-hover: #e84893;
+  .theme-naruto {
+    --dc-bg-rail: #100805;
+    --dc-bg-sidebar: #180c07;
+    --dc-bg-chat: #130906;
+    --dc-bg-card: #22120b;
+    --dc-bg-elevated: #2c170e;
+    --dc-bg-input: #27140c;
+    --dc-bg-sheet: #1a0d08;
+    --dc-border: rgba(249, 115, 22, 0.24);
+    --dc-blurple: #f97316;
+    --dc-blurple-hover: #ea580c;
   }
 
   .theme-dark {
@@ -80,11 +80,12 @@
   font-family: var(--font-display);
 }
 
+.font-shinobi,
 .font-gta {
   font-family: 'Chakra Petch', 'Plus Jakarta Sans', sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.85);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 10px rgba(249, 115, 22, 0.45);
 }
 
 .font-neon {
@@ -398,20 +399,20 @@
 
 /* Tactile High-Craft Button System */
 .dc-btn-primary {
-  background: #5865F2;
+  background: var(--dc-blurple, #5865F2);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 4px 14px -4px rgba(88, 101, 242, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.45);
   transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms ease, box-shadow 150ms ease;
 }
 .dc-btn-primary:hover:not(:disabled) {
-  background: #4752c4;
-  box-shadow: 0 6px 18px -4px rgba(88, 101, 242, 0.6);
+  background: var(--dc-blurple-hover, #4752c4);
+  box-shadow: 0 8px 22px -4px rgba(0, 0, 0, 0.6);
   transform: translateY(-1px);
 }
 .dc-btn-primary:active:not(:disabled) {
   transform: scale(0.97);
-  background: #3c45a5;
+  filter: brightness(0.92);
 }
 
 .dc-btn-success {
