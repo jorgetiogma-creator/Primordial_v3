@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AvatarKey,
@@ -3650,7 +3651,8 @@ export const ProfileEffectAnimationOverlay: React.FC<{
   effect?: ProfileEffectId;
   playKey?: number | string;
   className?: string;
-}> = ({ effect, playKey = 0, className = '' }) => {
+  fullscreen?: boolean;
+}> = ({ effect, playKey = 0, className = '', fullscreen = false }) => {
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
@@ -3669,15 +3671,40 @@ export const ProfileEffectAnimationOverlay: React.FC<{
   const meta = PROFILE_EFFECT_META[effect];
   if (!meta) return null;
 
-  return (
+  const particlesList = fullscreen
+    ? [
+        { left: '14%', top: '18%', size: 22, delay: 0.05, rot: 12 },
+        { left: '28%', top: '68%', size: 24, delay: 0.18, rot: -18 },
+        { left: '44%', top: '24%', size: 20, delay: 0.12, rot: 25 },
+        { left: '62%', top: '16%', size: 26, delay: 0.0, rot: 14 },
+        { left: '78%', top: '34%', size: 28, delay: 0.15, rot: -22 },
+        { left: '88%', top: '22%', size: 22, delay: 0.3, rot: 35 },
+        { left: '54%', top: '52%', size: 24, delay: 0.4, rot: -15 },
+        { left: '72%', top: '68%', size: 26, delay: 0.2, rot: 28 },
+        { left: '91%', top: '58%', size: 21, delay: 0.45, rot: -30 },
+        { left: '18%', top: '42%', size: 23, delay: 0.28, rot: 18 },
+        { left: '36%', top: '82%', size: 20, delay: 0.36, rot: -24 },
+        { left: '84%', top: '80%', size: 24, delay: 0.25, rot: 20 },
+      ]
+    : [
+        { left: '62%', top: '18%', size: 13, delay: 0, rot: 14 },
+        { left: '78%', top: '34%', size: 15, delay: 0.15, rot: -22 },
+        { left: '88%', top: '22%', size: 11, delay: 0.3, rot: 35 },
+        { left: '54%', top: '44%', size: 12, delay: 0.45, rot: -15 },
+        { left: '72%', top: '56%', size: 14, delay: 0.2, rot: 28 },
+        { left: '91%', top: '48%', size: 11, delay: 0.5, rot: -30 },
+        { left: '44%', top: '24%', size: 10, delay: 0.35, rot: 10 },
+      ];
+
+  const overlayContent = (
     <AnimatePresence>
       {playing && (
         <motion.div
           key={`${effect}-${playKey}`}
-          initial={{ opacity: 0, scale: 0.96 }}
+          initial={{ opacity: 0, scale: fullscreen ? 1.02 : 0.96 }}
           animate={{
             opacity: [0, 1, 1, 0],
-            scale: [0.96, 1, 1.01, 1.04],
+            scale: fullscreen ? [1.02, 1, 1.01, 1.03] : [0.96, 1, 1.01, 1.04],
           }}
           exit={{ opacity: 0 }}
           transition={{
@@ -3685,13 +3712,19 @@ export const ProfileEffectAnimationOverlay: React.FC<{
             times: [0, 0.13, 0.74, 1],
             ease: 'easeInOut',
           }}
-          className={`absolute inset-0 pointer-events-none overflow-hidden z-20 ${className}`}
+          className={
+            fullscreen
+              ? `fixed inset-0 pointer-events-none overflow-hidden z-[120] ${className}`
+              : `absolute inset-0 pointer-events-none overflow-hidden z-20 ${className}`
+          }
         >
           {/* Ambient theme radial glow */}
           <div
             className="absolute inset-0"
             style={{
-              background: `radial-gradient(circle at 76% 24%, ${meta.primary}48 0%, ${meta.secondary}26 42%, transparent 78%)`,
+              background: fullscreen
+                ? `radial-gradient(circle at 50% 42%, ${meta.primary}62 0%, ${meta.secondary}3c 44%, rgba(6,7,11,0.35) 100%)`
+                : `radial-gradient(circle at 76% 24%, ${meta.primary}48 0%, ${meta.secondary}26 42%, transparent 78%)`,
             }}
           />
 
@@ -3701,15 +3734,21 @@ export const ProfileEffectAnimationOverlay: React.FC<{
               src={meta.artUrl}
               alt=""
               referrerPolicy="no-referrer"
-              initial={{ x: 26, scale: 1.08, opacity: 0 }}
-              animate={{ x: [26, 0, -6], scale: [1.08, 1.02, 1.06], opacity: [0, 0.88, 0.78] }}
+              initial={{ x: fullscreen ? 40 : 26, scale: 1.08, opacity: 0 }}
+              animate={{
+                x: fullscreen ? [40, 0, -10] : [26, 0, -6],
+                scale: [1.08, 1.02, 1.06],
+                opacity: fullscreen ? [0, 0.85, 0.7] : [0, 0.88, 0.78],
+              }}
               transition={{ duration: 2.6, ease: 'easeOut' }}
               className="absolute inset-0 w-full h-full object-cover object-center mix-blend-screen"
               style={{
-                maskImage:
-                  'radial-gradient(ellipse 80% 85% at 78% 35%, black 22%, rgba(0,0,0,0.45) 58%, transparent 88%)',
-                WebkitMaskImage:
-                  'radial-gradient(ellipse 80% 85% at 78% 35%, black 22%, rgba(0,0,0,0.45) 58%, transparent 88%)',
+                maskImage: fullscreen
+                  ? 'radial-gradient(ellipse 92% 90% at 50% 46%, black 28%, rgba(0,0,0,0.55) 68%, transparent 96%)'
+                  : 'radial-gradient(ellipse 80% 85% at 78% 35%, black 22%, rgba(0,0,0,0.45) 58%, transparent 88%)',
+                WebkitMaskImage: fullscreen
+                  ? 'radial-gradient(ellipse 92% 90% at 50% 46%, black 28%, rgba(0,0,0,0.55) 68%, transparent 96%)'
+                  : 'radial-gradient(ellipse 80% 85% at 78% 35%, black 22%, rgba(0,0,0,0.45) 58%, transparent 88%)',
               }}
             />
           )}
@@ -3727,7 +3766,11 @@ export const ProfileEffectAnimationOverlay: React.FC<{
 
           {/* Kinetic particle system matching effect style */}
           {meta.particles === 'slashes' && (
-            <svg viewBox="0 0 400 260" className="absolute inset-0 w-full h-full">
+            <svg
+              viewBox="0 0 400 260"
+              preserveAspectRatio={fullscreen ? 'none' : 'xMidYMid meet'}
+              className="absolute inset-0 w-full h-full"
+            >
               <motion.path
                 d="M 40 210 Q 190 105 390 25"
                 fill="none"
@@ -3762,7 +3805,11 @@ export const ProfileEffectAnimationOverlay: React.FC<{
           )}
 
           {meta.particles === 'lightning' && (
-            <svg viewBox="0 0 400 260" className="absolute inset-0 w-full h-full">
+            <svg
+              viewBox="0 0 400 260"
+              preserveAspectRatio={fullscreen ? 'none' : 'xMidYMid meet'}
+              className="absolute inset-0 w-full h-full"
+            >
               <motion.path
                 d="M 290 8 L 255 72 L 288 86 L 235 162"
                 fill="none"
@@ -3774,19 +3821,19 @@ export const ProfileEffectAnimationOverlay: React.FC<{
                 transition={{ duration: 1.2, repeat: 1, repeatDelay: 0.25 }}
               />
               <motion.path
-                d="M 340 32 L 308 92 L 336 105 L 286 184"
+                d="M 140 16 L 105 92 L 136 108 L 86 214"
                 fill="none"
                 stroke={meta.secondary}
-                strokeWidth="3.5"
+                strokeWidth="4"
                 strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: [0, 1, 1], opacity: [0, 0.95, 0] }}
-                transition={{ duration: 1.15, delay: 0.2, repeat: 1, repeatDelay: 0.25 }}
+                transition={{ duration: 1.15, delay: 0.18, repeat: 1, repeatDelay: 0.25 }}
               />
               <motion.circle
-                cx="315"
-                cy="70"
-                r="26"
+                cx={fullscreen ? '200' : '315'}
+                cy={fullscreen ? '120' : '70'}
+                r={fullscreen ? '38' : '26'}
                 fill={meta.primary}
                 initial={{ scale: 0.4, opacity: 0.7 }}
                 animate={{ scale: [0.4, 1.5, 2.2], opacity: [0.7, 0.35, 0] }}
@@ -3801,15 +3848,7 @@ export const ProfileEffectAnimationOverlay: React.FC<{
             meta.particles === 'cyber' ||
             meta.particles === 'horror') && (
             <div className="absolute inset-0 pointer-events-none">
-              {[
-                { left: '62%', top: '18%', size: 13, delay: 0, rot: 14 },
-                { left: '78%', top: '34%', size: 15, delay: 0.15, rot: -22 },
-                { left: '88%', top: '22%', size: 11, delay: 0.3, rot: 35 },
-                { left: '54%', top: '44%', size: 12, delay: 0.45, rot: -15 },
-                { left: '72%', top: '56%', size: 14, delay: 0.2, rot: 28 },
-                { left: '91%', top: '48%', size: 11, delay: 0.5, rot: -30 },
-                { left: '44%', top: '24%', size: 10, delay: 0.35, rot: 10 },
-              ].map((dot, idx) => {
+              {particlesList.map((dot, idx) => {
                 const tone = idx % 2 === 0 ? meta.primary : meta.secondary;
                 return (
                   <motion.div
@@ -3817,17 +3856,20 @@ export const ProfileEffectAnimationOverlay: React.FC<{
                     initial={{ opacity: 0, y: 16, scale: 0.4, rotate: dot.rot }}
                     animate={{
                       opacity: [0, 1, 0.9, 0],
-                      y: meta.particles === 'petals' ? [0, 28, 56] : [18, -14, -40],
-                      x: meta.particles === 'petals' ? [0, -14, -28] : [0, 6, -4],
-                      scale: [0.4, 1.15, 0.72],
-                      rotate: meta.particles === 'petals' ? [dot.rot, dot.rot + 45, dot.rot + 95] : [0, 15, 0],
+                      y: meta.particles === 'petals' ? [0, 48, 96] : [22, -24, -64],
+                      x: meta.particles === 'petals' ? [0, -18, -36] : [0, 8, -6],
+                      scale: [0.4, 1.2, 0.72],
+                      rotate:
+                        meta.particles === 'petals'
+                          ? [dot.rot, dot.rot + 45, dot.rot + 95]
+                          : [0, 15, 0],
                     }}
-                    transition={{ duration: 2.35, delay: dot.delay, ease: 'easeOut' }}
+                    transition={{ duration: 2.45, delay: dot.delay, ease: 'easeOut' }}
                     className="absolute"
                     style={{
                       left: dot.left,
                       top: dot.top,
-                      filter: `drop-shadow(0 0 8px ${tone})`,
+                      filter: `drop-shadow(0 0 10px ${tone})`,
                     }}
                   >
                     {meta.particles === 'petals' ? (
@@ -3836,19 +3878,30 @@ export const ProfileEffectAnimationOverlay: React.FC<{
                       </svg>
                     ) : meta.particles === 'sparks' ? (
                       <svg width={dot.size} height={dot.size} viewBox="0 0 20 20">
-                        <path d="M10 0 L12.5 7.5 L20 10 L12.5 12.5 L10 20 L7.5 12.5 L0 10 L7.5 7.5 Z" fill={tone} />
+                        <path
+                          d="M10 0 L12.5 7.5 L20 10 L12.5 12.5 L10 20 L7.5 12.5 L0 10 L7.5 7.5 Z"
+                          fill={tone}
+                        />
                       </svg>
                     ) : meta.particles === 'horror' ? (
                       <svg width={dot.size + 4} height={dot.size} viewBox="0 0 24 16">
-                        <ellipse cx="12" cy="8" rx="10" ry="5" fill="#ffffff" stroke="#09090b" strokeWidth="1.2" />
+                        <ellipse
+                          cx="12"
+                          cy="8"
+                          rx="10"
+                          ry="5"
+                          fill="#ffffff"
+                          stroke="#09090b"
+                          strokeWidth="1.2"
+                        />
                         <circle cx="12" cy="8" r="2.8" fill="#09090b" />
                       </svg>
                     ) : meta.particles === 'cyber' ? (
                       <span
                         className="block rounded-full"
                         style={{
-                          width: 2.5,
-                          height: dot.size * 1.8,
+                          width: fullscreen ? 3.5 : 2.5,
+                          height: dot.size * 1.9,
                           background: `linear-gradient(180deg, #ffffff, ${tone}, transparent)`,
                         }}
                       />
@@ -3869,13 +3922,21 @@ export const ProfileEffectAnimationOverlay: React.FC<{
             initial={{ opacity: 0, x: 18 }}
             animate={{ opacity: [0, 0.95, 0.9, 0], x: [18, 0, -4, -10] }}
             transition={{ duration: 2.8, times: [0, 0.16, 0.72, 1], ease: 'easeOut' }}
-            className="absolute top-3.5 right-4 z-10 text-right"
+            className={
+              fullscreen
+                ? 'absolute top-12 inset-x-6 z-10 text-center'
+                : 'absolute top-3.5 right-4 z-10 text-right'
+            }
           >
             <span
-              className="inline-block font-display font-black text-base sm:text-xl tracking-wider uppercase drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]"
+              className={
+                fullscreen
+                  ? 'inline-block font-display font-black text-2xl sm:text-4xl tracking-widest uppercase drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]'
+                  : 'inline-block font-display font-black text-base sm:text-xl tracking-wider uppercase drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]'
+              }
               style={{
                 color: '#ffffff',
-                textShadow: `0 0 16px ${meta.primary}, 0 2px 8px rgba(0,0,0,0.95)`,
+                textShadow: `0 0 22px ${meta.primary}, 0 3px 10px rgba(0,0,0,0.95)`,
               }}
             >
               {meta.title}
@@ -3885,6 +3946,11 @@ export const ProfileEffectAnimationOverlay: React.FC<{
       )}
     </AnimatePresence>
   );
+
+  if (fullscreen && typeof document !== 'undefined') {
+    return createPortal(overlayContent, document.body);
+  }
+  return overlayContent;
 };
 
 export const WumpusNitroFly: React.FC = () => (

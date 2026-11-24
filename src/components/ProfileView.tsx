@@ -804,11 +804,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           } ${activeFrameClass}`}
         >
           <ProfileFrameArtwork frame={user.profileFrame} />
-          {/* Full-Profile Entrance Effect (plays when opening profile and fades out) */}
+          {/* Full-Screen Entrance Profile Effect (plays across viewport and disappears) */}
           <ProfileEffectAnimationOverlay
             effect={activeProfileEffect}
             playKey={effectPlayKey}
-            className="z-30"
+            fullscreen
           />
 
           {/* Top Banner (supports Shop Banner Image + Solid Fallback Color + Profile Effects) */}
@@ -1411,7 +1411,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) readFileAsDataUrl(f, (url) => setDraftBannerImage(url));
+              if (f) {
+                if (!nitroEffectsUnlocked) {
+                  onShowToast?.(
+                    'Necesitas Nitro para subir un banner de tu galería. Sin Nitro solo puedes usar colores.'
+                  );
+                } else {
+                  readFileAsDataUrl(f, (url) => setDraftBannerImage(url));
+                }
+              }
               e.target.value = '';
             }}
           />
@@ -1433,7 +1441,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) readFileAsDataUrl(f, (url) => updateCurrentServerDraft({ bannerImage: url }));
+              if (f) {
+                if (!nitroEffectsUnlocked) {
+                  onShowToast?.(
+                    'Necesitas Nitro para subir un banner de galería por servidor. Puedes elegir colores gratis.'
+                  );
+                } else {
+                  readFileAsDataUrl(f, (url) => updateCurrentServerDraft({ bannerImage: url }));
+                }
+              }
               e.target.value = '';
             }}
           />
@@ -1964,17 +1980,61 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           className="w-full h-full object-cover"
                         />
                       )}
-                      <button
-                        type="button"
-                        onClick={() => serverBannerFileRef.current?.click()}
-                        className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/65 border border-white/15 text-xs font-semibold text-white flex items-center gap-1 cursor-pointer"
-                      >
-                        <Upload className="w-3 h-3" />
-                        <span>Subir banner</span>
-                      </button>
+                      {nitroEffectsUnlocked ? (
+                        <button
+                          type="button"
+                          onClick={() => serverBannerFileRef.current?.click()}
+                          className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/65 border border-white/15 text-xs font-semibold text-white flex items-center gap-1 cursor-pointer"
+                        >
+                          <Upload className="w-3 h-3" />
+                          <span>Subir banner</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowEditProfile(false);
+                            onNavigate('nitro');
+                            onShowToast?.(
+                              'Los banners de galería requieren Nitro. Sin Nitro puedes usar colores sólidos.'
+                            );
+                          }}
+                          className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/75 border border-fuchsia-400/40 text-xs font-semibold text-fuchsia-200 flex items-center gap-1 cursor-pointer"
+                        >
+                          <Lock className="w-3 h-3" />
+                          <span>Galería · Nitro</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="p-4 space-y-4">
+                      <div>
+                        <p className="text-[12px] font-semibold text-zinc-400 mb-2">
+                          Color de banner en {currentServerProfileTarget.name}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {BANNER_PRESETS.slice(0, 8).map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() =>
+                                updateCurrentServerDraft({
+                                  bannerColor: c,
+                                  bannerImage: undefined,
+                                })
+                              }
+                              style={{ backgroundColor: c }}
+                              className={`w-7 h-7 rounded-full cursor-pointer transition-transform ${
+                                !currentServerDraft.bannerImage &&
+                                (currentServerDraft.bannerColor ||
+                                  currentServerProfileTarget.bannerColor) === c
+                                  ? 'ring-2 ring-white scale-110'
+                                  : 'border border-white/20'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
                       <div>
                         <label className="text-[13px] font-semibold text-zinc-300 block mb-1.5">
                           Apodo en {currentServerProfileTarget.name}
@@ -2172,18 +2232,41 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   Cambiar banner
                 </h3>
 
-                <button
-                  type="button"
-                  onClick={() => bannerFileRef.current?.click()}
-                  className="w-full h-11 rounded-full dc-btn-primary text-sm font-bold flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Subir imagen desde tu dispositivo</span>
-                </button>
+                {nitroEffectsUnlocked ? (
+                  <button
+                    type="button"
+                    onClick={() => bannerFileRef.current?.click()}
+                    className="w-full h-11 rounded-full dc-btn-primary text-sm font-bold flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Subir imagen desde tu galería</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivePickerSheet(null);
+                      setShowEditProfile(false);
+                      onNavigate('nitro');
+                      onShowToast?.(
+                        'Sin Nitro solo puedes elegir colores sólidos. ¡Activa Nitro para subir imágenes de tu galería!'
+                      );
+                    }}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-[#181922] hover:bg-[#20222f] border border-fuchsia-400/35 text-xs font-bold text-fuchsia-200 flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-fuchsia-300 shrink-0" />
+                      <span>Subir imagen de tu galería (Solo con Nitro)</span>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-fuchsia-500/20 text-[11px] font-extrabold text-white shrink-0">
+                      Nitro
+                    </span>
+                  </button>
+                )}
 
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
-                    Color sólido
+                    Color sólido {nitroEffectsUnlocked ? '' : '· Disponible gratis'}
                   </p>
                   <div className="flex items-center gap-2.5 flex-wrap">
                     {BANNER_PRESETS.map((c) => (

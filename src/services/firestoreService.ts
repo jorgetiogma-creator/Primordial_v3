@@ -37,7 +37,7 @@ import {
   ThreadMessage,
   UserProfile,
 } from '../types/discord';
-import { DESIGNATED_OWNER_EMAIL } from '../utils/ownerAccess';
+import { isDesignatedOwnerEmail } from '../utils/ownerAccess';
 import { sanitizeMediaUrl } from '../utils/urlSafety';
 
 function clampStr(val: string | undefined | null, maxLen: number): string {
@@ -188,7 +188,7 @@ export async function claimProfileWithUsername(params: {
     throw new Error('El nombre de usuario debe tener al menos 2 caracteres válidos (letras, números, . _ -).');
   }
 
-  const isOwner = Boolean(email && email.trim().toLowerCase() === DESIGNATED_OWNER_EMAIL);
+  const isOwner = isDesignatedOwnerEmail(email);
   const safeDisplayName = clampStr(displayName, 40) || cleanHandle;
   const safeCustomAvatar = sanitizeMediaUrl(customAvatarUrl);
   const memberSince = new Date().toLocaleDateString('es-ES', {
@@ -384,7 +384,7 @@ export async function syncUserAccountToFirestore(
   const verifiedCloudOwner = Boolean(
     extras.isOwnerAccount &&
       auth.currentUser?.emailVerified &&
-      auth.currentUser?.email?.toLowerCase() === DESIGNATED_OWNER_EMAIL
+      isDesignatedOwnerEmail(auth.currentUser?.email)
   );
 
   const privPayload = stripUndefined({

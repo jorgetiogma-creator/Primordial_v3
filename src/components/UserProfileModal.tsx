@@ -130,11 +130,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Mobile Bottom-Sheet Drag Handle */}
           <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 z-40 w-10 h-1 rounded-full bg-white/40 pointer-events-none" />
 
-          {/* Full Entrance Profile Effect */}
+          {/* Fullscreen Viewport Entrance Profile Effect */}
           <ProfileEffectAnimationOverlay
             effect={profile.profileEffect}
             playKey={playKey}
-            className="z-30"
+            fullscreen
           />
 
           {/* Banner */}

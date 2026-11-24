@@ -133,6 +133,7 @@ import {
   canManageServer,
   getServerPermissions,
   isActiveAccountOwner,
+  isOwnerIdentity,
   isServerOwner,
   normalizeSingleOwnerAccounts,
   RESERVED_OWNER_USERNAME,
@@ -530,11 +531,16 @@ export default function App() {
 
         const existingBundle = await fetchUserAccountBundle(uid).catch(() => null);
         if (existingBundle) {
+          const resolvedOwner = isOwnerIdentity({
+            username: existingBundle.user.username,
+            email: session.email,
+            isOwnerAccount: existingBundle.isOwnerAccount,
+          });
           const safeCloudUser = sanitizeUserShopCosmetics(
             { ...INITIAL_USER, ...existingBundle.user, id: uid },
             existingBundle.ownedBundleIds,
             INITIAL_SHOP_BUNDLES,
-            existingBundle.isOwnerAccount
+            resolvedOwner
           );
           hydratedUidRef.current = uid;
           setUser(safeCloudUser);
@@ -656,11 +662,16 @@ export default function App() {
       try {
         const bundle = await fetchUserAccountBundle(fbUser.uid);
         if (bundle) {
+          const resolvedOwner = isOwnerIdentity({
+            username: bundle.user.username,
+            email: fbUser.email,
+            isOwnerAccount: bundle.isOwnerAccount,
+          });
           const safeUser = sanitizeUserShopCosmetics(
             { ...INITIAL_USER, ...bundle.user, id: fbUser.uid },
             bundle.ownedBundleIds,
             INITIAL_SHOP_BUNDLES,
-            bundle.isOwnerAccount
+            resolvedOwner
           );
           hydratedUidRef.current = fbUser.uid;
           setUser(safeUser);
@@ -2297,7 +2308,13 @@ export default function App() {
 
   const handleBuyBundle = (bundle: ShopBundle, useOrbs: boolean) => {
     if (ownedBundleIds.includes(bundle.id)) return;
-    if (useOrbs && user.orbs < bundle.priceOrbs) {
+    if (!useOrbs) {
+      showToastMsg(
+        `El pago en USD (${bundle.priceUsd}) requiere método verificado. Usa tus Orbs o gana más en Misiones.`
+      );
+      return;
+    }
+    if (user.orbs < bundle.priceOrbs) {
       showToastMsg('No tienes suficientes Orbs');
       return;
     }
@@ -2309,7 +2326,7 @@ export default function App() {
     const frame = bundle.items.find((i) => i.profileFrameId)?.profileFrameId;
     const nextUser: UserProfile = {
       ...user,
-      ...(useOrbs ? { orbs: user.orbs - bundle.priceOrbs } : {}),
+      orbs: user.orbs - bundle.priceOrbs,
       ...(deco ? { decoration: deco } : {}),
       ...(plate ? { nameplate: plate } : {}),
       ...(banner ? { bannerImage: banner } : {}),
@@ -2349,6 +2366,11 @@ export default function App() {
 
   const handleLoginAccount = (account: StoredAccount) => {
     const owned = account.ownedBundleIds || [];
+    const resolvedOwner = isOwnerIdentity({
+      username: account.user.username,
+      email: account.user.email || account.contact,
+      isOwnerAccount: account.isOwnerAccount,
+    });
     const safeUser = sanitizeUserShopCosmetics(
       {
         ...INITIAL_USER,
@@ -2356,7 +2378,8 @@ export default function App() {
         orbs: normalizeOrbs(account.user.orbs),
       },
       owned,
-      INITIAL_SHOP_BUNDLES
+      INITIAL_SHOP_BUNDLES,
+      resolvedOwner
     );
     autoCloudAttemptedRef.current = account.id;
     setActiveAccountId(account.id);
@@ -2403,17 +2426,22 @@ export default function App() {
       const bundle = await fetchUserAccountBundle(res.uid).catch(() => null);
       if (!bundle) return false;
 
+      const resolvedOwner = isOwnerIdentity({
+        username: bundle.user.username,
+        email: res.email,
+        isOwnerAccount: bundle.isOwnerAccount,
+      });
       const safeCloudUser = sanitizeUserShopCosmetics(
         { ...INITIAL_USER, ...bundle.user, id: res.uid },
         bundle.ownedBundleIds,
         INITIAL_SHOP_BUNDLES,
-        bundle.isOwnerAccount
+        resolvedOwner
       );
       const newAcc: StoredAccount = {
         id: res.uid,
         contact: identifier.trim(),
         password,
-        isOwnerAccount: bundle.isOwnerAccount,
+        isOwnerAccount: resolvedOwner,
         user: safeCloudUser,
         ownedBundleIds: bundle.ownedBundleIds,
         wishlistIds: bundle.wishlistIds,
@@ -3712,8 +3740,16 @@ export default function App() {
       return (
         <NitroView
           user={user}
+          isOwner={isOwner}
+          onOpenOwnerPanel={() => isOwner && setShowOwnerPanel(true)}
           onBack={() => setScreen('inicio')}
           onSubscribe={(tier) => {
+            if (!isOwner) {
+              showToastMsg(
+                'Se requiere un método de pago USD verificado para activar Nitro.'
+              );
+              return;
+            }
             const nextUser: UserProfile = {
               ...user,
               nitroTier: tier,
@@ -3727,10 +3763,10 @@ export default function App() {
             playUiSound('ping', appPreferences.soundsEnabled);
             showToastMsg(
               appliedQueuedGlow
-                ? `¡Nitro activado y brillo aplicado a tu nombre!`
+                ? `¡Nitro activado por Admin y brillo aplicado a tu nombre!`
                 : tier === 'nitro'
-                ? '¡Primordial Nitro ($2.00 USD/mes) activado! Cosméticos, brillo y ventajas desbloqueadas.'
-                : '¡Primordial Nitro Basic ($1.00 USD/mes) activado! Disfruta tus nuevas ventajas.'
+                ? '¡Primordial Nitro activado por Admin!'
+                : '¡Primordial Nitro Basic activado por Admin!'
             );
             setScreen('tu');
           }}

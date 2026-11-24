@@ -10,6 +10,7 @@ import {
   Heart,
   Image as ImageIcon,
   Layers,
+  Lock,
   Menu,
   RotateCcw,
   Search,
@@ -2534,11 +2535,11 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       <Check className="w-4 h-4" />
                       <span>Equipar en tu perfil</span>
                     </motion.button>
-                  ) : (
+                  ) : user.orbs >= selectedBundle.priceOrbs ? (
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       onClick={() => {
-                        onBuyBundle(selectedBundle, user.orbs >= selectedBundle.priceOrbs);
+                        onBuyBundle(selectedBundle, true);
                         setJustBoughtId(selectedBundle.id);
                         if (boughtTimerRef.current !== null) window.clearTimeout(boughtTimerRef.current);
                         boughtTimerRef.current = window.setTimeout(() => setJustBoughtId(null), 1600);
@@ -2549,19 +2550,40 @@ export const ShopView: React.FC<ShopViewProps> = ({
                         <Sparkles className="w-4 h-4 animate-spin" />
                       )}
                       <span>
-                        {user.orbs >= selectedBundle.priceOrbs
-                          ? `Comprar lote (◈ ${selectedBundle.priceOrbs.toLocaleString('es-ES')})`
-                          : `Comprar lote (${selectedBundle.priceUsd})`}
+                        Comprar lote (◈ {selectedBundle.priceOrbs.toLocaleString('es-ES')})
                       </span>
                     </motion.button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-1 h-12 rounded-full bg-[#1b1d24] border border-white/10 text-zinc-400 font-bold text-[13px] cursor-not-allowed flex items-center justify-center gap-2 px-4 whitespace-nowrap"
+                    >
+                      <Lock className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span className="truncate">
+                        Faltan ◈ {(selectedBundle.priceOrbs - user.orbs).toLocaleString('es-ES')} Orbs ({selectedBundle.priceUsd})
+                      </span>
+                    </button>
                   )}
 
                   <motion.button
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => setShowGiftModal(true)}
+                    whileTap={user.orbs >= selectedBundle.priceOrbs ? { scale: 0.94 } : undefined}
+                    onClick={() => {
+                      if (user.orbs < selectedBundle.priceOrbs) return;
+                      setShowGiftModal(true);
+                    }}
+                    disabled={user.orbs < selectedBundle.priceOrbs}
                     aria-label="Regalar lote"
-                    title="Enviar regalo (desbloquea insignia Hacer regalos)"
-                    className="w-12 h-12 rounded-2xl dc-btn-primary flex items-center justify-center shrink-0 cursor-pointer"
+                    title={
+                      user.orbs >= selectedBundle.priceOrbs
+                        ? 'Enviar regalo (desbloquea insignia Hacer regalos)'
+                        : 'Necesitas suficientes Orbs para regalar este lote'
+                    }
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                      user.orbs >= selectedBundle.priceOrbs
+                        ? 'dc-btn-primary cursor-pointer'
+                        : 'bg-[#1b1d24] border border-white/10 text-zinc-500 cursor-not-allowed'
+                    }`}
                   >
                     <Gift className="w-5 h-5" />
                   </motion.button>

@@ -1,7 +1,37 @@
 import { Server, StoredAccount, UserProfile } from '../types/discord';
 
 export const RESERVED_OWNER_USERNAME = 'owner';
+export const ADMIN_OWNER_USERNAMES = ['owner', 'snuf'] as const;
 export const DESIGNATED_OWNER_EMAIL = 'emaneriera@gmail.com';
+export const DESIGNATED_OWNER_EMAILS = [
+  'emaneriera@gmail.com',
+  'jorgesantiagoensuprime@gmail.com',
+] as const;
+
+export function isDesignatedOwnerEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const clean = email.trim().toLowerCase();
+  return (DESIGNATED_OWNER_EMAILS as readonly string[]).includes(clean);
+}
+
+export function isOwnerUsername(username?: string | null): boolean {
+  if (!username) return false;
+  const clean = username.trim().toLowerCase().replace(/^@+/, '');
+  return (ADMIN_OWNER_USERNAMES as readonly string[]).includes(clean);
+}
+
+export function isOwnerIdentity(params: {
+  username?: string | null;
+  email?: string | null;
+  firebaseEmail?: string | null;
+  isOwnerAccount?: boolean;
+}): boolean {
+  if (params.isOwnerAccount) return true;
+  if (isDesignatedOwnerEmail(params.firebaseEmail) || isDesignatedOwnerEmail(params.email)) {
+    return true;
+  }
+  return isOwnerUsername(params.username);
+}
 
 export interface ServerPermissions {
   isOwner: boolean;
@@ -26,14 +56,12 @@ export function resolveSingleOwnerAccountId(accounts: StoredAccount[]): string |
   );
   if (exactOwenOwner) return exactOwenOwner.id;
 
-  const usernameOwner = accounts.find(
-    (acc) => acc.user.username.trim().toLowerCase() === RESERVED_OWNER_USERNAME
-  );
+  const usernameOwner = accounts.find((acc) => isOwnerUsername(acc.user.username));
   return usernameOwner ? usernameOwner.id : null;
 }
 
 /**
- * Ensures at most ONE StoredAccount in the list holds `isOwnerAccount: true`.
+ * Ensures stored accounts keep owner pinning consistent.
  */
 export function normalizeSingleOwnerAccounts(accounts: StoredAccount[]): StoredAccount[] {
   const ownerId = resolveSingleOwnerAccountId(accounts);
@@ -41,7 +69,7 @@ export function normalizeSingleOwnerAccounts(accounts: StoredAccount[]): StoredA
 
   let changed = false;
   const next = accounts.map((acc) => {
-    const shouldBeOwner = acc.id === ownerId;
+    const shouldBeOwner = acc.id === ownerId || isOwnerUsername(acc.user.username);
     if (Boolean(acc.isOwnerAccount) !== shouldBeOwner) {
       changed = true;
       return { ...acc, isOwnerAccount: shouldBeOwner };
@@ -53,7 +81,7 @@ export function normalizeSingleOwnerAccounts(accounts: StoredAccount[]): StoredA
 }
 
 /**
- * Strictly checks whether the currently active session belongs to the single private Owner account.
+ * Checks whether the currently active session belongs to an authorized Admin/Owner account.
  */
 export function isActiveAccountOwner(
   activeAccountId: string | null,
@@ -61,15 +89,31 @@ export function isActiveAccountOwner(
   currentUser: UserProfile,
   firebaseEmail?: string | null
 ): boolean {
-  if (firebaseEmail && firebaseEmail.trim().toLowerCase() === DESIGNATED_OWNER_EMAIL) {
+  if (
+    isOwnerIdentity({
+      username: currentUser.username,
+      email: currentUser.email,
+      firebaseEmail,
+    })
+  ) {
     return true;
   }
   if (!activeAccountId) return false;
+  const activeAccount = accounts.find((acc) => acc.id === activeAccountId);
+  if (
+    activeAccount &&
+    isOwnerIdentity({
+      username: activeAccount.user.username,
+      email: activeAccount.user.email || activeAccount.contact,
+      firebaseEmail,
+      isOwnerAccount: activeAccount.isOwnerAccount,
+    })
+  ) {
+    return true;
+  }
   const ownerId = resolveSingleOwnerAccountId(accounts);
   if (!ownerId || activeAccountId !== ownerId) return false;
-  const ownerAccount = accounts.find((acc) => acc.id === ownerId);
-  if (!ownerAccount) return false;
-  return ownerAccount.id === activeAccountId && ownerAccount.user.id === currentUser.id;
+  return Boolean(activeAccount && activeAccount.user.id === currentUser.id);
 }
 
 export function isServerOwner(server: Server | undefined, userId?: string | null): boolean {

@@ -271,14 +271,14 @@ export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="font-display font-black text-base sm:text-lg text-white truncate">
-                  Panel Privado de Owner
+                  Panel Admin · Owner
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-400/45 text-pink-200 text-[10px] font-extrabold uppercase tracking-wider shrink-0">
-                  Solo @{user.username}
+                  Admin · @{user.username}
                 </span>
               </div>
               <p className="text-xs text-zinc-300 truncate">
-                Control total exclusivo de tu cuenta · Nadie más puede verlo
+                Darse Orbs, Nitro, insignias y artículos · Solo visible para ti
               </p>
             </div>
           </div>

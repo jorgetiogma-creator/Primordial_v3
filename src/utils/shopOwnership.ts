@@ -147,9 +147,26 @@ export function sanitizeUserShopCosmetics(
 
   const isCustomUploadBanner = Boolean(user.bannerImage && user.bannerImage.startsWith('data:'));
   const safeBannerImage =
-    user.bannerImage && (isCustomUploadBanner || owned.banners.has(user.bannerImage))
+    user.bannerImage && ((isCustomUploadBanner && hasNitro) || owned.banners.has(user.bannerImage))
       ? user.bannerImage
       : undefined;
+
+  const safePerServerProfiles = user.perServerProfiles
+    ? Object.fromEntries(
+        Object.entries(user.perServerProfiles).map(([srvId, srvProf]) => {
+          if (!srvProf) return [srvId, srvProf];
+          const isSrvUploadBanner = Boolean(
+            srvProf.bannerImage && srvProf.bannerImage.startsWith('data:')
+          );
+          const safeSrvBanner =
+            srvProf.bannerImage &&
+            ((isSrvUploadBanner && hasNitro) || owned.banners.has(srvProf.bannerImage))
+              ? srvProf.bannerImage
+              : undefined;
+          return [srvId, { ...srvProf, bannerImage: safeSrvBanner }];
+        })
+      )
+    : user.perServerProfiles;
 
   const safeColorPreset = hasNitro ? user.displayNameColorPreset || 'none' : 'none';
 
@@ -160,6 +177,7 @@ export function sanitizeUserShopCosmetics(
     profileFrame: safeFrame,
     nameplate: safeNameplate,
     bannerImage: safeBannerImage,
+    perServerProfiles: safePerServerProfiles,
     displayNameColorPreset: safeColorPreset,
   };
 }

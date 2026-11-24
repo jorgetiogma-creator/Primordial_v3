@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -163,60 +163,300 @@ function buildQrMatrix(token: string): boolean[][] {
   return grid;
 }
 
+const LoginDragonMascot: React.FC<{ triggerKey: number }> = ({ triggerKey }) => {
+  const [visible, setVisible] = useState(true);
+  const [winking, setWinking] = useState(false);
+
+  useEffect(() => {
+    setVisible(true);
+    setWinking(false);
+    const winkStart = window.setTimeout(() => setWinking(true), 1100);
+    const winkEnd = window.setTimeout(() => setWinking(false), 2450);
+    const hideTimer = window.setTimeout(() => setVisible(false), 4500);
+    return () => {
+      window.clearTimeout(winkStart);
+      window.clearTimeout(winkEnd);
+      window.clearTimeout(hideTimer);
+    };
+  }, [triggerKey]);
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key={`login-dragon-${triggerKey}`}
+          initial={{ y: 260, opacity: 0, scale: 0.92 }}
+          animate={{
+            y: [260, 0, -4, 0, 270],
+            opacity: [0, 1, 1, 1, 0],
+            scale: [0.92, 1, 1.02, 1, 0.9],
+          }}
+          exit={{ y: 280, opacity: 0 }}
+          transition={{
+            duration: 4.35,
+            times: [0, 0.22, 0.52, 0.78, 1],
+            ease: 'easeInOut',
+          }}
+          aria-hidden="true"
+          className="fixed bottom-0 left-1/2 -translate-x-1/2 lg:left-24 lg:translate-x-0 z-40 pointer-events-none select-none flex flex-col items-center"
+        >
+          {/* Floor Magic Mist */}
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: [0.5, 1.25, 1.05, 0.6], opacity: [0, 0.75, 0.55, 0] }}
+            transition={{ duration: 4.1, times: [0, 0.22, 0.75, 1] }}
+            className="absolute -bottom-2 w-60 h-12 rounded-full bg-purple-950/35 blur-xl"
+          />
+
+          <motion.div
+            animate={winking ? { rotate: [0, -3, 1.5, 0] } : { rotate: 0 }}
+            transition={{ duration: 1.1, ease: 'easeInOut' }}
+            className="relative w-52 h-52 sm:w-64 sm:h-64 drop-shadow-[0_18px_28px_rgba(36,12,78,0.45)]"
+          >
+            {/* Golden Wink Sparkle */}
+            <AnimatePresence>
+              {winking && (
+                <motion.svg
+                  initial={{ scale: 0, opacity: 0, rotate: -20 }}
+                  animate={{ scale: [0, 1.25, 1], opacity: [0, 1, 0.9], rotate: [0, 15, 0] }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ duration: 0.45 }}
+                  viewBox="0 0 36 36"
+                  className="absolute right-6 top-14 w-9 h-9 z-20 drop-shadow-[0_0_10px_rgba(253,224,71,0.9)]"
+                >
+                  <path
+                    d="M18 2 L21.5 14.5 L34 18 L21.5 21.5 L18 34 L14.5 21.5 L2 18 L14.5 14.5 Z"
+                    fill="#fde047"
+                  />
+                </motion.svg>
+              )}
+            </AnimatePresence>
+
+            <svg viewBox="0 0 240 240" className="w-full h-full overflow-visible">
+              <defs>
+                <linearGradient id="dragonBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#7e22ce" />
+                  <stop offset="55%" stopColor="#581c87" />
+                  <stop offset="100%" stopColor="#311053" />
+                </linearGradient>
+                <linearGradient id="dragonBellyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#f5d0fe" />
+                  <stop offset="100%" stopColor="#c084fc" />
+                </linearGradient>
+                <linearGradient id="dragonHornGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#fef08a" />
+                  <stop offset="100%" stopColor="#f59e0b" />
+                </linearGradient>
+              </defs>
+
+              {/* Wings */}
+              <path
+                d="M54 148 Q16 106 24 72 Q46 98 62 114 Q74 96 86 132 Z"
+                fill="#4c1d95"
+                stroke="#2e1065"
+                strokeWidth="3"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M186 148 Q224 106 216 72 Q194 98 178 114 Q166 96 154 132 Z"
+                fill="#4c1d95"
+                stroke="#2e1065"
+                strokeWidth="3"
+                strokeLinejoin="round"
+              />
+
+              {/* Torso rising from floor */}
+              <path
+                d="M66 238 C64 176 76 144 120 144 C164 144 176 176 174 238 Z"
+                fill="url(#dragonBodyGrad)"
+                stroke="#240a47"
+                strokeWidth="3.5"
+              />
+              <path
+                d="M92 238 C92 184 100 156 120 156 C140 156 148 184 148 238 Z"
+                fill="url(#dragonBellyGrad)"
+              />
+              <path d="M98 182 Q120 189 142 182" stroke="#9333ea" strokeWidth="2.5" fill="none" />
+              <path d="M95 204 Q120 212 145 204" stroke="#9333ea" strokeWidth="2.5" fill="none" />
+
+              {/* Curved Horns */}
+              <path
+                d="M84 68 Q60 28 74 14 Q90 36 98 60 Z"
+                fill="url(#dragonHornGrad)"
+                stroke="#78350f"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M156 68 Q180 28 166 14 Q150 36 142 60 Z"
+                fill="url(#dragonHornGrad)"
+                stroke="#78350f"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+              />
+
+              {/* Ear Fin Spikes */}
+              <path
+                d="M62 96 Q36 86 42 70 Q58 76 72 86 Z"
+                fill="#a855f7"
+                stroke="#2e1065"
+                strokeWidth="2.5"
+              />
+              <path
+                d="M178 96 Q204 86 198 70 Q182 76 168 86 Z"
+                fill="#a855f7"
+                stroke="#2e1065"
+                strokeWidth="2.5"
+              />
+
+              {/* Dragon Head */}
+              <ellipse
+                cx="120"
+                cy="104"
+                rx="56"
+                ry="48"
+                fill="url(#dragonBodyGrad)"
+                stroke="#240a47"
+                strokeWidth="3.5"
+              />
+
+              {/* Forehead Crest */}
+              <path d="M112 58 L120 42 L128 58 Z" fill="#facc15" />
+
+              {/* Snout */}
+              <ellipse
+                cx="120"
+                cy="126"
+                rx="40"
+                ry="26"
+                fill="#7e22ce"
+                stroke="#240a47"
+                strokeWidth="3"
+              />
+
+              {/* Cute Nostrils + Little Smoke Puff */}
+              <circle cx="104" cy="118" r="3.4" fill="#1e0638" />
+              <circle cx="136" cy="118" r="3.4" fill="#1e0638" />
+              <motion.circle
+                cx="148"
+                cy="110"
+                r="4"
+                fill="#f5d0fe"
+                animate={{ cy: [112, 92], opacity: [0, 0.75, 0], scale: [0.6, 1.4] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
+              />
+
+              {/* Playful Smile + Fang */}
+              <path
+                d="M96 133 Q120 147 144 133"
+                fill="none"
+                stroke="#fde047"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+              />
+              <polygon points="105,137 110,145 114,138" fill="#ffffff" />
+
+              {/* Left Eye (Always bright & friendly open) */}
+              <g>
+                <ellipse cx="95" cy="93" rx="12" ry="13.5" fill="#fffbeb" stroke="#1e0638" strokeWidth="2.5" />
+                <ellipse cx="96" cy="93" rx="6.5" ry="9" fill="#f59e0b" />
+                <ellipse cx="96" cy="93" rx="2.8" ry="6.5" fill="#180828" />
+                <circle cx="92.5" cy="88" r="2.6" fill="#ffffff" />
+              </g>
+
+              {/* Right Eye (Winks smoothly!) */}
+              {winking ? (
+                <g>
+                  <path
+                    d="M132 95 Q145 83 158 95"
+                    fill="none"
+                    stroke="#fde047"
+                    strokeWidth="4.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M135 98 Q145 91 155 98"
+                    fill="none"
+                    stroke="#f5d0fe"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </g>
+              ) : (
+                <g>
+                  <ellipse cx="145" cy="93" rx="12" ry="13.5" fill="#fffbeb" stroke="#1e0638" strokeWidth="2.5" />
+                  <ellipse cx="144" cy="93" rx="6.5" ry="9" fill="#f59e0b" />
+                  <ellipse cx="144" cy="93" rx="2.8" ry="6.5" fill="#180828" />
+                  <circle cx="141" cy="88" r="2.6" fill="#ffffff" />
+                </g>
+              )}
+
+              {/* Claws gripping bottom edge */}
+              <g fill="#f3e8ff" stroke="#240a47" strokeWidth="2.5">
+                <ellipse cx="74" cy="228" rx="14" ry="9" />
+                <ellipse cx="166" cy="228" rx="14" ry="9" />
+              </g>
+            </svg>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 const AuthEditorialShowcase: React.FC = () => (
-  <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 relative overflow-hidden flex-col justify-between p-10 xl:p-14 bg-[#07080d] border-r border-white/[0.06]">
-    {/* Atmospheric Obsidian Radial Lighting */}
+  <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 relative overflow-hidden flex-col justify-between p-10 xl:p-14 bg-gradient-to-br from-[#d8c8ff] via-[#b89cff] to-[#9b74f7] border-r border-white/30">
+    {/* Atmospheric Light Purple Highlights */}
     <div className="absolute inset-0 pointer-events-none">
-      <div className="absolute -top-24 -left-24 w-[480px] h-[480px] rounded-full bg-[#5865F2]/18 blur-[120px]" />
-      <div className="absolute bottom-[-80px] right-[-60px] w-[420px] h-[420px] rounded-full bg-indigo-500/12 blur-[120px]" />
+      <div className="absolute -top-24 -left-24 w-[480px] h-[480px] rounded-full bg-white/35 blur-[120px]" />
+      <div className="absolute bottom-[-80px] right-[-60px] w-[420px] h-[420px] rounded-full bg-[#7c3aed]/25 blur-[120px]" />
       <div
-        className="absolute inset-0 opacity-[0.04]"
+        className="absolute inset-0 opacity-[0.14]"
         style={{
-          backgroundImage:
-            'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(rgba(39,14,82,0.45) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }}
       />
     </div>
 
     <div className="relative z-10 flex items-center gap-3.5">
-      <PrimordialAppIcon className="w-11 h-11 rounded-2xl border border-white/15 shadow-lg" />
-      <span className="font-display font-extrabold text-xl tracking-tight text-white">
+      <PrimordialAppIcon className="w-11 h-11 rounded-2xl border border-white/40 shadow-lg" />
+      <span className="font-display font-extrabold text-xl tracking-tight text-[#1e0f42]">
         Primordial
       </span>
     </div>
 
     <div className="relative z-10 max-w-xl space-y-6 my-auto py-8">
-      <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#818cf8]">
+      <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#3b1d7a]">
         Mensajería · Comunidades · Coleccionables
       </p>
       <h2
-        className="font-display font-black text-4xl xl:text-5xl tracking-tight leading-[1.06] text-white"
+        className="font-display font-black text-4xl xl:text-5xl tracking-tight leading-[1.06] text-[#1a0d38]"
         style={{ textWrap: 'balance' }}
       >
         Tu espacio privado, sincronizado en cualquier dispositivo.
       </h2>
-      <p className="text-base text-zinc-400 leading-relaxed max-w-md">
+      <p className="text-base text-[#2b175c] font-medium leading-relaxed max-w-md">
         Conecta al instante con personas reales, comparte pantalla en alta calidad y conserva tu inventario y amigos en la nube sin depender de cuentas externas.
       </p>
 
-      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/[0.08]">
+      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[#3b1d7a]/20">
         <div>
-          <p className="font-display font-bold text-lg text-white">Tiempo real</p>
-          <p className="text-xs text-zinc-400 mt-0.5">Chats y solicitudes al instante</p>
+          <p className="font-display font-bold text-lg text-[#1a0d38]">Tiempo real</p>
+          <p className="text-xs text-[#2f1a63] mt-0.5">Chats y solicitudes al instante</p>
         </div>
         <div>
-          <p className="font-display font-bold text-lg text-white">Multidispositivo</p>
-          <p className="text-xs text-zinc-400 mt-0.5">Tu cuenta y objetos contigo</p>
+          <p className="font-display font-bold text-lg text-[#1a0d38]">Multidispositivo</p>
+          <p className="text-xs text-[#2f1a63] mt-0.5">Tu cuenta y objetos contigo</p>
         </div>
         <div>
-          <p className="font-display font-bold text-lg text-white">Tienda Shinobi</p>
-          <p className="text-xs text-zinc-400 mt-0.5">Sharingan, Rinnegan y más</p>
+          <p className="font-display font-bold text-lg text-[#1a0d38]">Tienda Shinobi</p>
+          <p className="text-xs text-[#2f1a63] mt-0.5">Sharingan, Rinnegan y más</p>
         </div>
       </div>
     </div>
 
-    <div className="relative z-10 text-xs text-zinc-500">
+    <div className="relative z-10 text-xs font-semibold text-[#311b66]">
       Primordial Web &amp; Mobile · Acceso directo por usuario, correo o teléfono
     </div>
   </div>
@@ -230,6 +470,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
   onResetPassword,
 }) => {
   const [step, setStep] = useState<AuthStep>('welcome');
+  const [dragonPlayKey, setDragonPlayKey] = useState(1);
   const [cloudLoginPending, setCloudLoginPending] = useState(false);
 
   // Login state
@@ -692,28 +933,28 @@ export const AuthView: React.FC<AuthViewProps> = ({
   /* ---------------- 1. WELCOME SCREEN ---------------- */
   if (step === 'welcome') {
     return (
-      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto select-none">
+      <div className="w-screen min-h-[100dvh] bg-gradient-to-br from-[#d3c1ff] via-[#b496ff] to-[#8f6cf6] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto select-none relative">
+        <LoginDragonMascot triggerKey={dragonPlayKey} />
         <AuthEditorialShowcase />
 
-        <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-between px-6 py-8 sm:px-10 min-h-[100dvh] relative overflow-hidden">
-          <div className="absolute -top-24 right-0 w-72 h-72 rounded-full bg-[#5865F2]/12 blur-3xl pointer-events-none lg:hidden" />
-
+        <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-between px-4 py-6 sm:px-8 min-h-[100dvh] relative overflow-hidden">
           <div className="flex items-center justify-between lg:justify-end relative z-10">
             <div className="flex items-center gap-2.5 lg:hidden">
-              <PrimordialAppIcon className="w-9 h-9 rounded-xl border border-white/15" />
-              <span className="font-display font-extrabold text-base text-white">Primordial</span>
+              <PrimordialAppIcon className="w-9 h-9 rounded-xl border border-white/40 shadow" />
+              <span className="font-display font-extrabold text-base text-[#1c0f3c]">Primordial</span>
             </div>
-            <span className="text-xs font-medium text-zinc-500">Acceso en la nube</span>
+            <span className="text-xs font-bold text-[#2b175c]">Acceso en la nube</span>
           </div>
 
-          <div className="my-auto py-8 max-w-[420px] mx-auto w-full space-y-6 relative z-10">
-            <div className="space-y-2.5 text-center lg:text-left">
-              <div className="hidden lg:inline-flex items-center gap-2 text-xs font-semibold text-[#818cf8]">
-                <span>Bienvenido</span>
-              </div>
-              <div className="lg:hidden flex justify-center mb-4">
-                <PrimordialAppIcon className="w-20 h-20 rounded-3xl border border-white/15 shadow-[0_14px_38px_rgba(88,101,242,0.35)]" />
-              </div>
+          <div className="my-auto py-4 max-w-[440px] mx-auto w-full relative z-10">
+            <div className="rounded-3xl bg-[#16102b]/92 backdrop-blur-xl border border-white/25 p-6 sm:p-8 shadow-[0_24px_60px_-16px_rgba(39,12,88,0.5)] space-y-6">
+              <div className="space-y-2.5 text-center lg:text-left">
+                <div className="hidden lg:inline-flex items-center gap-2 text-xs font-semibold text-[#c4b5fd]">
+                  <span>Bienvenido</span>
+                </div>
+                <div className="lg:hidden flex justify-center mb-3">
+                  <PrimordialAppIcon className="w-18 h-18 rounded-3xl border border-white/25 shadow-[0_14px_38px_rgba(88,101,242,0.4)]" />
+                </div>
               <h1
                 className="font-display font-black text-[28px] sm:text-[34px] tracking-tight leading-[1.08] text-white"
                 style={{ textWrap: 'balance' }}
@@ -775,16 +1016,18 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   setLoginError(null);
                   setInfoBanner(null);
                   setLoginMethod('password');
+                  setDragonPlayKey((k) => k + 1);
                   setStep('login');
                 }}
-                className="w-full h-12 rounded-full bg-[#151722] hover:bg-[#1c1f2e] border border-white/12 text-white font-display font-bold text-[15px] transition-all active:scale-[0.985] cursor-pointer"
+                className="w-full h-12 rounded-full bg-[#241c44] hover:bg-[#2f2559] border border-white/15 text-white font-display font-bold text-[15px] transition-all active:scale-[0.985] cursor-pointer"
               >
                 Iniciar sesión con mi cuenta
               </button>
             </div>
+            </div>
           </div>
 
-          <p className="text-center lg:text-left text-xs text-zinc-500 relative z-10">
+          <p className="text-center lg:text-left text-xs font-semibold text-[#2b175c] relative z-10">
             Sin inicio con Google · Acceso directo privado
           </p>
         </div>
@@ -795,7 +1038,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
   /* ---------------- 2. TWO-FACTOR AUTHENTICATION (2FA) ---------------- */
   if (step === 'two-factor' && pendingAccount) {
     return (
-      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+      <div className="w-screen min-h-[100dvh] bg-gradient-to-br from-[#d3c1ff] via-[#b496ff] to-[#8f6cf6] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
         <AuthEditorialShowcase />
 
         <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
@@ -807,14 +1050,15 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 setStep('login');
               }}
               aria-label="Volver"
-              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+              className="w-10 h-10 rounded-full bg-[#1a1038]/25 hover:bg-[#1a1038]/40 flex items-center justify-center text-[#1a0d38] cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <span className="text-xs font-semibold text-zinc-400">Verificación 2FA</span>
+            <span className="text-xs font-bold text-[#2b175c]">Verificación 2FA</span>
           </header>
 
-          <div className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-5">
+          <div className="flex-1 flex flex-col justify-center px-4 pb-8 max-w-[460px] mx-auto w-full">
+            <div className="rounded-3xl bg-[#16102b]/92 backdrop-blur-xl border border-white/25 p-6 shadow-[0_24px_60px_-16px_rgba(39,12,88,0.5)] space-y-5">
             <div className="text-center space-y-1.5">
               <div className="w-12 h-12 mx-auto rounded-2xl bg-[#5865F2]/18 border border-[#5865F2]/35 flex items-center justify-center text-[#818cf8] mb-2">
                 <Shield className="w-6 h-6" />
@@ -1027,6 +1271,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 </button>
               </form>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -1036,7 +1281,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
   /* ---------------- 3. ACCOUNT RECOVERY ---------------- */
   if (step === 'recovery') {
     return (
-      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+      <div className="w-screen min-h-[100dvh] bg-gradient-to-br from-[#d3c1ff] via-[#b496ff] to-[#8f6cf6] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
         <AuthEditorialShowcase />
 
         <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
@@ -1048,13 +1293,14 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 setStep('login');
               }}
               aria-label="Volver"
-              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+              className="w-10 h-10 rounded-full bg-[#1a1038]/25 hover:bg-[#1a1038]/40 flex items-center justify-center text-[#1a0d38] cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
           </header>
 
-          <div className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-5">
+          <div className="flex-1 flex flex-col justify-center px-4 pb-8 max-w-[460px] mx-auto w-full">
+            <div className="rounded-3xl bg-[#16102b]/92 backdrop-blur-xl border border-white/25 p-6 shadow-[0_24px_60px_-16px_rgba(39,12,88,0.5)] space-y-5">
             <div className="text-center lg:text-left space-y-1.5">
               <h1 className="font-display font-bold text-[26px] text-white tracking-tight">
                 Recuperar acceso
@@ -1176,6 +1422,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 </button>
               </form>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -1185,7 +1432,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
   /* ---------------- 4. LOGIN SCREEN ---------------- */
   if (step === 'login') {
     return (
-      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+      <div className="w-screen min-h-[100dvh] bg-gradient-to-br from-[#d3c1ff] via-[#b496ff] to-[#8f6cf6] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto relative">
+        <LoginDragonMascot triggerKey={dragonPlayKey} />
         <AuthEditorialShowcase />
 
         <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
@@ -1194,20 +1442,21 @@ export const AuthView: React.FC<AuthViewProps> = ({
               type="button"
               onClick={() => setStep('welcome')}
               aria-label="Volver"
-              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+              className="w-10 h-10 rounded-full bg-[#1a1038]/25 hover:bg-[#1a1038]/40 flex items-center justify-center text-[#1a0d38] cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <button
               type="button"
               onClick={() => setStep('register-contact')}
-              className="text-xs font-semibold text-[#818cf8] hover:text-white transition-colors cursor-pointer"
+              className="text-xs font-extrabold text-[#1c0f3c] hover:underline transition-colors cursor-pointer"
             >
               Crear cuenta
             </button>
           </header>
 
-          <div className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-5">
+          <div className="flex-1 flex flex-col justify-center px-4 pb-8 max-w-[460px] mx-auto w-full relative z-10">
+            <div className="rounded-3xl bg-[#16102b]/92 backdrop-blur-xl border border-white/25 p-6 shadow-[0_24px_60px_-16px_rgba(39,12,88,0.5)] space-y-5">
             <div className="text-center lg:text-left space-y-1">
               <h1 className="font-display font-black text-[28px] text-white tracking-tight">
                 ¡Hola de nuevo!
@@ -1521,6 +1770,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 </button>
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -1530,7 +1780,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
   /* ---------------- 5. REGISTER STEP 1 (Contacto) ---------------- */
   if (step === 'register-contact') {
     return (
-      <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+      <div className="w-screen min-h-[100dvh] bg-gradient-to-br from-[#d3c1ff] via-[#b496ff] to-[#8f6cf6] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
         <AuthEditorialShowcase />
 
         <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
@@ -1539,17 +1789,18 @@ export const AuthView: React.FC<AuthViewProps> = ({
               type="button"
               onClick={() => setStep('welcome')}
               aria-label="Volver"
-              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+              className="w-10 h-10 rounded-full bg-[#1a1038]/25 hover:bg-[#1a1038]/40 flex items-center justify-center text-[#1a0d38] cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <span className="text-xs font-semibold text-zinc-500 tabular-nums">Paso 1 de 2</span>
+            <span className="text-xs font-bold text-[#2b175c] tabular-nums">Paso 1 de 2</span>
           </header>
 
           <form
             onSubmit={handleContinueContact}
-            className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-5"
+            className="flex-1 flex flex-col justify-center px-4 pb-8 max-w-[460px] mx-auto w-full"
           >
+            <div className="rounded-3xl bg-[#16102b]/92 backdrop-blur-xl border border-white/25 p-6 shadow-[0_24px_60px_-16px_rgba(39,12,88,0.5)] space-y-5">
             <div className="text-center lg:text-left space-y-1">
               <h1
                 className="font-display font-black text-[26px] text-white leading-tight"
@@ -1672,6 +1923,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
             >
               Continuar solo con usuario y nombre →
             </button>
+            </div>
           </form>
         </div>
       </div>
@@ -1680,7 +1932,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
   /* ---------------- 6. REGISTER STEP 2 (Perfil y contraseña) ---------------- */
   return (
-    <div className="w-screen min-h-[100dvh] bg-[#090a0f] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
+    <div className="w-screen min-h-[100dvh] bg-gradient-to-br from-[#d3c1ff] via-[#b496ff] to-[#8f6cf6] text-white grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
       <AuthEditorialShowcase />
 
       <div className="lg:col-span-6 xl:col-span-5 flex flex-col min-h-[100dvh]">
@@ -1689,17 +1941,18 @@ export const AuthView: React.FC<AuthViewProps> = ({
             type="button"
             onClick={() => setStep('register-contact')}
             aria-label="Volver"
-            className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white cursor-pointer"
+            className="w-10 h-10 rounded-full bg-[#1a1038]/25 hover:bg-[#1a1038]/40 flex items-center justify-center text-[#1a0d38] cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <span className="text-xs font-semibold text-zinc-500 tabular-nums">Paso 2 de 2</span>
+          <span className="text-xs font-bold text-[#2b175c] tabular-nums">Paso 2 de 2</span>
         </header>
 
         <form
           onSubmit={handleCompleteRegistration}
-          className="flex-1 flex flex-col justify-center px-6 pb-8 max-w-[440px] mx-auto w-full space-y-4"
+          className="flex-1 flex flex-col justify-center px-4 pb-8 max-w-[460px] mx-auto w-full"
         >
+          <div className="rounded-3xl bg-[#16102b]/92 backdrop-blur-xl border border-white/25 p-6 shadow-[0_24px_60px_-16px_rgba(39,12,88,0.5)] space-y-4">
           <div className="text-center lg:text-left">
             <h1 className="font-display font-black text-[26px] text-white">Crea tu perfil</h1>
             <p className="text-xs text-zinc-400 mt-1">
@@ -1867,6 +2120,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
             <Sparkles className="w-4 h-4" />
             <span>Crear cuenta</span>
           </button>
+          </div>
         </form>
       </div>
     </div>

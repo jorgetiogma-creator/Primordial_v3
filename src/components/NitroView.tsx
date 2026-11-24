@@ -3,7 +3,9 @@ import {
   ArrowLeft,
   CheckCircle2,
   CreditCard,
+  Crown,
   Gem,
+  Lock,
   MonitorUp,
   Smile,
   Sparkles,
@@ -23,12 +25,21 @@ export const NITRO_BASIC_PRICE_USD = 1;
 
 interface NitroViewProps {
   user: UserProfile;
+  isOwner?: boolean;
+  onOpenOwnerPanel?: () => void;
   onBack: () => void;
   onSubscribe: (tier: 'nitro' | 'basic') => void;
 }
 
-export const NitroView: React.FC<NitroViewProps> = ({ user, onBack, onSubscribe }) => {
+export const NitroView: React.FC<NitroViewProps> = ({
+  user,
+  isOwner = false,
+  onOpenOwnerPanel,
+  onBack,
+  onSubscribe,
+}) => {
   const [confirmTier, setConfirmTier] = useState<'nitro' | 'basic' | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
 
   const selectedPriceUsd =
     confirmTier === 'nitro' ? NITRO_PRICE_USD : NITRO_BASIC_PRICE_USD;
@@ -129,7 +140,10 @@ export const NitroView: React.FC<NitroViewProps> = ({ user, onBack, onSubscribe 
           </ul>
 
           <button
-            onClick={() => setConfirmTier('nitro')}
+            onClick={() => {
+              setPaymentNotice(null);
+              setConfirmTier('nitro');
+            }}
             className="w-full mt-6 h-12 rounded-full dc-btn-white font-extrabold text-[15px] flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
           >
             {user.nitroTier === 'nitro' ? (
@@ -186,7 +200,10 @@ export const NitroView: React.FC<NitroViewProps> = ({ user, onBack, onSubscribe 
           </ul>
 
           <button
-            onClick={() => setConfirmTier('basic')}
+            onClick={() => {
+              setPaymentNotice(null);
+              setConfirmTier('basic');
+            }}
             className="w-full mt-6 h-12 rounded-full dc-btn-white font-extrabold text-[15px] flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
           >
             {user.nitroTier === 'basic' ? (
@@ -245,28 +262,71 @@ export const NitroView: React.FC<NitroViewProps> = ({ user, onBack, onSubscribe 
                 </span>
               </div>
               <div className="border-t border-[#2e3035] pt-2 flex items-center justify-between">
-                <span className="text-[#949ba4]">Facturación</span>
-                <span className="font-semibold text-[#f2f3f5]">Tarjeta / Saldo USD</span>
+                <span className="text-[#949ba4]">Método de pago</span>
+                <span className="font-semibold text-[#f2f3f5]">
+                  {isOwner ? 'Admin autorizado' : 'Pago USD requerido'}
+                </span>
               </div>
             </div>
 
+            {!isOwner && (
+              <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-xs text-amber-200 flex items-start gap-2 leading-relaxed">
+                <Lock className="w-4 h-4 shrink-0 mt-0.5 text-amber-300" />
+                <span>
+                  {paymentNotice ||
+                    `Este plan cuesta $${selectedPriceUsd}.00 USD/mes y requiere un pago verificado. No se puede obtener gratis sin pagar.`}
+                </span>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => setConfirmTier(null)}
-                className="flex-1 h-11 rounded-full dc-btn-secondary text-sm font-semibold cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
                 onClick={() => {
-                  onSubscribe(confirmTier);
+                  setPaymentNotice(null);
                   setConfirmTier(null);
                 }}
-                className="flex-1 h-11 rounded-full dc-btn-primary text-sm font-bold cursor-pointer"
+                className="flex-1 h-11 rounded-full dc-btn-secondary text-sm font-semibold cursor-pointer"
               >
-                Confirmar (${selectedPriceUsd} USD)
+                Cerrar
               </button>
+              {isOwner ? (
+                <button
+                  onClick={() => {
+                    onSubscribe(confirmTier);
+                    setConfirmTier(null);
+                  }}
+                  className="flex-1 h-11 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white text-sm font-bold cursor-pointer inline-flex items-center justify-center gap-1.5"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>Activar (Admin)</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPaymentNotice(
+                      `Pago de $${selectedPriceUsd}.00 USD requerido: no hay tarjeta ni saldo USD vinculado en esta cuenta.`
+                    )
+                  }
+                  className="flex-1 h-11 rounded-full bg-[#2e3035] text-zinc-300 border border-white/10 text-xs font-bold cursor-not-allowed inline-flex items-center justify-center gap-1.5"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Pago USD (${selectedPriceUsd})</span>
+                </button>
+              )}
             </div>
+            {isOwner && onOpenOwnerPanel && (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmTier(null);
+                  onOpenOwnerPanel();
+                }}
+                className="w-full py-2 text-xs font-semibold text-pink-300 hover:text-pink-200 cursor-pointer text-center"
+              >
+                Abrir Panel Admin completo →
+              </button>
+            )}
           </div>
         </div>
       )}
