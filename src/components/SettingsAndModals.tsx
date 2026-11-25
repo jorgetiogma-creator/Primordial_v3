@@ -31,6 +31,7 @@ import { BoostGemIcon } from './ServerBoostView';
 import { PWAInstallButton } from './PWAPrompts';
 import { playSoundboardClip, SOUNDBOARD_CLIPS, SoundboardClipId, triggerHaptic } from '../utils/soundEffects';
 import { APP_LANGUAGES, translateAppText, useTranslation } from '../utils/i18n';
+import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
 
 const AVATAR_DOMINANT_COLORS: Record<string, string> = {
   madara: '#7f1d1d',
@@ -777,6 +778,7 @@ export const SettingsView: React.FC<{
 /* ---------------- FRIENDS VIEW ---------------- */
 export const FriendsView: React.FC<{
   dms: DirectMessageThread[];
+  liveProfilesByUid?: Record<string, PublicUserProfile>;
   friendRequests?: FriendRequestItem[];
   sentFriendRequestUids?: string[];
   sentFriendRequestItems?: SentFriendRequestItem[];
@@ -797,6 +799,7 @@ export const FriendsView: React.FC<{
   onInspectUser?: (userId: string, fallback?: Partial<PublicUserProfile>) => void;
 }> = ({
   dms,
+  liveProfilesByUid = {},
   friendRequests = [],
   sentFriendRequestUids = [],
   sentFriendRequestItems = [],
@@ -1071,29 +1074,73 @@ export const FriendsView: React.FC<{
               ) : friendRequests.length === 0 ? (
                 <p className="text-xs text-zinc-400 px-1">No tienes solicitudes recibidas por ahora.</p>
               ) : (
-                friendRequests.map((req) => (
+                friendRequests.map((req) => {
+                  const liveProf = liveProfilesByUid[req.fromUid];
+                  const hasCustomColor = Boolean(
+                    liveProf?.displayNameColorPreset &&
+                      liveProf.displayNameColorPreset !== 'none'
+                  );
+                  const reqPres =
+                    liveProf &&
+                    (hasCustomColor ||
+                      (liveProf.displayNameStyle &&
+                        liveProf.displayNameStyle !== 'default') ||
+                      liveProf.displayNameGlow)
+                      ? getDisplayNameTextPresentation({
+                          style: liveProf.displayNameStyle,
+                          colorPreset: liveProf.displayNameColorPreset,
+                          customColors: liveProf.displayNameCustomColors,
+                          glow: liveProf.displayNameGlow,
+                          nitroUnlocked: liveProf.nitroTier !== 'none' || hasCustomColor,
+                        })
+                      : null;
+                  return (
                   <div
                     key={req.fromUid}
                     className="p-3.5 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onInspectUser?.(req.fromUid, {
+                          id: req.fromUid,
+                          displayName: liveProf?.displayName || req.fromDisplayName,
+                          username: liveProf?.username || req.fromUsername,
+                          avatar: liveProf?.avatar || req.fromAvatar,
+                          customAvatarUrl: liveProf?.customAvatarUrl || req.fromCustomAvatarUrl,
+                          displayNameStyle: liveProf?.displayNameStyle,
+                          displayNameColorPreset: liveProf?.displayNameColorPreset,
+                          displayNameCustomColors: liveProf?.displayNameCustomColors,
+                          displayNameGlow: liveProf?.displayNameGlow,
+                          nitroTier: liveProf?.nitroTier,
+                        })
+                      }
+                      className="flex items-center gap-3 min-w-0 text-left cursor-pointer"
+                    >
                       <UserAvatar
-                        avatar={req.fromAvatar}
-                        customAvatarUrl={req.fromCustomAvatarUrl}
-                        status="online"
+                        avatar={liveProf?.avatar || req.fromAvatar}
+                        customAvatarUrl={liveProf?.customAvatarUrl || req.fromCustomAvatarUrl}
+                        status={liveProf?.status || 'offline'}
                         size="md"
                         borderColor="#1c1d22"
                       />
                       <div className="min-w-0">
                         <p className="font-bold text-sm text-white truncate inline-flex items-center gap-1 max-w-full">
-                          <span className="truncate">{req.fromDisplayName}</span>
-                          {isVerifiedAccount(req.fromUsername) && <VerifiedBadge size="sm" />}
+                          <span
+                            className={`truncate ${reqPres?.className || ''}`.trim()}
+                            style={reqPres?.style}
+                          >
+                            {liveProf?.displayName || req.fromDisplayName}
+                          </span>
+                          {isVerifiedAccount(liveProf?.username || req.fromUsername) && (
+                            <VerifiedBadge size="sm" />
+                          )}
                         </p>
                         <p className="text-xs text-zinc-400 truncate">
-                          @{req.fromUsername} · {t('friends.pendingIncoming')}
+                          @{liveProf?.username || req.fromUsername} · {t('friends.pendingIncoming')}
                         </p>
                       </div>
-                    </div>
+                    </button>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
@@ -1113,7 +1160,8 @@ export const FriendsView: React.FC<{
                       </button>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -1122,28 +1170,73 @@ export const FriendsView: React.FC<{
                 <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
                   Solicitudes enviadas ({activeOutgoingRequests.length})
                 </p>
-                {activeOutgoingRequests.map((sent) => (
+                {activeOutgoingRequests.map((sent) => {
+                  const liveProf = liveProfilesByUid[sent.toUid];
+                  const hasCustomColor = Boolean(
+                    liveProf?.displayNameColorPreset &&
+                      liveProf.displayNameColorPreset !== 'none'
+                  );
+                  const sentPres =
+                    liveProf &&
+                    (hasCustomColor ||
+                      (liveProf.displayNameStyle &&
+                        liveProf.displayNameStyle !== 'default') ||
+                      liveProf.displayNameGlow)
+                      ? getDisplayNameTextPresentation({
+                          style: liveProf.displayNameStyle,
+                          colorPreset: liveProf.displayNameColorPreset,
+                          customColors: liveProf.displayNameCustomColors,
+                          glow: liveProf.displayNameGlow,
+                          nitroUnlocked: liveProf.nitroTier !== 'none' || hasCustomColor,
+                        })
+                      : null;
+                  return (
                   <div
                     key={sent.toUid}
                     className="p-3.5 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onInspectUser?.(sent.toUid, {
+                          id: sent.toUid,
+                          displayName: liveProf?.displayName || sent.toDisplayName,
+                          username: liveProf?.username || sent.toUsername,
+                          avatar: liveProf?.avatar || sent.toAvatar,
+                          customAvatarUrl: liveProf?.customAvatarUrl,
+                          displayNameStyle: liveProf?.displayNameStyle,
+                          displayNameColorPreset: liveProf?.displayNameColorPreset,
+                          displayNameCustomColors: liveProf?.displayNameCustomColors,
+                          displayNameGlow: liveProf?.displayNameGlow,
+                          nitroTier: liveProf?.nitroTier,
+                        })
+                      }
+                      className="flex items-center gap-3 min-w-0 text-left cursor-pointer"
+                    >
                       <UserAvatar
-                        avatar={sent.toAvatar}
-                        status="offline"
+                        avatar={liveProf?.avatar || sent.toAvatar}
+                        customAvatarUrl={liveProf?.customAvatarUrl}
+                        status={liveProf?.status || 'offline'}
                         size="md"
                         borderColor="#1c1d22"
                       />
                       <div className="min-w-0">
                         <p className="font-bold text-sm text-white truncate inline-flex items-center gap-1 max-w-full">
-                          <span className="truncate">{sent.toDisplayName}</span>
-                          {isVerifiedAccount(sent.toUsername) && <VerifiedBadge size="sm" />}
+                          <span
+                            className={`truncate ${sentPres?.className || ''}`.trim()}
+                            style={sentPres?.style}
+                          >
+                            {liveProf?.displayName || sent.toDisplayName}
+                          </span>
+                          {isVerifiedAccount(liveProf?.username || sent.toUsername) && (
+                            <VerifiedBadge size="sm" />
+                          )}
                         </p>
                         <p className="text-xs text-zinc-400 truncate">
-                          @{sent.toUsername} · Solicitud saliente pendiente
+                          @{liveProf?.username || sent.toUsername} · Solicitud saliente pendiente
                         </p>
                       </div>
-                    </div>
+                    </button>
                     {onCancelSentRequest && (
                       <button
                         type="button"
@@ -1166,7 +1259,8 @@ export const FriendsView: React.FC<{
                       </button>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1311,7 +1405,34 @@ export const FriendsView: React.FC<{
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-sm truncate text-white">{person.displayName}</p>
+                          {(() => {
+                            const hasCustomColor = Boolean(
+                              person.displayNameColorPreset &&
+                                person.displayNameColorPreset !== 'none'
+                            );
+                            const pres =
+                              hasCustomColor ||
+                              (person.displayNameStyle && person.displayNameStyle !== 'default') ||
+                              person.displayNameGlow
+                                ? getDisplayNameTextPresentation({
+                                    style: person.displayNameStyle,
+                                    colorPreset: person.displayNameColorPreset,
+                                    customColors: person.displayNameCustomColors,
+                                    glow: person.displayNameGlow,
+                                    nitroUnlocked: person.nitroTier !== 'none' || hasCustomColor,
+                                  })
+                                : null;
+                            return (
+                              <p
+                                className={`text-sm truncate ${
+                                  pres ? pres.className : 'font-bold text-white'
+                                }`}
+                                style={pres ? pres.style : undefined}
+                              >
+                                {person.displayName}
+                              </p>
+                            );
+                          })()}
                           {isVerifiedAccount(person.username) && <VerifiedBadge size="sm" />}
                           <span className="text-[11px] text-zinc-400 truncate">
                             @{person.username}
@@ -1406,7 +1527,7 @@ export const FriendsView: React.FC<{
               <div
                 key={f.id}
                 onClick={() =>
-                  onInspectUser?.(f.id, {
+                  onInspectUser?.(f.otherUid || f.id, {
                     displayName: f.name,
                     username: f.username || f.name.toLowerCase().replace(/\s+/g, ''),
                     avatar: f.avatar,
@@ -1415,6 +1536,11 @@ export const FriendsView: React.FC<{
                     decoration: f.decoration,
                     nameplate: f.nameplate,
                     serverTag: f.serverTag,
+                    displayNameStyle: f.displayNameStyle,
+                    displayNameColorPreset: f.displayNameColorPreset,
+                    displayNameCustomColors: f.displayNameCustomColors,
+                    displayNameGlow: f.displayNameGlow,
+                    nitroTier: f.nitroTier,
                   })
                 }
                 className="w-full flex items-center justify-between p-3 rounded-2xl bg-[#1c1d22] hover:bg-[#26272f] border border-[#2e3035] transition-colors cursor-pointer"
@@ -1429,8 +1555,34 @@ export const FriendsView: React.FC<{
                     borderColor="#1c1d22"
                   />
                   <div className="text-left min-w-0">
-                    <p className="font-bold text-sm truncate text-white inline-flex items-center gap-1 max-w-full">
-                      <span className="truncate">{f.name}</span>
+                    <p className="text-sm truncate inline-flex items-center gap-1 max-w-full">
+                      {(() => {
+                        const hasCustomColor = Boolean(
+                          f.displayNameColorPreset && f.displayNameColorPreset !== 'none'
+                        );
+                        const pres =
+                          hasCustomColor ||
+                          (f.displayNameStyle && f.displayNameStyle !== 'default') ||
+                          f.displayNameGlow
+                            ? getDisplayNameTextPresentation({
+                                style: f.displayNameStyle,
+                                colorPreset: f.displayNameColorPreset,
+                                customColors: f.displayNameCustomColors,
+                                glow: f.displayNameGlow,
+                                nitroUnlocked: f.nitroTier !== 'none' || hasCustomColor,
+                              })
+                            : null;
+                        return (
+                          <span
+                            className={`truncate ${
+                              pres ? pres.className : 'font-bold text-white'
+                            }`}
+                            style={pres ? pres.style : undefined}
+                          >
+                            {f.name}
+                          </span>
+                        );
+                      })()}
                       {isVerifiedAccount(f.username) && <VerifiedBadge size="sm" />}
                     </p>
                     <p className="text-xs text-zinc-400 truncate">

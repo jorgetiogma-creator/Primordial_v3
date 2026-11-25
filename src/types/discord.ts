@@ -536,6 +536,11 @@ export interface DirectMessageThread {
   serverTag?: string;
   decoration?: DecorationId;
   nameplate?: NameplateId;
+  displayNameStyle?: DisplayNameStyle;
+  displayNameColorPreset?: DisplayNameColorPreset;
+  displayNameCustomColors?: [string, string];
+  displayNameGlow?: boolean;
+  nitroTier?: 'none' | 'basic' | 'nitro';
   customIconUrl?: string;
   groupEmoji?: string;
   groupColor?: string;

@@ -222,16 +222,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="relative z-10">
                 <div className="flex items-center gap-2 flex-wrap">
                   {(() => {
+                    const hasCustomColor = Boolean(
+                      profile.displayNameColorPreset && profile.displayNameColorPreset !== 'none'
+                    );
                     const namePres = getDisplayNameTextPresentation({
                       style: profile.displayNameStyle,
                       colorPreset: profile.displayNameColorPreset,
                       customColors: profile.displayNameCustomColors,
                       glow: profile.displayNameGlow,
-                      nitroUnlocked: profile.nitroTier !== 'none',
+                      nitroUnlocked: profile.nitroTier !== 'none' || hasCustomColor,
                     });
                     return (
                       <h2
-                        className={`text-xl font-bold text-white leading-tight drop-shadow ${namePres.className}`}
+                        className={`text-xl font-bold leading-tight ${
+                          hasCustomColor ? '' : 'text-white drop-shadow'
+                        } ${namePres.className}`}
                         style={namePres.style}
                       >
                         {profile.displayName}

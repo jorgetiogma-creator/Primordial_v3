@@ -93,6 +93,33 @@ export function getDisplayNameStyleClass(style?: DisplayNameStyle): string {
   }
 }
 
+function hexLuminance(hex: string): number {
+  const clean = hex.trim().replace('#', '');
+  const full =
+    clean.length === 3
+      ? clean
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : clean;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return 128;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function resolveCustomGlowColor(pair: [string, string]): string {
+  const lum0 = hexLuminance(pair[0]);
+  const lum1 = hexLuminance(pair[1]);
+  const brightest = lum0 >= lum1 ? pair[0] : pair[1];
+  const maxLum = Math.max(lum0, lum1);
+  if (maxLum < 38) {
+    return 'rgba(239, 68, 68, 0.78)';
+  }
+  return `${brightest.trim()}dd`;
+}
+
 export function getDisplayNameTextPresentation(options: {
   style?: DisplayNameStyle;
   colorPreset?: DisplayNameColorPreset;
@@ -138,7 +165,7 @@ export function getDisplayNameTextPresentation(options: {
   }
 
   let pair: [string, string] = customColors;
-  let glowColor = `${customColors[1]}cc`;
+  let glowColor = resolveCustomGlowColor(customColors);
 
   if (colorPreset !== 'custom') {
     const found = DISPLAY_NAME_COLOR_OPTIONS.find((p) => p.id === colorPreset);
@@ -147,6 +174,8 @@ export function getDisplayNameTextPresentation(options: {
       glowColor = found.glowColor;
     }
   }
+
+  const primaryGlow = hexLuminance(pair[0]) >= 38 ? pair[0] : glowColor;
 
   return {
     className: `${fontClass} dc-name-glow-shimmer bg-clip-text text-transparent`.trim(),
@@ -160,7 +189,7 @@ export function getDisplayNameTextPresentation(options: {
       color: 'transparent',
       textShadow: 'none',
       filter: glow
-        ? `drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 3px ${pair[0]}99) drop-shadow(0 1px 2px rgba(0,0,0,0.9))`
+        ? `drop-shadow(0 0 12px ${glowColor}) drop-shadow(0 0 4px ${primaryGlow}) drop-shadow(0 1px 2px rgba(0,0,0,0.85))`
         : 'drop-shadow(0 1px 2px rgba(0,0,0,0.75))',
     },
   };

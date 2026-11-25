@@ -746,6 +746,11 @@ export async function getOrCreateDmThread(
         decoration: currentUser.decoration || 'none',
         nameplate: currentUser.nameplate || 'none',
         serverTag: clampStr(currentUser.serverTag, 12),
+        displayNameStyle: currentUser.displayNameStyle || 'default',
+        displayNameColorPreset: currentUser.displayNameColorPreset || 'none',
+        displayNameCustomColors: currentUser.displayNameCustomColors,
+        displayNameGlow: Boolean(currentUser.displayNameGlow),
+        nitroTier: currentUser.nitroTier || 'none',
       }),
       [targetUid]: stripUndefined({
         displayName:
@@ -759,6 +764,11 @@ export async function getOrCreateDmThread(
         decoration: target.decoration || 'none',
         nameplate: target.nameplate || 'none',
         serverTag: clampStr(target.serverTag, 12),
+        displayNameStyle: target.displayNameStyle || 'default',
+        displayNameColorPreset: target.displayNameColorPreset || 'none',
+        displayNameCustomColors: target.displayNameCustomColors,
+        displayNameGlow: Boolean(target.displayNameGlow),
+        nitroTier: target.nitroTier || 'none',
       }),
     };
 
@@ -811,6 +821,11 @@ export function subscribeToDms(
             decoration?: UserProfile['decoration'];
             nameplate?: UserProfile['nameplate'];
             serverTag?: string;
+            displayNameStyle?: UserProfile['displayNameStyle'];
+            displayNameColorPreset?: UserProfile['displayNameColorPreset'];
+            displayNameCustomColors?: [string, string];
+            displayNameGlow?: boolean;
+            nitroTier?: UserProfile['nitroTier'];
           }
         >;
         const otherProfile = profiles[otherUid] || {};
@@ -839,6 +854,13 @@ export function subscribeToDms(
           decoration: otherProfile.decoration || 'none',
           nameplate: otherProfile.nameplate || 'none',
           serverTag: otherProfile.serverTag,
+          displayNameStyle: otherProfile.displayNameStyle,
+          displayNameColorPreset: otherProfile.displayNameColorPreset,
+          displayNameCustomColors: Array.isArray(otherProfile.displayNameCustomColors)
+            ? otherProfile.displayNameCustomColors
+            : undefined,
+          displayNameGlow: Boolean(otherProfile.displayNameGlow),
+          nitroTier: otherProfile.nitroTier,
           groupEmoji: d.groupEmoji,
           groupColor: d.groupColor,
           participantIds,

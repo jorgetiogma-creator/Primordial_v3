@@ -895,31 +895,59 @@ export default function App() {
     };
   }, [firebaseUid, user.status]);
 
-  // Subscribe to live publicProfiles of DM/friend contacts so status & avatars update live
-  const dmOtherUidsKey = useMemo(
+  const activeServer =
+    activeContext.type === 'server'
+      ? servers.find((s) => s.id === activeContext.serverId)
+      : undefined;
+  const activeChannelObj = activeServer?.channels.find((c) => c.id === selectedChannelId);
+
+  // Subscribe to live publicProfiles of DM/friend contacts, server members, and friend requests so status, avatars & name styles update live
+  const watchedProfileUidsKey = useMemo(
     () =>
       Array.from(
-        new Set(
-          dms
+        new Set([
+          ...dms
             .filter((d) => !d.isGroup && d.otherUid && d.otherUid !== firebaseUid)
-            .map((d) => d.otherUid as string)
-        )
+            .map((d) => d.otherUid as string),
+          ...(activeServer?.members || [])
+            .map((m) => m.uid)
+            .filter((uid) => Boolean(uid) && uid !== firebaseUid),
+          ...friendRequests
+            .map((r) => r.fromUid)
+            .filter((uid) => Boolean(uid) && uid !== firebaseUid),
+          ...sentFriendRequestItems
+            .map((s) => s.toUid)
+            .filter((uid) => Boolean(uid) && uid !== firebaseUid),
+        ])
       )
         .sort()
+        .slice(0, 50)
         .join('|'),
-    [dms, firebaseUid]
+    [dms, activeServer?.members, friendRequests, sentFriendRequestItems, firebaseUid]
   );
 
   useEffect(() => {
-    if (!firebaseUid || !dmOtherUidsKey) {
+    if (!firebaseUid || !watchedProfileUidsKey) {
       setLiveProfilesByUid({});
       return;
     }
-    const uids = dmOtherUidsKey.split('|').filter(Boolean);
+    const uids = watchedProfileUidsKey.split('|').filter(Boolean);
     return subscribeToPublicProfilesByIds(uids, (map) => {
       setLiveProfilesByUid(map);
     });
-  }, [firebaseUid, dmOtherUidsKey]);
+  }, [firebaseUid, watchedProfileUidsKey]);
+
+  const livePublicProfilesMap = useMemo<Record<string, PublicUserProfile>>(() => {
+    const nowMs = Date.now();
+    const out: Record<string, PublicUserProfile> = {};
+    for (const [uid, entry] of Object.entries(liveProfilesByUid)) {
+      out[uid] = {
+        ...entry.profile,
+        status: resolveEffectivePresence(entry.rawStatus, entry.updatedAtMs, nowMs),
+      };
+    }
+    return out;
+  }, [liveProfilesByUid, presenceTick]);
 
   // Clean up sender-side pending records once the friendship DM thread exists
   useEffect(() => {
@@ -952,17 +980,17 @@ export default function App() {
         decoration: lp.decoration ?? d.decoration,
         nameplate: lp.nameplate ?? d.nameplate,
         serverTag: lp.serverTag ?? d.serverTag,
+        displayNameStyle: lp.displayNameStyle ?? d.displayNameStyle,
+        displayNameColorPreset: lp.displayNameColorPreset ?? d.displayNameColorPreset,
+        displayNameCustomColors: lp.displayNameCustomColors ?? d.displayNameCustomColors,
+        displayNameGlow: lp.displayNameGlow ?? d.displayNameGlow,
+        nitroTier: lp.nitroTier ?? d.nitroTier,
         status: resolveEffectivePresence(liveEntry.rawStatus, liveEntry.updatedAtMs, nowMs),
       };
     });
   }, [dms, liveProfilesByUid, presenceTick]);
 
   const activeDm = liveDms.find((d) => d.id === selectedDmId) || liveDms[0];
-  const activeServer =
-    activeContext.type === 'server'
-      ? servers.find((s) => s.id === activeContext.serverId)
-      : undefined;
-  const activeChannelObj = activeServer?.channels.find((c) => c.id === selectedChannelId);
 
   const activeDmId = activeDm?.id;
   const activeDmIsReal = Boolean(
@@ -1273,6 +1301,26 @@ export default function App() {
         status: resolvedStatus,
         displayName: liveEntry?.profile.displayName || matchingMember?.displayName || baseProfile.displayName,
         username: liveEntry?.profile.username || matchingMember?.username || baseProfile.username,
+        displayNameStyle:
+          liveEntry?.profile.displayNameStyle ??
+          matchingDm?.displayNameStyle ??
+          baseProfile.displayNameStyle,
+        displayNameColorPreset:
+          liveEntry?.profile.displayNameColorPreset ??
+          matchingDm?.displayNameColorPreset ??
+          baseProfile.displayNameColorPreset,
+        displayNameCustomColors:
+          liveEntry?.profile.displayNameCustomColors ??
+          matchingDm?.displayNameCustomColors ??
+          baseProfile.displayNameCustomColors,
+        displayNameGlow:
+          liveEntry?.profile.displayNameGlow ??
+          matchingDm?.displayNameGlow ??
+          baseProfile.displayNameGlow,
+        nitroTier:
+          liveEntry?.profile.nitroTier ??
+          matchingDm?.nitroTier ??
+          baseProfile.nitroTier,
         avatar: liveEntry?.profile.avatar || matchingMember?.avatar || baseProfile.avatar,
         customAvatarUrl:
           liveEntry?.profile.customAvatarUrl ||
@@ -1284,6 +1332,36 @@ export default function App() {
       },
       roles,
     });
+
+    if (
+      firebaseUid &&
+      !liveEntry &&
+      targetLiveUid &&
+      targetLiveUid !== 'me' &&
+      !targetLiveUid.startsWith('bot-') &&
+      !baseProfile.isBot
+    ) {
+      void fetchPublicProfileById(targetLiveUid)
+        .then((fresh) => {
+          if (!fresh) return;
+          setInspectedUser((prev) => {
+            if (!prev) return prev;
+            if (prev.profile.id !== targetLiveUid && prev.profile.id !== userId) {
+              return prev;
+            }
+            return {
+              ...prev,
+              profile: {
+                ...prev.profile,
+                ...fresh,
+                ...giftedCosmetics,
+                mutualServers: prev.profile.mutualServers,
+              },
+            };
+          });
+        })
+        .catch(() => undefined);
+    }
   };
 
   const handleSelectDm = (dmId: string) => {
@@ -3978,6 +4056,7 @@ export default function App() {
       return (
         <FriendsView
           dms={liveDms}
+          liveProfilesByUid={livePublicProfilesMap}
           friendRequests={friendRequests}
           sentFriendRequestUids={sentFriendRequestUids}
           sentFriendRequestItems={sentFriendRequestItems}
@@ -4173,6 +4252,7 @@ export default function App() {
         currentUser={user}
         dms={liveDms}
         allServers={servers}
+        liveProfilesByUid={livePublicProfilesMap}
         typingLabel={activeTypingKey ? typingMap[activeTypingKey] || null : null}
         appPreferences={appPreferences}
         parentCollectionPath={getActiveMessagesCollectionPath() || undefined}

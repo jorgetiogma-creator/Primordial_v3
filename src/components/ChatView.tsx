@@ -77,6 +77,7 @@ interface ChatViewProps {
   currentUser: UserProfile;
   dms?: DirectMessageThread[];
   allServers?: Server[];
+  liveProfilesByUid?: Record<string, PublicUserProfile>;
   typingLabel?: string | null;
   appPreferences?: AppPreferences;
   parentCollectionPath?: string;
@@ -248,6 +249,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   currentUser,
   dms = [],
   allServers = [],
+  liveProfilesByUid = {},
   typingLabel,
   appPreferences,
   parentCollectionPath,
@@ -887,6 +889,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     decoration: dm.decoration,
                     nameplate: dm.nameplate,
                     serverTag: dm.serverTag,
+                    displayNameStyle: dm.displayNameStyle,
+                    displayNameColorPreset: dm.displayNameColorPreset,
+                    displayNameCustomColors: dm.displayNameCustomColors,
+                    displayNameGlow: dm.displayNameGlow,
+                    nitroTier: dm.nitroTier,
                     isBot: dm.isBot,
                   })
                 }
@@ -917,9 +924,37 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 )}
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h2 className="font-display font-bold text-[15px] text-[var(--dc-text-primary)] truncate">
-                      {dm.name}
-                    </h2>
+                    {(() => {
+                      const hasCustomColor = Boolean(
+                        dm.displayNameColorPreset && dm.displayNameColorPreset !== 'none'
+                      );
+                      const dmHeaderPres =
+                        !dm.isGroup &&
+                        !dm.isBot &&
+                        (hasCustomColor ||
+                          (dm.displayNameStyle && dm.displayNameStyle !== 'default') ||
+                          dm.displayNameGlow)
+                          ? getDisplayNameTextPresentation({
+                              style: dm.displayNameStyle,
+                              colorPreset: dm.displayNameColorPreset,
+                              customColors: dm.displayNameCustomColors,
+                              glow: dm.displayNameGlow,
+                              nitroUnlocked: dm.nitroTier !== 'none' || hasCustomColor,
+                            })
+                          : null;
+                      return (
+                        <h2
+                          className={`text-[15px] truncate ${
+                            dmHeaderPres
+                              ? dmHeaderPres.className
+                              : 'font-display font-bold text-[var(--dc-text-primary)]'
+                          }`}
+                          style={dmHeaderPres ? dmHeaderPres.style : undefined}
+                        >
+                          {dm.name}
+                        </h2>
+                      );
+                    })()}
                     {!dm.isGroup && !dm.isBot && isVerifiedAccount(dm.username) && (
                       <VerifiedBadge size="sm" />
                     )}
@@ -1173,9 +1208,37 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   size="xl"
                   borderColor="var(--dc-bg-chat)"
                 />
-                <h3 className="font-display font-bold text-2xl text-[var(--dc-text-primary)]">
-                  {dm.name}
-                </h3>
+                {(() => {
+                  const hasCustomColor = Boolean(
+                    dm.displayNameColorPreset && dm.displayNameColorPreset !== 'none'
+                  );
+                  const dmWelcomePres =
+                    !dm.isGroup &&
+                    !dm.isBot &&
+                    (hasCustomColor ||
+                      (dm.displayNameStyle && dm.displayNameStyle !== 'default') ||
+                      dm.displayNameGlow)
+                      ? getDisplayNameTextPresentation({
+                          style: dm.displayNameStyle,
+                          colorPreset: dm.displayNameColorPreset,
+                          customColors: dm.displayNameCustomColors,
+                          glow: dm.displayNameGlow,
+                          nitroUnlocked: dm.nitroTier !== 'none' || hasCustomColor,
+                        })
+                      : null;
+                  return (
+                    <h3
+                      className={`text-2xl ${
+                        dmWelcomePres
+                          ? dmWelcomePres.className
+                          : 'font-display font-bold text-[var(--dc-text-primary)]'
+                      }`}
+                      style={dmWelcomePres ? dmWelcomePres.style : undefined}
+                    >
+                      {dm.name}
+                    </h3>
+                  );
+                })()}
                 <p className="text-sm text-[var(--dc-text-muted)]">
                   Este es el comienzo de tu historial de mensajes directos con{' '}
                   <strong className="text-[var(--dc-text-secondary)]">{dm.name}</strong>.
@@ -1373,21 +1436,38 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       {!isGrouped && (
                         <div className="flex items-baseline gap-2 flex-wrap">
                           {(() => {
-                              const myNamePres = isMe
+                              const liveAuthor = !isMe
+                                ? liveProfilesByUid[msg.authorId] ||
+                                  (mode === 'dm' && dm && !dm.isGroup ? dm : undefined)
+                                : undefined;
+                              const authorStyleSource = isMe ? currentUser : liveAuthor;
+                              const hasCustomAuthorColor = Boolean(
+                                authorStyleSource?.displayNameColorPreset &&
+                                  authorStyleSource.displayNameColorPreset !== 'none'
+                              );
+                              const hasAuthorStyling = Boolean(
+                                authorStyleSource &&
+                                  (hasCustomAuthorColor ||
+                                    (authorStyleSource.displayNameStyle &&
+                                      authorStyleSource.displayNameStyle !== 'default') ||
+                                    authorStyleSource.displayNameGlow)
+                              );
+                              const authorNamePres = hasAuthorStyling && authorStyleSource
                                 ? getDisplayNameTextPresentation({
-                                    style: currentUser.displayNameStyle,
-                                    colorPreset: currentUser.displayNameColorPreset,
-                                    customColors: currentUser.displayNameCustomColors,
-                                    glow: currentUser.displayNameGlow,
-                                    nitroUnlocked: currentUser.nitroTier !== 'none',
+                                    style: authorStyleSource.displayNameStyle,
+                                    colorPreset: authorStyleSource.displayNameColorPreset,
+                                    customColors: authorStyleSource.displayNameCustomColors,
+                                    glow: authorStyleSource.displayNameGlow,
+                                    nitroUnlocked:
+                                      authorStyleSource.nitroTier !== 'none' ||
+                                      hasCustomAuthorColor,
                                     fallbackColor: authorRole?.color || 'var(--dc-text-primary)',
                                   })
                                 : null;
-                              const useMyGradient =
-                                isMe &&
-                                currentUser.nitroTier !== 'none' &&
-                                currentUser.displayNameColorPreset &&
-                                currentUser.displayNameColorPreset !== 'none';
+                              const useCustomGradient =
+                                Boolean(authorNamePres) &&
+                                hasCustomAuthorColor &&
+                                (authorStyleSource?.nitroTier !== 'none' || hasCustomAuthorColor);
 
                               return (
                                 <span
@@ -1404,24 +1484,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     )
                                   }
                                   className={`text-[15px] cursor-pointer hover:underline ${
-                                    myNamePres ? myNamePres.className : 'font-semibold'
+                                    authorNamePres ? authorNamePres.className : 'font-semibold'
                                   }`}
                                   style={
-                                    useMyGradient && myNamePres
-                                      ? myNamePres.style
+                                    useCustomGradient && authorNamePres
+                                      ? authorNamePres.style
                                       : authorRole?.gradientColors
                                       ? {
                                           backgroundImage: `linear-gradient(90deg, ${authorRole.gradientColors[0]}, ${authorRole.gradientColors[1]})`,
                                           WebkitBackgroundClip: 'text',
                                           color: 'transparent',
-                                          ...(myNamePres?.style.textShadow
-                                            ? { textShadow: myNamePres.style.textShadow }
+                                          ...(authorNamePres?.style.textShadow
+                                            ? { textShadow: authorNamePres.style.textShadow }
                                             : {}),
                                         }
                                       : {
                                           color: authorRole?.color || 'var(--dc-text-primary)',
-                                          ...(myNamePres?.style.textShadow
-                                            ? { textShadow: myNamePres.style.textShadow }
+                                          ...(authorNamePres?.style.textShadow
+                                            ? { textShadow: authorNamePres.style.textShadow }
                                             : {}),
                                         }
                                   }
@@ -2529,12 +2609,54 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         </div>
                         <div className="min-w-0 flex-1 z-10">
                           <div className="flex items-center gap-1">
-                            <span
-                              className="text-sm font-medium truncate"
-                              style={{ color: role?.color || '#f2f3f5' }}
-                            >
-                              {displayName}
-                            </span>
+                            {(() => {
+                              const memberStyleSource = isSelf
+                                ? currentUser
+                                : liveProfilesByUid[member.uid];
+                              const hasCustomMemberColor = Boolean(
+                                memberStyleSource?.displayNameColorPreset &&
+                                  memberStyleSource.displayNameColorPreset !== 'none'
+                              );
+                              const memberNamePres =
+                                memberStyleSource &&
+                                (hasCustomMemberColor ||
+                                  (memberStyleSource.displayNameStyle &&
+                                    memberStyleSource.displayNameStyle !== 'default') ||
+                                  memberStyleSource.displayNameGlow)
+                                  ? getDisplayNameTextPresentation({
+                                      style: memberStyleSource.displayNameStyle,
+                                      colorPreset: memberStyleSource.displayNameColorPreset,
+                                      customColors: memberStyleSource.displayNameCustomColors,
+                                      glow: memberStyleSource.displayNameGlow,
+                                      nitroUnlocked:
+                                        memberStyleSource.nitroTier !== 'none' ||
+                                        hasCustomMemberColor,
+                                      fallbackColor: role?.color || '#f2f3f5',
+                                    })
+                                  : null;
+                              return (
+                                <span
+                                  className={`text-sm truncate ${
+                                    memberNamePres
+                                      ? memberNamePres.className
+                                      : 'font-medium'
+                                  }`}
+                                  style={
+                                    memberNamePres
+                                      ? memberNamePres.style
+                                      : { color: role?.color || '#f2f3f5' }
+                                  }
+                                >
+                                  {displayName}
+                                </span>
+                              );
+                            })()}
+                            {!isSelf && isVerifiedAccount(member.username) && (
+                              <VerifiedBadge size="sm" />
+                            )}
+                            {isSelf && isVerifiedAccount(currentUser.username) && (
+                              <VerifiedBadge size="sm" />
+                            )}
                             {isSrvOwner ? (
                               <span title="Dueño del servidor">
                                 <Crown className="w-3.5 h-3.5 text-[#f0b232] shrink-0" />

@@ -234,12 +234,33 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                     >
                       <UserAvatar avatar={dm.avatar} status={dm.status} size="sm" borderColor="#1c1d22" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-[#f2f3f5] truncate inline-flex items-center gap-1 max-w-full">
-                          <span className="truncate">{dm.name}</span>
-                          {!dm.isGroup && !dm.isBot && isVerifiedAccount(dm.username) && (
-                            <VerifiedBadge size="sm" />
-                          )}
-                        </p>
+                        {(() => {
+                          const hasCustomColor = Boolean(
+                            dm.displayNameColorPreset && dm.displayNameColorPreset !== 'none'
+                          );
+                          const dmNamePres = !dm.isGroup && !dm.isBot
+                            ? getDisplayNameTextPresentation({
+                                style: dm.displayNameStyle,
+                                colorPreset: dm.displayNameColorPreset,
+                                customColors: dm.displayNameCustomColors,
+                                glow: dm.displayNameGlow,
+                                nitroUnlocked: dm.nitroTier !== 'none' || hasCustomColor,
+                              })
+                            : null;
+                          return (
+                            <p className="text-sm font-semibold text-[#f2f3f5] truncate inline-flex items-center gap-1 max-w-full">
+                              <span
+                                className={`truncate ${dmNamePres ? dmNamePres.className : ''}`}
+                                style={dmNamePres ? dmNamePres.style : undefined}
+                              >
+                                {dm.name}
+                              </span>
+                              {!dm.isGroup && !dm.isBot && isVerifiedAccount(dm.username) && (
+                                <VerifiedBadge size="sm" />
+                              )}
+                            </p>
+                          );
+                        })()}
                         <p className="text-xs text-[#949ba4] truncate">{dm.lastMessagePreview}</p>
                       </div>
                     </button>
@@ -1198,10 +1219,16 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                         displayName: dm.name,
                         username: dm.username || dm.name.toLowerCase().replace(/\s+/g, ''),
                         avatar: dm.avatar,
+                        customAvatarUrl: dm.customAvatarUrl,
                         status: dm.status,
                         decoration: dm.decoration,
                         nameplate: dm.nameplate,
                         serverTag: dm.serverTag,
+                        displayNameStyle: dm.displayNameStyle,
+                        displayNameColorPreset: dm.displayNameColorPreset,
+                        displayNameCustomColors: dm.displayNameCustomColors,
+                        displayNameGlow: dm.displayNameGlow,
+                        nitroTier: dm.nitroTier,
                         isBot: dm.isBot,
                       });
                     }}
@@ -1254,15 +1281,39 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                         {dm.pinned && (
                           <Pin className="w-3 h-3 text-[#7b85ff] shrink-0" />
                         )}
-                        <span
-                          className={`text-[15px] truncate ${
-                            dm.unread
-                              ? 'font-bold text-[var(--dc-text-primary)]'
-                              : 'font-semibold text-[var(--dc-text-primary)]'
-                          }`}
-                        >
-                          {dm.name}
-                        </span>
+                        {(() => {
+                          const hasCustomColor = Boolean(
+                            dm.displayNameColorPreset && dm.displayNameColorPreset !== 'none'
+                          );
+                          const dmNamePres =
+                            !dm.isGroup &&
+                            !dm.isBot &&
+                            (hasCustomColor ||
+                              (dm.displayNameStyle && dm.displayNameStyle !== 'default') ||
+                              dm.displayNameGlow)
+                              ? getDisplayNameTextPresentation({
+                                  style: dm.displayNameStyle,
+                                  colorPreset: dm.displayNameColorPreset,
+                                  customColors: dm.displayNameCustomColors,
+                                  glow: dm.displayNameGlow,
+                                  nitroUnlocked: dm.nitroTier !== 'none' || hasCustomColor,
+                                })
+                              : null;
+                          return (
+                            <span
+                              className={`text-[15px] truncate ${
+                                dmNamePres
+                                  ? dmNamePres.className
+                                  : dm.unread
+                                  ? 'font-bold text-[var(--dc-text-primary)]'
+                                  : 'font-semibold text-[var(--dc-text-primary)]'
+                              }`}
+                              style={dmNamePres ? dmNamePres.style : undefined}
+                            >
+                              {dm.name}
+                            </span>
+                          );
+                        })()}
                         {!dm.isGroup && !dm.isBot && isVerifiedAccount(dm.username) && (
                           <VerifiedBadge size="sm" />
                         )}
