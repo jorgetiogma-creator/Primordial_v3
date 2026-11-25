@@ -117,8 +117,6 @@ const getBundleArtUrl = (variant: ShopBundle['artVariant']): string | null => {
     case 'luna-oscura-marco':
     case 'cuervos-luna':
       return GENERATED_ASSETS.shopLoboLuna;
-    case 'konoha':
-      return GENERATED_ASSETS.narutoThemeKonoha;
     case 'dune':
       return GENERATED_ASSETS.duneBanner;
     case 'croma':
@@ -169,30 +167,6 @@ const getBundleArtUrl = (variant: ShopBundle['artVariant']): string | null => {
     case 'random-xd':
     case 'scene-xd':
       return GENERATED_ASSETS.shopRawrSceneArt;
-    /* 18 Naruto Shinobi & Dōjutsu Collectibles */
-    case 'naruto-sabio':
-    case 'naruto-barion':
-    case 'kurama':
-      return GENERATED_ASSETS.narutoKuramaArt;
-    case 'sasuke':
-      return GENERATED_ASSETS.narutoSasukeBorutoArt;
-    case 'sasuke-rinnegan':
-    case 'boruto-karma':
-    case 'rinnegan-deva':
-    case 'rinne-sharingan':
-      return GENERATED_ASSETS.narutoRinneganSusanoo;
-    case 'obito-tobi':
-    case 'obito-juubi':
-    case 'madara-edo':
-    case 'madara-rikudo':
-      return GENERATED_ASSETS.narutoMadaraObitoArt;
-    case 'sharingan-3tomoe':
-    case 'sharingan-itachi':
-    case 'sharingan-kamui':
-    case 'sharingan-shisui':
-    case 'ems-sasuke':
-    case 'ems-madara':
-      return GENERATED_ASSETS.narutoSharinganMedallions;
     default:
       return null;
   }
@@ -206,44 +180,6 @@ interface BundleThemeMeta {
 
 const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
   switch (variant) {
-    case 'naruto-sabio':
-    case 'naruto-barion':
-    case 'kurama':
-      return {
-        gradient: 'from-[#291005] via-[#170905] to-[#080505]',
-        glow: 'rgba(249, 115, 22, 0.45)',
-        stageBg: '#120704',
-      };
-    case 'sasuke':
-    case 'boruto-karma':
-      return {
-        gradient: 'from-[#061829] via-[#0c1026] to-[#060710]',
-        glow: 'rgba(56, 189, 248, 0.44)',
-        stageBg: '#060c18',
-      };
-    case 'sasuke-rinnegan':
-    case 'rinnegan-deva':
-      return {
-        gradient: 'from-[#1a0a2e] via-[#100921] to-[#07060d]',
-        glow: 'rgba(168, 85, 247, 0.45)',
-        stageBg: '#0d0618',
-      };
-    case 'obito-tobi':
-    case 'obito-juubi':
-    case 'madara-edo':
-    case 'madara-rikudo':
-    case 'rinne-sharingan':
-    case 'sharingan-3tomoe':
-    case 'sharingan-itachi':
-    case 'sharingan-kamui':
-    case 'sharingan-shisui':
-    case 'ems-sasuke':
-    case 'ems-madara':
-      return {
-        gradient: 'from-[#2b060a] via-[#140709] to-[#060506]',
-        glow: 'rgba(220, 38, 38, 0.45)',
-        stageBg: '#110406',
-      };
     case 'miyabi':
       return {
         gradient: 'from-[#071a24] via-[#0c111b] to-[#1a0a12]',
@@ -449,12 +385,6 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
         glow: 'rgba(249, 168, 212, 0.32)',
         stageBg: '#0d0c13',
       };
-    case 'konoha':
-      return {
-        gradient: 'from-[#2e1105] via-[#1b0904] to-[#080403]',
-        glow: 'rgba(249, 115, 22, 0.48)',
-        stageBg: '#140703',
-      };
     case 'dune':
       return {
         gradient: 'from-[#26180a] via-[#16110d] to-[#0b0a09]',
@@ -472,8 +402,6 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
 
 const getCategoryLabel = (category: ShopBundle['category']): string => {
   switch (category) {
-    case 'naruto':
-      return 'Naruto · Shinobi';
     case 'anime':
       return 'Anime';
     case 'horror':
@@ -519,14 +447,6 @@ interface CollectionMeta {
 }
 
 const COLLECTION_META: Record<ShopCollectionId, CollectionMeta> = {
-  naruto: {
-    id: 'naruto',
-    title: 'NARUTO · SHINOBI & DŌJUTSU',
-    subtitle: '18 coleccionables oficiales: Sharingan, Mangekyō Eterno, Rinnegan, Kurama, Naruto, Sasuke, Óbito, Madara y Boruto',
-    backdropUrl: GENERATED_ASSETS.narutoThemeKonoha,
-    accentGradient: 'from-[#2b0b04]/95 via-[#170805]/82 to-[#060608]/96',
-    titleStyleClass: 'font-sakura font-extrabold tracking-[0.06em] uppercase text-white drop-shadow-[0_2px_16px_rgba(249,115,22,0.55)]',
-  },
   'night-terrors': {
     id: 'night-terrors',
     title: 'NIGHT TERRORS',
@@ -635,8 +555,8 @@ const COLLECTION_META: Record<ShopCollectionId, CollectionMeta> = {
     id: 'banners',
     title: 'Banners de perfil',
     subtitle: 'Fondos panorámicos de alta definición para la cabecera de tu perfil',
-    backdropUrl: GENERATED_ASSETS.narutoThemeKonoha,
-    accentGradient: 'from-[#261005]/95 via-[#140c08]/80 to-[#08090d]/95',
+    backdropUrl: GENERATED_ASSETS.shopCelestialMoonArt,
+    accentGradient: 'from-[#1b0e36]/95 via-[#110a24]/80 to-[#08090d]/95',
     titleStyleClass: 'font-display font-black tracking-tight text-white',
   },
 };
@@ -1319,7 +1239,6 @@ const CollectionPromoBanner: React.FC<{
 
 const CATEGORIES = [
   { id: 'all', label: 'Todo' },
-  { id: 'naruto', label: 'Naruto (18)' },
   { id: 'horror', label: 'Night Terrors' },
   { id: 'folklore', label: 'Dark Folklore' },
   { id: 'dbd', label: 'Dead by Daylight' },
@@ -1402,7 +1321,6 @@ export const ShopView: React.FC<ShopViewProps> = ({
   });
 
   // Collection Groups for Structured Storefront
-  const narutoBundles = bundles.filter((b) => b.collectionId === 'naruto');
   const nightTerrorsBundles = bundles.filter((b) => b.collectionId === 'night-terrors');
   const darkFolkloreBundles = bundles.filter((b) => b.collectionId === 'dark-folklore');
   const dbdBundles = bundles.filter((b) => b.collectionId === 'dbd');
@@ -1599,9 +1517,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     }}
                     className={`h-9 px-4 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-all ${
                       active
-                        ? cat.id === 'naruto'
-                          ? 'bg-gradient-to-r from-[#f97316] to-[#dc2626] text-white shadow-[0_6px_18px_-4px_rgba(249,115,22,0.65)]'
-                          : 'bg-[var(--dc-blurple)] text-white shadow'
+                        ? 'bg-[var(--dc-blurple)] text-white shadow'
                         : 'bg-[#14151c] hover:bg-[#1c1e27] text-zinc-300 border border-white/[0.07]'
                     }`}
                   >
@@ -1660,93 +1576,6 @@ export const ShopView: React.FC<ShopViewProps> = ({
                 </div>
               ) : (
                 <div className="px-4 pt-5 space-y-9">
-                  {/* FEATURED DROP: NARUTO · SHINOBI & DŌJUTSU (18 COLLECTIBLES) */}
-                  <section className="space-y-5">
-                    <div className="relative rounded-3xl overflow-hidden border border-orange-500/30 bg-[#120704] shadow-[0_24px_64px_-16px_rgba(249,115,22,0.34)]">
-                      <div className="grid grid-cols-1 md:grid-cols-12 items-stretch">
-                        <div className="md:col-span-7 relative min-h-[225px] sm:min-h-[270px] overflow-hidden">
-                          <img
-                            src={GENERATED_ASSETS.narutoThemeKonoha}
-                            alt="Colaboración Primordial × Naruto"
-                            referrerPolicy="no-referrer"
-                            className="absolute inset-0 w-full h-full object-cover object-center"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/35 via-[#120704]/30 to-[#120704]" />
-
-                          {/* Collector Dōjutsu Iris Showcase Strip */}
-                          <div className="absolute bottom-3.5 left-4 z-10 flex items-center gap-2">
-                            <PrimordialAppIcon className="w-10 h-10 rounded-xl border border-orange-200/45 shadow-lg" />
-                            <div className="flex -space-x-2">
-                              {(['sharingan-itachi', 'ems-sasuke', 'sasuke-rinnegan', 'rinne-sharingan', 'kurama'] as const).map((v) => (
-                                <div key={v} className="w-9 h-9 rounded-full border-2 border-[#120704] overflow-hidden shadow-lg bg-black">
-                                  <CollectorAvatarCore variant={v} />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="md:col-span-5 p-6 sm:p-7 flex flex-col justify-center gap-3 relative z-10 bg-gradient-to-b md:bg-gradient-to-l from-[#120704] via-[#120704] to-[#120704]/90">
-                          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-400">
-                            <Flame className="w-3.5 h-3.5" />
-                            <span>Edición Coleccionista · {narutoBundles.length} Artículos</span>
-                          </div>
-                          <h2 className="font-sakura font-extrabold text-2xl sm:text-[28px] text-white leading-tight">
-                            Naruto · Shinobi &amp; Dōjutsu
-                          </h2>
-                          <p className="text-xs sm:text-[13px] text-zinc-300 leading-relaxed">
-                            Naruto Sabio y Barión, Kurama, Sasuke, Óbito, Madara Susanoo, Boruto Karma, Rinnegan, Rinne-Sharingan y cada Mangekyō Sharingan.
-                          </p>
-                          <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => openCollectionPage('naruto')}
-                              className="h-11 px-5 rounded-xl bg-gradient-to-r from-[#f97316] to-[#dc2626] hover:brightness-110 text-white font-display font-bold text-xs sm:text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-[0_10px_28px_-6px_rgba(249,115,22,0.7)]"
-                            >
-                              <span>Explorar colección ({narutoBundles.length})</span>
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between px-0.5">
-                      <div>
-                        <h3 className="font-display font-bold text-base sm:text-lg text-white">
-                          Catálogo Completo de Naruto &amp; Dōjutsu ({narutoBundles.length})
-                        </h3>
-                        <p className="text-xs text-zinc-400">
-                          Toca cualquier ojo o personaje para probarlo en vivo sobre tu perfil
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => openCollectionPage('naruto')}
-                        className="text-xs font-semibold text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 cursor-pointer shrink-0"
-                      >
-                        <span>Ver página dedicada</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
-                      {narutoBundles.map((b) => (
-                        <BundleCard
-                          key={b.id}
-                          bundle={b}
-                          wishlisted={wishlistIds.includes(b.id)}
-                          owned={ownedBundleIds.includes(b.id)}
-                          onSelect={(swatch) => openBundleModal(b, swatch)}
-                          onToggleWishlist={(e) => {
-                            e.stopPropagation();
-                            onToggleWishlist(b.id);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </section>
-
                   {/* 1. NIGHT TERRORS SECTION */}
                   <section className="space-y-3.5">
                     <CollectionPromoBanner
@@ -2147,7 +1976,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   setSearchQuery(e.target.value);
                   setActiveCollection(null);
                 }}
-                placeholder="Buscar Sharingan, Madara, Naruto, Óbito, Rinnegan..."
+                placeholder="Buscar decoraciones, placas, efectos, marcos..."
                 className="w-full h-11 rounded-xl bg-[#07080a] border border-white/10 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#5865F2]"
               />
             </div>

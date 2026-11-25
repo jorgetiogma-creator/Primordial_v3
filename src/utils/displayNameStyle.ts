@@ -8,7 +8,7 @@ export interface DisplayNameFontOption {
 }
 
 export const DISPLAY_NAME_FONT_OPTIONS: DisplayNameFontOption[] = [
-  { id: 'shinobi', label: 'Konoha Shinobi', desc: 'Trazos afilados y aura Hokage' },
+  { id: 'shinobi', label: 'Impacto Urbano', desc: 'Trazos afilados y estilo moderno' },
   { id: 'gothic', label: 'Gótica / Medieval', desc: 'Caligrafía oscura tipo rawr' },
   { id: 'neon', label: 'Neón Cibernético', desc: 'Estilo limpio con resplandor' },
   { id: 'sakura', label: 'Imperial Serif', desc: 'Elegante con contraste real' },

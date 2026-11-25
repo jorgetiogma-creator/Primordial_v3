@@ -450,8 +450,8 @@ const AuthEditorialShowcase: React.FC = () => (
           <p className="text-xs text-[#2f1a63] mt-0.5">Tu cuenta y objetos contigo</p>
         </div>
         <div>
-          <p className="font-display font-bold text-lg text-[#1a0d38]">Tienda Shinobi</p>
-          <p className="text-xs text-[#2f1a63] mt-0.5">Sharingan, Rinnegan y más</p>
+          <p className="font-display font-bold text-lg text-[#1a0d38]">Tienda Exclusiva</p>
+          <p className="text-xs text-[#2f1a63] mt-0.5">Placas, efectos y marcos</p>
         </div>
       </div>
     </div>
@@ -2002,7 +2002,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
               type="text"
               value={regUsername}
               onChange={(e) => setRegUsername(e.target.value)}
-              placeholder="ej. shinobi_uchiha"
+              placeholder="ej. alex_rivera"
               className="w-full h-12 rounded-2xl bg-[#11131a] border border-white/[0.09] px-4 text-[15px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#5865F2] focus:ring-2 focus:ring-[#5865F2]/25"
             />
           </div>

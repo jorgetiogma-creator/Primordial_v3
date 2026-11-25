@@ -20,18 +20,23 @@ import {
   ProfileFrameArtwork,
   StatusIndicator,
   UserAvatar,
+  VerifiedBadge,
 } from './DiscordArt';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
+import { isVerifiedAccount } from '../utils/ownerAccess';
 
 interface UserProfileModalProps {
   profile: PublicUserProfile | null;
   isSelf?: boolean;
   isFriend?: boolean;
+  requestSent?: boolean;
+  hasIncomingRequest?: boolean;
   serverRoles?: ServerRole[];
   onClose: () => void;
   onSendMessage?: (profile: PublicUserProfile, initialMessage?: string) => void;
   onStartCall?: (profile: PublicUserProfile, video: boolean) => void;
   onToggleFriend?: (profile: PublicUserProfile) => void;
+  onAcceptFriendRequest?: (profile: PublicUserProfile) => void;
   onOpenSelfFullProfile?: () => void;
 }
 
@@ -41,11 +46,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   profile,
   isSelf = false,
   isFriend = false,
+  requestSent = false,
+  hasIncomingRequest = false,
   serverRoles = [],
   onClose,
   onSendMessage,
   onStartCall,
   onToggleFriend,
+  onAcceptFriendRequest,
   onOpenSelfFullProfile,
 }) => {
   const [playKey, setPlayKey] = useState(1);
@@ -230,6 +238,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       </h2>
                     );
                   })()}
+                  {!profile.isBot && isVerifiedAccount(profile.username) && (
+                    <VerifiedBadge size="md" />
+                  )}
                   {profile.isBot && (
                     <span className="px-1.5 py-0.5 rounded bg-[#5865F2] text-[10px] font-bold text-white uppercase inline-flex items-center gap-0.5">
                       <Check className="w-2.5 h-2.5 stroke-[3]" /> APP
@@ -310,13 +321,36 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onToggleFriend?.(profile)}
-                  className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl bg-[#26272f] hover:bg-[#2e3035] border border-[#2e3035] text-white cursor-pointer transition-colors"
+                  disabled={requestSent && !isFriend && !hasIncomingRequest}
+                  onClick={() => {
+                    if (hasIncomingRequest && !isFriend) {
+                      onAcceptFriendRequest?.(profile);
+                    } else if (!requestSent || isFriend) {
+                      onToggleFriend?.(profile);
+                    }
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl border transition-colors ${
+                    hasIncomingRequest && !isFriend
+                      ? 'bg-[#23a55a]/20 hover:bg-[#23a55a]/30 border-[#23a55a]/50 text-[#3dd67d] cursor-pointer'
+                      : requestSent && !isFriend
+                      ? 'bg-[#1e1f26] border-[#2e3035] text-[#949ba4] cursor-default opacity-80'
+                      : 'bg-[#26272f] hover:bg-[#2e3035] border-[#2e3035] text-white cursor-pointer'
+                  }`}
                 >
                   {isFriend ? (
                     <>
                       <UserCheck className="w-4.5 h-4.5 text-[#23a55a]" />
                       <span className="text-[11px] font-semibold">Amigo</span>
+                    </>
+                  ) : hasIncomingRequest ? (
+                    <>
+                      <Check className="w-4.5 h-4.5 text-[#23a55a]" />
+                      <span className="text-[11px] font-semibold">Aceptar</span>
+                    </>
+                  ) : requestSent ? (
+                    <>
+                      <Check className="w-4.5 h-4.5 text-[#949ba4]" />
+                      <span className="text-[11px] font-semibold">Enviada</span>
                     </>
                   ) : (
                     <>

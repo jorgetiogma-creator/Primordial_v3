@@ -26,17 +26,17 @@
     --dc-yellow: #f0b232;
   }
 
-  .theme-naruto {
-    --dc-bg-rail: #100805;
-    --dc-bg-sidebar: #180c07;
-    --dc-bg-chat: #130906;
-    --dc-bg-card: #22120b;
-    --dc-bg-elevated: #2c170e;
-    --dc-bg-input: #27140c;
-    --dc-bg-sheet: #1a0d08;
-    --dc-border: rgba(249, 115, 22, 0.24);
-    --dc-blurple: #f97316;
-    --dc-blurple-hover: #ea580c;
+  .theme-purple {
+    --dc-bg-rail: #0d0a16;
+    --dc-bg-sidebar: #141022;
+    --dc-bg-chat: #100c1b;
+    --dc-bg-card: #1d1730;
+    --dc-bg-elevated: #251d3d;
+    --dc-bg-input: #201936;
+    --dc-bg-sheet: #161126;
+    --dc-border: rgba(168, 85, 247, 0.24);
+    --dc-blurple: #8b5cf6;
+    --dc-blurple-hover: #7c3aed;
   }
 
   .theme-dark {
@@ -85,7 +85,7 @@
   font-family: 'Chakra Petch', 'Plus Jakarta Sans', sans-serif;
   font-weight: 800;
   letter-spacing: -0.02em;
-  text-shadow: 0 2px 10px rgba(249, 115, 22, 0.45);
+  text-shadow: 0 2px 10px rgba(139, 92, 246, 0.45);
 }
 
 .font-neon {

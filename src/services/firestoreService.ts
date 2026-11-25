@@ -31,6 +31,7 @@ import {
   NotificationItem,
   PresenceStatus,
   PublicUserProfile,
+  SentFriendRequestItem,
   Server,
   ServerMemberSummary,
   ServerRole,
@@ -307,7 +308,52 @@ export async function claimProfileWithUsername(params: {
 
 const syncedUsernameHandles = new Set<string>();
 
+export const PRESENCE_STALE_MS = 120_000;
+
+export function extractTimestampMs(ts: unknown): number | undefined {
+  if (!ts) return undefined;
+  if (typeof ts === 'number' && Number.isFinite(ts)) return ts;
+  if (typeof ts === 'object') {
+    const maybe = ts as { toMillis?: () => number; seconds?: number };
+    if (typeof maybe.toMillis === 'function') {
+      try {
+        return maybe.toMillis();
+      } catch {
+        return undefined;
+      }
+    }
+    if (typeof maybe.seconds === 'number') {
+      return maybe.seconds * 1000;
+    }
+  }
+  return undefined;
+}
+
+export function resolveEffectivePresence(
+  rawStatus: unknown,
+  updatedAtMs?: number,
+  nowMs: number = Date.now()
+): PresenceStatus {
+  const statusStr = String(rawStatus || 'offline');
+  if (statusStr === 'offline') return 'offline';
+  const normalized: PresenceStatus =
+    statusStr === 'online' || statusStr === 'idle' || statusStr === 'dnd'
+      ? statusStr
+      : 'offline';
+  if (!updatedAtMs || nowMs - updatedAtMs > PRESENCE_STALE_MS) {
+    return 'offline';
+  }
+  return normalized;
+}
+
+export interface LivePublicProfileEntry {
+  profile: PublicUserProfile;
+  rawStatus: PresenceStatus;
+  updatedAtMs?: number;
+}
+
 function docToPublicProfile(id: string, d: Record<string, unknown>): PublicUserProfile {
+  const updatedAtMs = extractTimestampMs(d.updatedAt);
   return {
     id,
     displayName: String(d.displayName || d.username || 'Usuario'),
@@ -320,7 +366,7 @@ function docToPublicProfile(id: string, d: Record<string, unknown>): PublicUserP
     displayNameGlow: Boolean(d.displayNameGlow),
     avatar: (d.avatar as AvatarKey) || 'madara',
     customAvatarUrl: sanitizeMediaUrl(d.customAvatarUrl as string | undefined),
-    status: (d.status as PresenceStatus) || 'online',
+    status: resolveEffectivePresence(d.status, updatedAtMs),
     customStatus: d.customStatus ? String(d.customStatus) : undefined,
     bio: String(d.bio || 'Miembro real de Primordial.'),
     bannerColor: String(d.bannerColor || '#5865F2'),
@@ -335,6 +381,68 @@ function docToPublicProfile(id: string, d: Record<string, unknown>): PublicUserP
     memberSince: String(d.memberSince || 'Noviembre 2026'),
     isBot: false,
     mutualServers: [],
+  };
+}
+
+export async function updateUserPresenceStatus(
+  uid: string,
+  status: PresenceStatus
+): Promise<void> {
+  if (!uid || auth.currentUser?.uid !== uid) return;
+  try {
+    await updateDoc(doc(db, 'publicProfiles', uid), {
+      status,
+      updatedAt: serverTimestamp(),
+    });
+  } catch {
+    /* ignore if profile doc is not yet initialized */
+  }
+}
+
+export function subscribeToPublicProfilesByIds(
+  uids: string[],
+  onData: (map: Record<string, LivePublicProfileEntry>) => void
+): Unsubscribe {
+  const uniqueUids = Array.from(
+    new Set(uids.map((u) => u.trim()).filter((u) => /^[a-zA-Z0-9_.-]{1,128}$/.test(u)))
+  ).slice(0, 50);
+
+  if (uniqueUids.length === 0) {
+    onData({});
+    return () => undefined;
+  }
+
+  const currentMap: Record<string, LivePublicProfileEntry> = {};
+  const emit = () => {
+    onData({ ...currentMap });
+  };
+
+  const unsubs = uniqueUids.map((uid) =>
+    onSnapshot(
+      doc(db, 'publicProfiles', uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const d = docSnap.data() as Record<string, unknown>;
+          const updatedAtMs = extractTimestampMs(d.updatedAt);
+          const rawStr = String(d.status || 'offline');
+          const rawStatus: PresenceStatus =
+            rawStr === 'online' || rawStr === 'idle' || rawStr === 'dnd' ? rawStr : 'offline';
+          currentMap[uid] = {
+            profile: docToPublicProfile(uid, d),
+            rawStatus,
+            updatedAtMs,
+          };
+        } else {
+          delete currentMap[uid];
+        }
+        emit();
+      },
+      () => undefined
+    )
+  );
+
+  return () => {
+    unsubs.forEach((u) => u());
   };
 }
 
@@ -478,7 +586,7 @@ export async function searchRealUsers(
           displayName: String(unameData.displayName || unameData.username || handle),
           username: String(unameData.username || handle),
           avatar: 'madara',
-          status: 'online',
+          status: 'offline',
           bio: 'Miembro real de Primordial.',
           bannerColor: '#5865F2',
           memberSince: 'Noviembre 2026',
@@ -708,6 +816,7 @@ export function subscribeToDms(
         const otherProfile = profiles[otherUid] || {};
         const unreadBy: string[] = Array.isArray(d.unreadBy) ? d.unreadBy : [];
         const isUnread = unreadBy.includes(uid);
+        const dmUpdatedAtMs = extractTimestampMs(d.updatedAt);
 
         next.push({
           id: docSnap.id,
@@ -721,7 +830,8 @@ export function subscribeToDms(
             : sanitizeMediaUrl(otherProfile.customAvatarUrl),
           isGroup: Boolean(d.isGroup),
           isBot: false,
-          status: (otherProfile.status as PresenceStatus) || 'online',
+          status: resolveEffectivePresence(otherProfile.status, dmUpdatedAtMs),
+          statusUpdatedAtMs: dmUpdatedAtMs,
           lastMessagePreview: String(d.lastMessagePreview || ''),
           lastTimestamp: String(d.lastTimestamp || 'Ahora'),
           unread: isUnread,
@@ -1985,23 +2095,94 @@ export function subscribeToSentFriendRequests(
   );
 }
 
+export function subscribeToSentFriendRequestItems(
+  uid: string,
+  onData: (items: SentFriendRequestItem[]) => void
+): Unsubscribe {
+  const path = `users/${uid}/sentFriendRequests`;
+  return onSnapshot(
+    collection(db, 'users', uid, 'sentFriendRequests'),
+    (snapshot) => {
+      const items: SentFriendRequestItem[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d.status === 'pending') {
+          items.push({
+            fromUid: String(d.fromUid || uid),
+            toUid: String(d.toUid || docSnap.id),
+            toDisplayName: String(d.toDisplayName || d.toUsername || 'Usuario'),
+            toUsername: String(d.toUsername || ''),
+            toAvatar: (d.toAvatar as AvatarKey) || 'madara',
+            status: 'pending',
+          });
+        }
+      });
+      onData(items);
+    },
+    (error) => {
+      console.warn(`Unable to subscribe to sentFriendRequests ${path}:`, error?.message || error);
+    }
+  );
+}
+
+export async function cancelSentFriendRequest(myUid: string, toUid: string): Promise<void> {
+  if (!myUid || !toUid || auth.currentUser?.uid !== myUid) return;
+  await Promise.allSettled([
+    deleteDoc(doc(db, 'users', myUid, 'sentFriendRequests', toUid)),
+    deleteDoc(doc(db, 'users', toUid, 'friendRequests', myUid)),
+  ]);
+}
+
+export async function fetchPublicProfileById(uid: string): Promise<PublicUserProfile | null> {
+  if (!uid || !/^[a-zA-Z0-9_.-]{1,128}$/.test(uid)) return null;
+  try {
+    const snap = await getDoc(doc(db, 'publicProfiles', uid));
+    if (!snap.exists()) return null;
+    return docToPublicProfile(snap.id, snap.data());
+  } catch {
+    return null;
+  }
+}
+
 export async function sendFriendRequest(params: {
   fromUser: UserProfile;
   toUid: string;
   targetProfile?: Partial<PublicUserProfile>;
-}): Promise<'sent' | 'already-pending' | 'already-friends'> {
+}): Promise<'sent' | 'already-pending' | 'already-friends' | 'auto-accepted'> {
   const { fromUser, toUid, targetProfile } = params;
-  const myUid = auth.currentUser?.uid || fromUser.id;
-  if (!myUid || !toUid || toUid === myUid) return 'already-pending';
-  const path = `users/${toUid}/friendRequests/${myUid}`;
-  const reqRef = doc(db, 'users', toUid, 'friendRequests', myUid);
-  const sentRef = doc(db, 'users', myUid, 'sentFriendRequests', toUid);
+  const myUid = auth.currentUser?.uid;
+  if (!myUid) {
+    throw new Error('Tu sesión en la nube aún se está conectando.');
+  }
+  const cleanToUid = toUid.trim();
+  if (!cleanToUid || cleanToUid === myUid) {
+    throw new Error('Usuario de destino inválido.');
+  }
+  const path = `users/${cleanToUid}/friendRequests/${myUid}`;
+  const reqRef = doc(db, 'users', cleanToUid, 'friendRequests', myUid);
+  const sentRef = doc(db, 'users', myUid, 'sentFriendRequests', cleanToUid);
+  const reverseIncomingRef = doc(db, 'users', myUid, 'friendRequests', cleanToUid);
   try {
+    // If the other user already sent us a pending request, accept it immediately!
+    const reverseSnap = await getDoc(reverseIncomingRef).catch(() => null);
+    if (reverseSnap?.exists() && String(reverseSnap.data()?.status || '') === 'pending') {
+      await respondFriendRequest({ uid: myUid, fromUid: cleanToUid, accept: true });
+      await deleteDoc(sentRef).catch(() => undefined);
+      return 'auto-accepted';
+    }
+
     const existing = await getDoc(reqRef);
     if (existing.exists()) {
       const currentStatus = String(existing.data()?.status || 'pending');
       if (currentStatus === 'pending') return 'already-pending';
-      if (currentStatus === 'accepted') return 'already-friends';
+      if (currentStatus === 'accepted') {
+        const dmId = [myUid, cleanToUid].sort().join('__');
+        const dmSnap = await getDoc(doc(db, 'dms', dmId)).catch(() => null);
+        if (dmSnap?.exists()) {
+          return 'already-friends';
+        }
+        await deleteDoc(reqRef).catch(() => undefined);
+      }
       if (currentStatus === 'declined') {
         await deleteDoc(reqRef).catch(() => undefined);
       }
@@ -2011,7 +2192,7 @@ export async function sendFriendRequest(params: {
       reqRef,
       stripUndefined({
         fromUid: myUid,
-        toUid,
+        toUid: cleanToUid,
         fromDisplayName: clampStr(fromUser.displayName, 40) || clampStr(fromUser.username, 40) || 'Usuario',
         fromUsername: clampStr(fromUser.username, 32) || myUid.slice(0, 12),
         fromAvatar: clampStr(fromUser.avatar, 32) || 'madara',
@@ -2021,15 +2202,16 @@ export async function sendFriendRequest(params: {
       })
     );
 
-    // Record outgoing sent request on sender's profile so it persists across devices
+    // Clear any stale sent record first so create rules pass cleanly
+    await deleteDoc(sentRef).catch(() => undefined);
     await setDoc(sentRef, {
       fromUid: myUid,
-      toUid,
+      toUid: cleanToUid,
       toDisplayName:
         clampStr(targetProfile?.displayName, 40) ||
         clampStr(targetProfile?.username, 40) ||
         'Usuario',
-      toUsername: clampStr(targetProfile?.username, 32) || toUid.slice(0, 12),
+      toUsername: clampStr(targetProfile?.username, 32) || cleanToUid.slice(0, 12),
       toAvatar: clampStr(targetProfile?.avatar, 32) || 'madara',
       status: 'pending',
       createdAt: serverTimestamp(),

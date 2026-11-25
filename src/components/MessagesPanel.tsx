@@ -45,10 +45,11 @@ import {
   SafeImage,
   ServerIconArt,
   UserAvatar,
+  VerifiedBadge,
 } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
-import { getServerPermissions } from '../utils/ownerAccess';
+import { getServerPermissions, isVerifiedAccount } from '../utils/ownerAccess';
 import { useTranslation } from '../utils/i18n';
 
 interface MessagesPanelProps {
@@ -233,7 +234,12 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                     >
                       <UserAvatar avatar={dm.avatar} status={dm.status} size="sm" borderColor="#1c1d22" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-[#f2f3f5] truncate">{dm.name}</p>
+                        <p className="text-sm font-semibold text-[#f2f3f5] truncate inline-flex items-center gap-1 max-w-full">
+                          <span className="truncate">{dm.name}</span>
+                          {!dm.isGroup && !dm.isBot && isVerifiedAccount(dm.username) && (
+                            <VerifiedBadge size="sm" />
+                          )}
+                        </p>
                         <p className="text-xs text-[#949ba4] truncate">{dm.lastMessagePreview}</p>
                       </div>
                     </button>
@@ -1257,6 +1263,9 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                         >
                           {dm.name}
                         </span>
+                        {!dm.isGroup && !dm.isBot && isVerifiedAccount(dm.username) && (
+                          <VerifiedBadge size="sm" />
+                        )}
                         {dm.favorite && (
                           <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
                         )}

@@ -27,22 +27,25 @@ import {
   signInCloudAccountWithCredentials,
 } from './lib/firebase';
 import {
+  cancelSentFriendRequest,
   createFirestoreChannel,
   createFirestoreServer,
   deleteFirestoreChannel,
   deleteFirestoreMessage,
-  ensureRealConnectionByUsername,
   fetchDiscoverableServers,
+  fetchPublicProfileById,
   fetchUserAccountBundle,
   getOrCreateDmThread,
   joinFirestoreServer,
   kickFirestoreServerMember,
   leaveFirestoreServer,
+  LivePublicProfileEntry,
   markAllNotificationsReadInFirestore,
   markDmThreadRead,
   markNotificationReadInFirestore,
   normalizeUsernameHandle,
   removeVoiceChannelPresence,
+  resolveEffectivePresence,
   respondFriendRequest,
   searchRealUsers,
   sendChannelMessage,
@@ -53,6 +56,8 @@ import {
   subscribeToDms,
   subscribeToFriendRequests,
   subscribeToNotifications,
+  subscribeToPublicProfilesByIds,
+  subscribeToSentFriendRequestItems,
   subscribeToSentFriendRequests,
   subscribeToServerDetail,
   subscribeToVoiceChannelPresence,
@@ -62,6 +67,7 @@ import {
   updateFirestoreMessage,
   updateFirestoreServer,
   updateServerMemberRolesInFirestore,
+  updateUserPresenceStatus,
   upsertVoiceChannelPresence,
 } from './services/firestoreService';
 import {
@@ -98,6 +104,7 @@ import {
   NotificationItem,
   PublicUserProfile,
   Quest,
+  SentFriendRequestItem,
   Server,
   ServerRole,
   ServerSettingsSection,
@@ -234,8 +241,11 @@ export default function App() {
           const merged: UserProfile = {
             ...INITIAL_USER,
             ...parsedUser,
-            displayNameStyle: rawStyle === 'gta' ? 'shinobi' : parsedUser.displayNameStyle,
-            nameplate: rawPlate === 'vice-city' ? 'konoha-naranja' : parsedUser.nameplate,
+            displayNameStyle: rawStyle === 'gta' || rawStyle === 'shinobi' ? 'default' : parsedUser.displayNameStyle,
+            nameplate:
+              rawPlate === 'vice-city' || rawPlate === 'konoha-naranja'
+                ? 'none'
+                : parsedUser.nameplate,
             orbs: normalizeOrbs(parsedUser.orbs),
             unlockedBadgeIds: parsedUser.unlockedBadgeIds || INITIAL_USER.unlockedBadgeIds,
             equippedBadgeIds: parsedUser.equippedBadgeIds || INITIAL_USER.equippedBadgeIds,
@@ -335,7 +345,7 @@ export default function App() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const storedTheme = JSON.parse(raw).theme;
-        if (storedTheme === 'vice-city') return 'naruto';
+        if (storedTheme === 'vice-city' || storedTheme === 'naruto') return 'onyx';
         return storedTheme || 'onyx';
       }
     } catch {
@@ -399,6 +409,9 @@ export default function App() {
   const [discoverableServers, setDiscoverableServers] = useState<Server[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequestItem[]>([]);
   const [sentFriendRequestUids, setSentFriendRequestUids] = useState<string[]>([]);
+  const [sentFriendRequestItems, setSentFriendRequestItems] = useState<SentFriendRequestItem[]>([]);
+  const [liveProfilesByUid, setLiveProfilesByUid] = useState<Record<string, LivePublicProfileEntry>>({});
+  const [presenceTick, setPresenceTick] = useState(0);
   const [appPreferences, setAppPreferences] = useState<AppPreferences>(() => {
     try {
       const raw = localStorage.getItem(APP_PREFS_KEY);
@@ -476,7 +489,6 @@ export default function App() {
   const [showIntroSplash, setShowIntroSplash] = useState(true);
   const [showScreenStudio, setShowScreenStudio] = useState(false);
   const [screenStudioNotice, setScreenStudioNotice] = useState<string | null>(null);
-  const autoLinkedUidRef = useRef<string | null>(null);
 
   useEffect(() => {
     try {
@@ -826,66 +838,126 @@ export default function App() {
       setSentFriendRequestUids(sentUids);
     });
 
+    const unsubSentReqItems = subscribeToSentFriendRequestItems(firebaseUid, (items) => {
+      setSentFriendRequestItems(items);
+    });
+
     return () => {
       unsubDms();
       unsubNotifs();
       unsubFriendReqs();
       unsubSentReqs();
+      unsubSentReqItems();
     };
   }, [firebaseUid]);
 
-  // Conecta automáticamente cuentas reales entre @snuff y tu cuenta en la nube (sin bots)
+  // Periodically re-evaluate presence staleness (marks inactive/closed users offline after 2 min)
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setPresenceTick((t) => t + 1);
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Heartbeat & visibility/unload presence updater so online/offline reflects actual active tabs
   useEffect(() => {
     if (!firebaseUid || hydratedUidRef.current !== firebaseUid) return;
-    if (autoLinkedUidRef.current === firebaseUid) return;
-    autoLinkedUidRef.current = firebaseUid;
+    const preferredStatus = user.status || 'online';
 
-    const myHandle = normalizeUsernameHandle(user.username || '');
-    if (myHandle !== 'snuff') {
-      void ensureRealConnectionByUsername({
-        currentUser: user,
-        targetHandle: 'snuff',
-      }).catch(() => undefined);
-    } else {
-      void ensureRealConnectionByUsername({
-        currentUser: user,
-        targetHandle: 'jorge',
-      }).catch(() => undefined);
-      void ensureRealConnectionByUsername({
-        currentUser: user,
-        targetHandle: 'owen',
-      }).catch(() => undefined);
-    }
-  }, [firebaseUid, user]);
+    const pushActivePresence = () => {
+      if (document.visibilityState === 'visible') {
+        void updateUserPresenceStatus(firebaseUid, preferredStatus);
+      }
+    };
+    const pushOfflinePresence = () => {
+      void updateUserPresenceStatus(firebaseUid, 'offline');
+    };
 
-  // Si @snuff recibe una solicitud de Jorge/Owen en tiempo real, acepta y abre su DM compartido
+    pushActivePresence();
+    const heartbeat = window.setInterval(pushActivePresence, 45_000);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        pushOfflinePresence();
+      } else {
+        pushActivePresence();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', pushOfflinePresence);
+    window.addEventListener('beforeunload', pushOfflinePresence);
+
+    return () => {
+      window.clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', pushOfflinePresence);
+      window.removeEventListener('beforeunload', pushOfflinePresence);
+    };
+  }, [firebaseUid, user.status]);
+
+  // Subscribe to live publicProfiles of DM/friend contacts so status & avatars update live
+  const dmOtherUidsKey = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          dms
+            .filter((d) => !d.isGroup && d.otherUid && d.otherUid !== firebaseUid)
+            .map((d) => d.otherUid as string)
+        )
+      )
+        .sort()
+        .join('|'),
+    [dms, firebaseUid]
+  );
+
   useEffect(() => {
-    if (!firebaseUid || friendRequests.length === 0) return;
-    const myHandle = normalizeUsernameHandle(user.username || '');
-    if (myHandle !== 'snuff') return;
-    for (const req of friendRequests) {
-      const fromHandle = normalizeUsernameHandle(req.fromUsername || req.fromDisplayName);
-      if (fromHandle.includes('jorge') || fromHandle.includes('owen')) {
-        void respondFriendRequest({ uid: firebaseUid, fromUid: req.fromUid, accept: true })
-          .then(() =>
-            getOrCreateDmThread(user, {
-              id: req.fromUid,
-              displayName: req.fromDisplayName,
-              username: req.fromUsername,
-              avatar: req.fromAvatar,
-              customAvatarUrl: req.fromCustomAvatarUrl,
-              status: 'online',
-              bio: '',
-              bannerColor: '#5865F2',
-              memberSince: 'Nov 2026',
-            })
-          )
-          .catch(() => undefined);
+    if (!firebaseUid || !dmOtherUidsKey) {
+      setLiveProfilesByUid({});
+      return;
+    }
+    const uids = dmOtherUidsKey.split('|').filter(Boolean);
+    return subscribeToPublicProfilesByIds(uids, (map) => {
+      setLiveProfilesByUid(map);
+    });
+  }, [firebaseUid, dmOtherUidsKey]);
+
+  // Clean up sender-side pending records once the friendship DM thread exists
+  useEffect(() => {
+    if (!firebaseUid || sentFriendRequestItems.length === 0) return;
+    for (const sent of sentFriendRequestItems) {
+      if (dms.some((d) => !d.isGroup && d.otherUid === sent.toUid)) {
+        void cancelSentFriendRequest(firebaseUid, sent.toUid).catch(() => undefined);
       }
     }
-  }, [firebaseUid, friendRequests, user]);
+  }, [firebaseUid, sentFriendRequestItems, dms]);
 
-  const activeDm = dms.find((d) => d.id === selectedDmId) || dms[0];
+  const liveDms = useMemo(() => {
+    const nowMs = Date.now();
+    return dms.map((d) => {
+      if (d.isGroup || d.isBot || !d.otherUid) return d;
+      const liveEntry = liveProfilesByUid[d.otherUid];
+      if (!liveEntry) {
+        return {
+          ...d,
+          status: resolveEffectivePresence(d.status, d.statusUpdatedAtMs, nowMs),
+        };
+      }
+      const lp = liveEntry.profile;
+      return {
+        ...d,
+        name: lp.displayName || d.name,
+        username: lp.username || d.username,
+        avatar: lp.avatar || d.avatar,
+        customAvatarUrl: lp.customAvatarUrl ?? d.customAvatarUrl,
+        decoration: lp.decoration ?? d.decoration,
+        nameplate: lp.nameplate ?? d.nameplate,
+        serverTag: lp.serverTag ?? d.serverTag,
+        status: resolveEffectivePresence(liveEntry.rawStatus, liveEntry.updatedAtMs, nowMs),
+      };
+    });
+  }, [dms, liveProfilesByUid, presenceTick]);
+
+  const activeDm = liveDms.find((d) => d.id === selectedDmId) || liveDms[0];
   const activeServer =
     activeContext.type === 'server'
       ? servers.find((s) => s.id === activeContext.serverId)
@@ -1116,8 +1188,8 @@ export default function App() {
   const hasUnclaimedQuests = quests.some((q) => !q.claimed);
 
   const themeClass =
-    theme === 'naruto'
-      ? 'theme-naruto'
+    theme === 'purple'
+      ? 'theme-purple'
       : theme === 'dark'
       ? 'theme-dark'
       : theme === 'light'
@@ -1164,13 +1236,18 @@ export default function App() {
     }
 
     const baseProfile = resolvePublicUserProfile(userId, fallback);
-    const matchingDm = dms.find(
+    const matchingDm = liveDms.find(
       (d) =>
         d.id === userId ||
         d.otherUid === userId ||
         d.id === `dm-${userId}` ||
         d.id.replace(/^dm-/, '') === userId
     );
+    const targetLiveUid = matchingDm?.otherUid || userId;
+    const liveEntry = liveProfilesByUid[targetLiveUid];
+    const resolvedStatus = liveEntry
+      ? resolveEffectivePresence(liveEntry.rawStatus, liveEntry.updatedAtMs)
+      : matchingDm?.status || baseProfile.status;
     const matchingMember = activeServer?.members?.find((m) => m.uid === userId);
     const giftedCosmetics: Partial<PublicUserProfile> = {};
     if (matchingDm?.giftedBundleIds?.length) {
@@ -1191,16 +1268,19 @@ export default function App() {
     setInspectedUser({
       profile: {
         ...baseProfile,
+        ...(liveEntry?.profile || {}),
         ...giftedCosmetics,
-        displayName: matchingMember?.displayName || baseProfile.displayName,
-        username: matchingMember?.username || baseProfile.username,
-        avatar: matchingMember?.avatar || baseProfile.avatar,
+        status: resolvedStatus,
+        displayName: liveEntry?.profile.displayName || matchingMember?.displayName || baseProfile.displayName,
+        username: liveEntry?.profile.username || matchingMember?.username || baseProfile.username,
+        avatar: liveEntry?.profile.avatar || matchingMember?.avatar || baseProfile.avatar,
         customAvatarUrl:
+          liveEntry?.profile.customAvatarUrl ||
           matchingMember?.customAvatarUrl ||
           matchingDm?.customAvatarUrl ||
           baseProfile.customAvatarUrl,
-        decoration: matchingDm?.decoration || giftedCosmetics.decoration || baseProfile.decoration,
-        nameplate: matchingDm?.nameplate || giftedCosmetics.nameplate || baseProfile.nameplate,
+        decoration: matchingDm?.decoration || liveEntry?.profile.decoration || giftedCosmetics.decoration || baseProfile.decoration,
+        nameplate: matchingDm?.nameplate || liveEntry?.profile.nameplate || giftedCosmetics.nameplate || baseProfile.nameplate,
       },
       roles,
     });
@@ -2659,13 +2739,13 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    const signingOutUid = firebaseUid;
     try {
       localStorage.removeItem(SESSION_KEY);
     } catch {
       /* ignore */
     }
     hydratedUidRef.current = null;
-    autoLinkedUidRef.current = null;
     autoCloudAttemptedRef.current = null;
     claimingCloudRef.current = false;
     setShowOwnerPanel(false);
@@ -2675,10 +2755,19 @@ export default function App() {
     setServers([]);
     setNotifications([]);
     setFriendRequests([]);
+    setSentFriendRequestUids([]);
+    setSentFriendRequestItems([]);
+    setLiveProfilesByUid({});
     setIncomingCalls([]);
     setScreen('inicio');
     setMobileChatOpen(false);
-    void signOut(auth).catch(() => undefined);
+    const doSignOut = async () => {
+      if (signingOutUid) {
+        await updateUserPresenceStatus(signingOutUid, 'offline').catch(() => undefined);
+      }
+      await signOut(auth).catch(() => undefined);
+    };
+    void doSignOut();
   };
 
   const handleAddServer = (nameOrConfig: string | CreateServerPayload) => {
@@ -2991,6 +3080,13 @@ export default function App() {
         toUid: profile.id,
         targetProfile: profile,
       });
+      if (status === 'auto-accepted') {
+        setFriendRequests((prev) => prev.filter((item) => item.fromUid !== profile.id));
+        const dmId = await getOrCreateDmThread(user, profile);
+        showToastMsg(`¡Solicitud mutua aceptada! Ahora tú y @${profile.username || profile.displayName} son amigos`);
+        handleSelectDm(dmId);
+        return;
+      }
       setSentFriendRequestUids((prev) =>
         prev.includes(profile.id) ? prev : [...prev, profile.id]
       );
@@ -3011,6 +3107,18 @@ export default function App() {
     }
   };
 
+  const handleCancelSentRequest = async (toUid: string): Promise<void> => {
+    if (!firebaseUid) return;
+    try {
+      await cancelSentFriendRequest(firebaseUid, toUid);
+      setSentFriendRequestUids((prev) => prev.filter((id) => id !== toUid));
+      setSentFriendRequestItems((prev) => prev.filter((item) => item.toUid !== toUid));
+      showToastMsg('Solicitud cancelada');
+    } catch {
+      showToastMsg('No se pudo cancelar la solicitud');
+    }
+  };
+
   const handleRespondFriendRequest = async (
     req: FriendRequestItem,
     accept: boolean
@@ -3020,17 +3128,21 @@ export default function App() {
       await respondFriendRequest({ uid: firebaseUid, fromUid: req.fromUid, accept });
       setFriendRequests((prev) => prev.filter((item) => item.fromUid !== req.fromUid));
       if (accept) {
-        const dmId = await getOrCreateDmThread(user, {
-          id: req.fromUid,
-          displayName: req.fromDisplayName,
-          username: req.fromUsername,
-          avatar: req.fromAvatar,
-          customAvatarUrl: req.fromCustomAvatarUrl,
-          status: 'online',
-          bio: '',
-          bannerColor: '#5865F2',
-          memberSince: 'Nov 2026',
-        });
+        const senderLiveProfile = await fetchPublicProfileById(req.fromUid).catch(() => null);
+        const dmId = await getOrCreateDmThread(
+          user,
+          senderLiveProfile || {
+            id: req.fromUid,
+            displayName: req.fromDisplayName,
+            username: req.fromUsername,
+            avatar: req.fromAvatar,
+            customAvatarUrl: req.fromCustomAvatarUrl,
+            status: 'offline',
+            bio: '',
+            bannerColor: '#5865F2',
+            memberSince: 'Nov 2026',
+          }
+        );
         showToastMsg(`Ahora tú y @${req.fromUsername} son amigos`);
         handleSelectDm(dmId);
       } else {
@@ -3735,10 +3847,10 @@ export default function App() {
           theme={theme}
           onBack={() => setScreen('inicio')}
           onClaimQuest={handleClaimQuest}
-          onApplyNarutoTheme={() => {
-            setTheme((t) => (t === 'naruto' ? 'onyx' : 'naruto'));
+          onApplyPurpleTheme={() => {
+            setTheme((t) => (t === 'purple' ? 'onyx' : 'purple'));
             showToastMsg(
-              theme === 'naruto' ? 'Tema Onyx restaurado' : 'Tema Naruto · Konoha aplicado'
+              theme === 'purple' ? 'Tema Onyx restaurado' : 'Tema Morado aplicado'
             );
           }}
           onOpenNitro={() => setScreen('nitro')}
@@ -3751,7 +3863,7 @@ export default function App() {
         <ShopView
           user={user}
           bundles={INITIAL_SHOP_BUNDLES}
-          dms={dms}
+          dms={liveDms}
           wishlistIds={wishlistIds}
           ownedBundleIds={ownedBundleIds}
           selectedBundle={selectedShopBundle}
@@ -3865,9 +3977,10 @@ export default function App() {
     if (screen === 'amigos') {
       return (
         <FriendsView
-          dms={dms}
+          dms={liveDms}
           friendRequests={friendRequests}
           sentFriendRequestUids={sentFriendRequestUids}
+          sentFriendRequestItems={sentFriendRequestItems}
           isCloudConnected={Boolean(firebaseUid)}
           authProviderNeedsSetup={authProviderNeedsSetup}
           onRetryCloudSync={() => {
@@ -3898,6 +4011,7 @@ export default function App() {
           onAddRealUser={handleAddRealUser}
           onSendFriendRequest={handleSendFriendRequest}
           onRespondFriendRequest={handleRespondFriendRequest}
+          onCancelSentRequest={handleCancelSentRequest}
           onInspectUser={handleInspectUser}
         />
       );
@@ -4057,7 +4171,7 @@ export default function App() {
         server={activeServer}
         channelId={selectedChannelId || undefined}
         currentUser={user}
-        dms={dms}
+        dms={liveDms}
         allServers={servers}
         typingLabel={activeTypingKey ? typingMap[activeTypingKey] || null : null}
         appPreferences={appPreferences}
@@ -4292,7 +4406,7 @@ export default function App() {
               }`}
             >
               <MessagesPanel
-                dms={dms}
+                dms={liveDms}
                 activities={INITIAL_ACTIVITIES}
                 servers={orderedServers}
                 activeContext={activeContext}
@@ -4433,28 +4547,28 @@ export default function App() {
               <button
                 onClick={() =>
                   setTheme((t) =>
-                    t === 'onyx' ? 'naruto' : t === 'naruto' ? 'light' : 'onyx'
+                    t === 'onyx' ? 'purple' : t === 'purple' ? 'light' : 'onyx'
                   )
                 }
-                title="Cambiar tema (Onyx / Naruto / Claro)"
+                title="Cambiar tema (Onyx / Morado / Claro)"
                 className={`h-8 inline-flex items-center gap-1.5 px-3 rounded-xl text-xs font-semibold cursor-pointer border transition-colors ${
-                  theme === 'naruto'
-                    ? 'bg-orange-500/15 border-orange-400/40 text-orange-300 hover:bg-orange-500/25'
+                  theme === 'purple'
+                    ? 'bg-violet-500/15 border-violet-400/40 text-violet-300 hover:bg-violet-500/25'
                     : 'bg-[var(--dc-bg-card)] border-[var(--dc-border)] text-[var(--dc-text-primary)] hover:bg-[var(--dc-bg-elevated)]'
                 }`}
               >
                 {theme === 'light' ? (
                   <Sun className="w-3.5 h-3.5" />
-                ) : theme === 'naruto' ? (
-                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_#f97316]" />
+                ) : theme === 'purple' ? (
+                  <span className="w-2.5 h-2.5 rounded-full bg-violet-500 shadow-[0_0_8px_#8b5cf6]" />
                 ) : (
                   <Moon className="w-3.5 h-3.5" />
                 )}
                 <span>
                   {theme === 'light'
                     ? tApp('theme.light')
-                    : theme === 'naruto'
-                    ? tApp('theme.naruto')
+                    : theme === 'purple'
+                    ? tApp('theme.purple')
                     : tApp('theme.onyx')}
                 </span>
               </button>
@@ -4553,10 +4667,10 @@ export default function App() {
                 setScreen('tienda');
                 setMobileChatOpen(false);
               }}
-              className="relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl text-[10.5px] font-semibold text-orange-300 hover:text-orange-200 transition-all active:scale-95 cursor-pointer"
+              className="relative min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl text-[10.5px] font-semibold text-violet-300 hover:text-violet-200 transition-all active:scale-95 cursor-pointer"
             >
-              <div className="w-10 h-6.5 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/15 border border-orange-400/25 flex items-center justify-center">
-                <Store className="w-[18px] h-[18px] text-orange-400" />
+              <div className="w-10 h-6.5 rounded-xl bg-gradient-to-br from-violet-500/20 to-indigo-500/15 border border-violet-400/25 flex items-center justify-center">
+                <Store className="w-[18px] h-[18px] text-violet-400" />
               </div>
               <span className="leading-none">{tApp('nav.shop')}</span>
             </button>
@@ -4973,13 +5087,25 @@ export default function App() {
         }
         isFriend={
           inspectedUser
-            ? dms.some(
+            ? liveDms.some(
                 (d) =>
                   d.id === inspectedUser.profile.id ||
                   d.otherUid === inspectedUser.profile.id ||
                   d.id === `dm-${inspectedUser.profile.id}` ||
-                  d.name.toLowerCase() === inspectedUser.profile.displayName.toLowerCase()
+                  (d.username &&
+                    inspectedUser.profile.username &&
+                    d.username.toLowerCase() === inspectedUser.profile.username.toLowerCase())
               )
+            : false
+        }
+        requestSent={
+          inspectedUser
+            ? sentFriendRequestUids.includes(inspectedUser.profile.id)
+            : false
+        }
+        hasIncomingRequest={
+          inspectedUser
+            ? friendRequests.some((r) => r.fromUid === inspectedUser.profile.id)
             : false
         }
         serverRoles={inspectedUser?.roles || []}
@@ -4992,7 +5118,7 @@ export default function App() {
           void handleSendDmFromProfile(prof, initialMsg);
         }}
         onStartCall={(prof, video) => {
-          const matchingDm = dms.find(
+          const matchingDm = liveDms.find(
             (d) =>
               d.otherUid === prof.id ||
               d.id === prof.id ||
@@ -5006,20 +5132,24 @@ export default function App() {
             video,
           });
         }}
+        onAcceptFriendRequest={(prof) => {
+          const req = friendRequests.find((r) => r.fromUid === prof.id);
+          if (req) {
+            void handleRespondFriendRequest(req, true);
+          }
+        }}
         onToggleFriend={(prof) => {
-          const existing = dms.find(
+          const existing = liveDms.find(
             (d) =>
               d.id === prof.id ||
               d.otherUid === prof.id ||
               d.id === `dm-${prof.id}` ||
-              d.name.toLowerCase() === prof.displayName.toLowerCase()
+              (d.username && prof.username && d.username.toLowerCase() === prof.username.toLowerCase())
           );
           if (existing) {
-            showToastMsg(`${prof.displayName} ya está en tu lista de chats/amigos`);
+            showToastMsg(`${prof.displayName} ya está en tu lista de amigos`);
           } else {
-            void handleSendFriendRequest(prof)
-              .then(() => handleAddRealUser(prof))
-              .catch(() => undefined);
+            void handleSendFriendRequest(prof).catch(() => undefined);
           }
         }}
       />

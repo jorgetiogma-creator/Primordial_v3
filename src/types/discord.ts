@@ -1,5 +1,5 @@
 export type PresenceStatus = 'online' | 'idle' | 'dnd' | 'offline';
-export type ThemeMode = 'onyx' | 'dark' | 'naruto' | 'light';
+export type ThemeMode = 'onyx' | 'dark' | 'purple' | 'light';
 export type MainScreen =
   | 'inicio'
   | 'notificaciones'
@@ -494,6 +494,16 @@ export interface FriendRequestItem {
   createdAt?: string;
 }
 
+export interface SentFriendRequestItem {
+  fromUid: string;
+  toUid: string;
+  toDisplayName: string;
+  toUsername: string;
+  toAvatar: AvatarKey;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt?: string;
+}
+
 export type AppLanguage = 'es' | 'en' | 'pt' | 'fr' | 'de' | 'it' | 'ja' | 'ko';
 
 export interface AppPreferences {
@@ -532,6 +542,7 @@ export interface DirectMessageThread {
   isCallEnded?: boolean;
   participantIds?: string[];
   otherUid?: string;
+  statusUpdatedAtMs?: number;
   messages: ChatMessage[];
 }
 
@@ -640,7 +651,6 @@ export interface Quest {
 }
 
 export type ShopCollectionId =
-  | 'naruto'
   | 'night-terrors'
   | 'dark-folklore'
   | 'dbd'
@@ -679,7 +689,6 @@ export interface ShopBundle {
   collectionId?: ShopCollectionId;
   category:
     | 'destacado'
-    | 'naruto'
     | 'zzz'
     | 'marvel'
     | 'dbd'

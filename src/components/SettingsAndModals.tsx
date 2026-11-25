@@ -9,6 +9,7 @@ import {
   FriendRequestItem,
   NotificationItem,
   PublicUserProfile,
+  SentFriendRequestItem,
   Server,
   ServerRole,
   ServerTemplateId,
@@ -23,7 +24,9 @@ import {
   PrimordialAppIcon,
   SafeImage,
   UserAvatar,
+  VerifiedBadge,
 } from './DiscordArt';
+import { isVerifiedAccount } from '../utils/ownerAccess';
 import { BoostGemIcon } from './ServerBoostView';
 import { PWAInstallButton } from './PWAPrompts';
 import { playSoundboardClip, SOUNDBOARD_CLIPS, SoundboardClipId, triggerHaptic } from '../utils/soundEffects';
@@ -316,7 +319,7 @@ export const SettingsView: React.FC<{
                 { id: 'light', label: t('theme.light'), swatch: '#ffffff' },
                 { id: 'onyx', label: t('theme.onyx'), swatch: '#0e0e11' },
                 { id: 'dark', label: t('theme.dark'), swatch: '#313338' },
-                { id: 'naruto', label: t('theme.naruto'), swatch: '#f97316' },
+                { id: 'purple', label: t('theme.purple'), swatch: '#8b5cf6' },
               ] as { id: ThemeMode; label: string; swatch: string }[]
             ).map((tItem) => (
               <button
@@ -619,8 +622,8 @@ export const SettingsView: React.FC<{
                           <span className="text-xs text-[var(--dc-text-muted)] capitalize">
                             {theme === 'light'
                               ? t('theme.light')
-                              : theme === 'naruto'
-                              ? t('theme.naruto')
+                              : theme === 'purple'
+                              ? t('theme.purple')
                               : theme === 'dark'
                               ? t('theme.dark')
                               : t('theme.onyx')}
@@ -776,6 +779,7 @@ export const FriendsView: React.FC<{
   dms: DirectMessageThread[];
   friendRequests?: FriendRequestItem[];
   sentFriendRequestUids?: string[];
+  sentFriendRequestItems?: SentFriendRequestItem[];
   isCloudConnected?: boolean;
   authProviderNeedsSetup?: boolean;
   onRetryCloudSync?: () => void;
@@ -789,11 +793,13 @@ export const FriendsView: React.FC<{
   onAddRealUser?: (profile: PublicUserProfile) => Promise<void>;
   onSendFriendRequest?: (profile: PublicUserProfile) => Promise<void>;
   onRespondFriendRequest?: (req: FriendRequestItem, accept: boolean) => Promise<void>;
+  onCancelSentRequest?: (toUid: string) => Promise<void>;
   onInspectUser?: (userId: string, fallback?: Partial<PublicUserProfile>) => void;
 }> = ({
   dms,
   friendRequests = [],
   sentFriendRequestUids = [],
+  sentFriendRequestItems = [],
   isCloudConnected = true,
   authProviderNeedsSetup = false,
   onRetryCloudSync,
@@ -804,10 +810,15 @@ export const FriendsView: React.FC<{
   onAddRealUser,
   onSendFriendRequest,
   onRespondFriendRequest,
+  onCancelSentRequest,
   onInspectUser,
 }) => {
   const { t } = useTranslation();
   const friendThreads = dms.filter((d) => !d.isBot && !d.isGroup);
+  const activeOutgoingRequests = sentFriendRequestItems.filter(
+    (s) => !dms.some((d) => d.otherUid === s.toUid)
+  );
+  const totalPendingCount = friendRequests.length + activeOutgoingRequests.length;
   const [tab, setTab] = useState<'online' | 'all' | 'pending' | 'add'>(
     friendRequests.length > 0 ? 'pending' : friendThreads.length === 0 ? 'add' : 'all'
   );
@@ -820,10 +831,24 @@ export const FriendsView: React.FC<{
   const [adding, setAdding] = useState(false);
   const [sendingUid, setSendingUid] = useState<string | null>(null);
   const [chattingUid, setChattingUid] = useState<string | null>(null);
+  const [cancelingUid, setCancelingUid] = useState<string | null>(null);
   const [localSentRequestUids, setLocalSentRequestUids] = useState<Record<string, boolean>>({});
 
   const filtered =
-    tab === 'online' ? friendThreads.filter((f) => f.status === 'online') : friendThreads;
+    tab === 'online'
+      ? friendThreads.filter(
+          (f) => f.status === 'online' || f.status === 'idle' || f.status === 'dnd'
+        )
+      : friendThreads;
+
+  const formatStatusLabel = (status: UserProfile['status']) =>
+    status === 'online'
+      ? 'En línea'
+      : status === 'idle'
+      ? 'Ausente'
+      : status === 'dnd'
+      ? 'No molestar'
+      : 'Desconectado';
 
   const q = friendHandle.trim().toLowerCase();
 
@@ -932,12 +957,38 @@ export const FriendsView: React.FC<{
           return;
         }
 
+        const existingDm = dms.find(
+          (d) =>
+            d.otherUid === match!.id ||
+            (d.username &&
+              match!.username &&
+              d.username.toLowerCase() === match!.username.toLowerCase())
+        );
+        if (existingDm) {
+          onOpenDm(existingDm.id);
+          setAddedMsg(`${match.displayName} (@${match.username}) ya está en tus chats`);
+          setFriendHandle('');
+          setTimeout(() => setAddedMsg(null), 2800);
+          return;
+        }
+
+        const incomingFromMatch = friendRequests.find((r) => r.fromUid === match!.id);
+        if (incomingFromMatch && onRespondFriendRequest) {
+          await onRespondFriendRequest(incomingFromMatch, true);
+          setAddedMsg(`Solicitud de @${match.username} aceptada`);
+          setFriendHandle('');
+          setTimeout(() => setAddedMsg(null), 3200);
+          return;
+        }
+
         if (onSendFriendRequest) {
           await onSendFriendRequest(match);
           setLocalSentRequestUids((prev) => ({ ...prev, [match!.id]: true }));
+          setAddedMsg(`Solicitud de amistad enviada a ${match.displayName} (@${match.username})`);
+        } else {
+          await onAddRealUser(match);
+          setAddedMsg(`Chat abierto con ${match.displayName} (@${match.username})`);
         }
-        await onAddRealUser(match);
-        setAddedMsg(`Solicitud enviada y chat abierto con ${match.displayName} (@${match.username})`);
         setFriendHandle('');
         setTimeout(() => setAddedMsg(null), 3200);
       } catch (err: unknown) {
@@ -984,7 +1035,7 @@ export const FriendsView: React.FC<{
         {[
           { id: 'online', label: t('friends.tab.online') },
           { id: 'all', label: `${t('friends.tab.all')} (${friendThreads.length})` },
-          { id: 'pending', label: `${t('friends.tab.pending')} (${friendRequests.length})` },
+          { id: 'pending', label: `${t('friends.tab.pending')} (${totalPendingCount})` },
           { id: 'add', label: t('friends.tab.add') },
         ].map((tabItem) => (
           <button
@@ -995,7 +1046,7 @@ export const FriendsView: React.FC<{
             }`}
           >
             <span>{tabItem.label}</span>
-            {tabItem.id === 'pending' && friendRequests.length > 0 && (
+            {tabItem.id === 'pending' && totalPendingCount > 0 && (
               <span className="w-2 h-2 rounded-full bg-[#f23f43]" />
             )}
           </button>
@@ -1004,61 +1055,119 @@ export const FriendsView: React.FC<{
 
       <div className="flex-1 overflow-y-auto p-4 max-w-2xl w-full mx-auto space-y-4">
         {tab === 'pending' ? (
-          <div className="space-y-2.5">
-            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
-              {t('friends.tab.pending')} ({friendRequests.length})
-            </p>
-            {friendRequests.length === 0 ? (
-              <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-8 text-center space-y-2">
-                <UserPlus className="w-8 h-8 text-zinc-500 mx-auto" />
-                <p className="text-sm font-bold text-white">{t('friends.noPendingTitle')}</p>
-                <p className="text-xs text-zinc-400">
-                  {t('friends.noPendingDesc')}
-                </p>
-              </div>
-            ) : (
-              friendRequests.map((req) => (
-                <div
-                  key={req.fromUid}
-                  className="p-3.5 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <UserAvatar
-                      avatar={req.fromAvatar}
-                      customAvatarUrl={req.fromCustomAvatarUrl}
-                      status="online"
-                      size="md"
-                      borderColor="#1c1d22"
-                    />
-                    <div className="min-w-0">
-                      <p className="font-bold text-sm text-white truncate">
-                        {req.fromDisplayName}
-                      </p>
-                      <p className="text-xs text-zinc-400 truncate">
-                        @{req.fromUsername} · {t('friends.pendingIncoming')}
-                      </p>
+          <div className="space-y-4">
+            <div className="space-y-2.5">
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
+                Solicitudes recibidas ({friendRequests.length})
+              </p>
+              {friendRequests.length === 0 && activeOutgoingRequests.length === 0 ? (
+                <div className="rounded-2xl bg-[#1c1d22] border border-[#2e3035] p-8 text-center space-y-2">
+                  <UserPlus className="w-8 h-8 text-zinc-500 mx-auto" />
+                  <p className="text-sm font-bold text-white">{t('friends.noPendingTitle')}</p>
+                  <p className="text-xs text-zinc-400">
+                    {t('friends.noPendingDesc')}
+                  </p>
+                </div>
+              ) : friendRequests.length === 0 ? (
+                <p className="text-xs text-zinc-400 px-1">No tienes solicitudes recibidas por ahora.</p>
+              ) : (
+                friendRequests.map((req) => (
+                  <div
+                    key={req.fromUid}
+                    className="p-3.5 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <UserAvatar
+                        avatar={req.fromAvatar}
+                        customAvatarUrl={req.fromCustomAvatarUrl}
+                        status="online"
+                        size="md"
+                        borderColor="#1c1d22"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-white truncate inline-flex items-center gap-1 max-w-full">
+                          <span className="truncate">{req.fromDisplayName}</span>
+                          {isVerifiedAccount(req.fromUsername) && <VerifiedBadge size="sm" />}
+                        </p>
+                        <p className="text-xs text-zinc-400 truncate">
+                          @{req.fromUsername} · {t('friends.pendingIncoming')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => void onRespondFriendRequest?.(req, true)}
+                        aria-label="Aceptar solicitud"
+                        className="w-9 h-9 rounded-full bg-[#23a55a]/20 hover:bg-[#23a55a]/35 text-[#23a55a] border border-[#23a55a]/40 flex items-center justify-center cursor-pointer"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void onRespondFriendRequest?.(req, false)}
+                        aria-label="Rechazar solicitud"
+                        className="w-9 h-9 rounded-full bg-[#f23f43]/15 hover:bg-[#f23f43]/30 text-[#f23f43] border border-[#f23f43]/40 flex items-center justify-center cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => void onRespondFriendRequest?.(req, true)}
-                      aria-label="Aceptar solicitud"
-                      className="w-9 h-9 rounded-full bg-[#23a55a]/20 hover:bg-[#23a55a]/35 text-[#23a55a] border border-[#23a55a]/40 flex items-center justify-center cursor-pointer"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void onRespondFriendRequest?.(req, false)}
-                      aria-label="Rechazar solicitud"
-                      className="w-9 h-9 rounded-full bg-[#f23f43]/15 hover:bg-[#f23f43]/30 text-[#f23f43] border border-[#f23f43]/40 flex items-center justify-center cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                ))
+              )}
+            </div>
+
+            {activeOutgoingRequests.length > 0 && (
+              <div className="space-y-2.5">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
+                  Solicitudes enviadas ({activeOutgoingRequests.length})
+                </p>
+                {activeOutgoingRequests.map((sent) => (
+                  <div
+                    key={sent.toUid}
+                    className="p-3.5 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <UserAvatar
+                        avatar={sent.toAvatar}
+                        status="offline"
+                        size="md"
+                        borderColor="#1c1d22"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-white truncate inline-flex items-center gap-1 max-w-full">
+                          <span className="truncate">{sent.toDisplayName}</span>
+                          {isVerifiedAccount(sent.toUsername) && <VerifiedBadge size="sm" />}
+                        </p>
+                        <p className="text-xs text-zinc-400 truncate">
+                          @{sent.toUsername} · Solicitud saliente pendiente
+                        </p>
+                      </div>
+                    </div>
+                    {onCancelSentRequest && (
+                      <button
+                        type="button"
+                        disabled={cancelingUid === sent.toUid}
+                        onClick={() => {
+                          setCancelingUid(sent.toUid);
+                          void onCancelSentRequest(sent.toUid)
+                            .then(() => {
+                              setLocalSentRequestUids((prev) => {
+                                const next = { ...prev };
+                                delete next[sent.toUid];
+                                return next;
+                              });
+                            })
+                            .finally(() => setCancelingUid(null));
+                        }}
+                        className="px-3 py-1.5 rounded-full bg-[#f23f43]/15 hover:bg-[#f23f43]/30 text-[#f23f43] border border-[#f23f43]/40 text-xs font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        {cancelingUid === sent.toUid ? '...' : 'Cancelar'}
+                      </button>
+                    )}
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         ) : tab === 'add' ? (
@@ -1201,14 +1310,15 @@ export const FriendsView: React.FC<{
                         borderColor="#1c1d22"
                       />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <p className="font-bold text-sm truncate text-white">{person.displayName}</p>
+                          {isVerifiedAccount(person.username) && <VerifiedBadge size="sm" />}
                           <span className="text-[11px] text-zinc-400 truncate">
                             @{person.username}
                           </span>
                         </div>
                         <p className="text-xs text-zinc-400 truncate mt-0.5">
-                          {person.customStatus || person.bio}
+                          {formatStatusLabel(person.status)} · {person.customStatus || person.bio}
                         </p>
                       </div>
                     </div>
@@ -1319,9 +1429,12 @@ export const FriendsView: React.FC<{
                     borderColor="#1c1d22"
                   />
                   <div className="text-left min-w-0">
-                    <p className="font-bold text-sm truncate text-white">{f.name}</p>
+                    <p className="font-bold text-sm truncate text-white inline-flex items-center gap-1 max-w-full">
+                      <span className="truncate">{f.name}</span>
+                      {isVerifiedAccount(f.username) && <VerifiedBadge size="sm" />}
+                    </p>
                     <p className="text-xs text-zinc-400 truncate">
-                      {f.username ? `@${f.username}` : f.lastMessagePreview}
+                      {f.username ? `@${f.username} · ${formatStatusLabel(f.status)}` : formatStatusLabel(f.status)}
                     </p>
                   </div>
                 </div>

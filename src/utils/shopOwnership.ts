@@ -52,9 +52,6 @@ export function getOwnedCosmetics(
     if (bundle.id === 'bundle-rama') {
       nameplates.add('sakura');
     }
-    if (bundle.id === 'bundle-banner-konoha') {
-      nameplates.add('konoha-naranja');
-    }
   }
 
   return { decorations, effects, frames, nameplates, banners };
@@ -87,9 +84,6 @@ export function findBundleForCosmetic(
   }
   if (params.nameplateId === 'sakura') {
     return bundles.find((b) => b.id === 'bundle-rama');
-  }
-  if (params.nameplateId === 'konoha-naranja') {
-    return bundles.find((b) => b.id === 'bundle-banner-konoha');
   }
   return undefined;
 }
@@ -140,7 +134,9 @@ export function sanitizeUserShopCosmetics(
   const safeFrame: ProfileFrameId = owned.frames.has(currentFrame) ? currentFrame : 'none';
 
   const normalizedPlate =
-    (user.nameplate as string) === 'vice-city' ? 'konoha-naranja' : user.nameplate;
+    (user.nameplate as string) === 'vice-city' || (user.nameplate as string) === 'konoha-naranja'
+      ? 'none'
+      : user.nameplate;
   const safeNameplate: NameplateId = owned.nameplates.has(normalizedPlate)
     ? normalizedPlate
     : 'none';

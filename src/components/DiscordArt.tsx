@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
+import { BadgeCheck } from 'lucide-react';
 import {
   AvatarKey,
   DecorationId,
@@ -10,6 +11,23 @@ import {
   ProfileFrameId,
   Server,
 } from '../types/discord';
+
+export const VerifiedBadge: React.FC<{ size?: 'sm' | 'md'; className?: string }> = ({
+  size = 'sm',
+  className = '',
+}) => (
+  <span
+    title="Cuenta verificada"
+    aria-label="Cuenta verificada"
+    className={`inline-flex items-center justify-center shrink-0 ${className}`}
+  >
+    <BadgeCheck
+      className={`${
+        size === 'md' ? 'w-5 h-5' : 'w-4 h-4'
+      } text-[#38bdf8] fill-[#38bdf8]/20`}
+    />
+  </span>
+);
 
 export const GENERATED_ASSETS = {
   madaraAvatar: '/src/assets/images/avatar_black_cat_1795349127144.jpg',

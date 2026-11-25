@@ -28,7 +28,7 @@ interface QuestsViewProps {
   theme: ThemeMode;
   onBack: () => void;
   onClaimQuest: (questId: string) => void;
-  onApplyNarutoTheme: () => void;
+  onApplyPurpleTheme: () => void;
   onOpenNitro: () => void;
   onJoinDuneServer: () => void;
 }
@@ -142,7 +142,7 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
   theme,
   onBack,
   onClaimQuest,
-  onApplyNarutoTheme,
+  onApplyPurpleTheme,
   onOpenNitro,
   onJoinDuneServer,
 }) => {
@@ -151,7 +151,7 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [activeVideoQuest, setActiveVideoQuest] = useState<Quest | null>(null);
   const [watchProgress, setWatchProgress] = useState(0);
-  const [showNarutoPreview, setShowNarutoPreview] = useState(false);
+  const [showThemePreview, setShowThemePreview] = useState(false);
 
   useEffect(() => {
     if (!activeVideoQuest) return;
@@ -249,90 +249,81 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
 
       <div className="flex-1 overflow-y-auto pb-10">
         <div className="max-w-xl mx-auto">
-          {/* Naruto Shippuden Konoha Sponsored Theme Banner */}
+          {/* Primordial Morado Theme Showcase */}
           <div className="relative">
-            <div className="h-64 w-full relative overflow-hidden bg-[#1a0a04]">
-              <img
-                src={GENERATED_ASSETS.narutoThemeKonoha}
-                alt="Naruto Shippuden · Aldea de Konoha"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
+            <div className="h-56 w-full relative overflow-hidden bg-[#120b22]">
+              <SafeImage
+                src={GENERATED_ASSETS.shopCelestialMoonArt}
+                alt="Primordial Morado"
+                fallbackGradient="from-[#1e113a] via-[#120b22] to-[#090612]"
+                className="w-full h-full object-cover opacity-75"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-black/25" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#090612] via-[#120b22]/45 to-black/30" />
 
-              <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl border border-orange-400/35 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-orange-400 shadow-[0_0_8px_#fb923c]" />
-                <span className="font-sakura font-extrabold text-xs tracking-widest uppercase bg-gradient-to-r from-orange-300 via-amber-200 to-orange-400 bg-clip-text text-transparent">
-                  NARUTO × PRIMORDIAL
+              <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl border border-violet-400/35 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-violet-400 shadow-[0_0_8px_#a78bfa]" />
+                <span className="font-display font-extrabold text-xs tracking-widest uppercase text-violet-200">
+                  PRIMORDIAL · MORADO
                 </span>
               </div>
 
-              <span className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm text-orange-100 text-xs font-semibold border border-orange-400/25">
-                Colaboración Oficial
+              <span className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm text-violet-100 text-xs font-semibold border border-violet-400/25 inline-flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-violet-300" />
+                Tema oficial
               </span>
             </div>
 
-            <div className="mx-3.5 -mt-12 relative z-10 rounded-3xl bg-[var(--dc-bg-card)] border border-orange-500/25 p-4 shadow-2xl">
-              <div className="h-36 w-full rounded-2xl bg-[#160b06] relative overflow-hidden flex items-center justify-center mb-3 border border-orange-400/20">
-                <SafeImage
-                  src={GENERATED_ASSETS.narutoThemeKonoha}
-                  alt="Vista previa Konoha"
-                  className="absolute inset-0 w-full h-full object-cover opacity-60"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#240d04]/85 via-[#180a05]/55 to-[#120704]/85" />
-                <div className="relative z-10 w-60 h-24 rounded-xl bg-black/60 backdrop-blur-md border border-orange-400/35 p-2.5 flex flex-col justify-between shadow-2xl">
+            <div className="mx-3.5 -mt-12 relative z-10 rounded-3xl bg-[var(--dc-bg-card)] border border-violet-500/25 p-4 shadow-2xl">
+              <div className="h-36 w-full rounded-2xl bg-[#100a1c] relative overflow-hidden flex items-center justify-center mb-3 border border-violet-400/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#2a1650]/90 via-[#150c29]/85 to-[#0b0714]/95" />
+                <div className="relative z-10 w-60 h-24 rounded-xl bg-black/55 backdrop-blur-md border border-violet-400/35 p-2.5 flex flex-col justify-between shadow-2xl">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-                    <span className="text-[10px] font-bold tracking-wide text-orange-200">
-                      # aldea-de-la-hoja
+                    <span className="w-2.5 h-2.5 rounded-full bg-violet-400" />
+                    <span className="text-[10px] font-bold tracking-wide text-violet-200">
+                      # primordial-club
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-[10px] font-black text-white">
-                      木
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-[10px] font-black text-white">
+                      P
                     </div>
                     <div className="space-y-1 flex-1">
-                      <div className="w-24 h-2 rounded-full bg-gradient-to-r from-orange-400 to-amber-200 opacity-90" />
+                      <div className="w-24 h-2 rounded-full bg-gradient-to-r from-violet-400 to-purple-300 opacity-90" />
                       <div className="w-36 h-1.5 rounded-full bg-white/45" />
                     </div>
                   </div>
                 </div>
                 <div className="absolute left-4 bottom-2.5 shadow-xl -rotate-6 z-20">
-                  <PrimordialAppIcon className="w-11 h-11 rounded-2xl border border-orange-200/40" />
+                  <PrimordialAppIcon className="w-11 h-11 rounded-2xl border border-violet-300/40" />
                 </div>
-                <div className="absolute right-4 top-2.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-br from-[#7c2d12]/95 to-[#431407]/95 border border-orange-400/45 shadow-xl rotate-3 z-20">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-[9px] font-bold text-white">
-                      火
-                    </div>
-                    <span className="font-display font-black text-[10.5px] tracking-wider text-orange-100">
-                      NARUTO THEME
-                    </span>
-                  </div>
+                <div className="absolute right-4 top-2.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-br from-[#4c1d95]/95 to-[#2e1065]/95 border border-violet-400/45 shadow-xl rotate-3 z-20">
+                  <span className="font-display font-black text-[10.5px] tracking-wider text-violet-100">
+                    TEMA MORADO
+                  </span>
                 </div>
               </div>
 
               <h2 className="font-display font-bold text-[19px] leading-snug text-[var(--dc-text-primary)]">
-                Transforma tu app con el tema Naruto · Konoha Naranja
+                Personaliza tu app con el tema Primordial Morado
               </h2>
               <p className="text-[13.5px] text-[var(--dc-text-secondary)] mt-1.5 leading-relaxed">
-                Aplica la paleta obsidiana y naranja atardecer de Konoha, el emblema Naruto y tipografía shinobi.
+                Aplica una paleta morada limpia y profunda diseñada para destacar tus chats, tarjetas y perfil.
               </p>
               <p className="text-[12.5px] text-[var(--dc-text-muted)] mt-2.5">
-                Colección especial Primordial × Naruto.{' '}
+                Estilo exclusivo de Primordial.{' '}
                 <button
-                  onClick={() => setShowNarutoPreview(true)}
-                  className="text-orange-400 hover:underline font-semibold cursor-pointer"
+                  onClick={() => setShowThemePreview(true)}
+                  className="text-violet-400 hover:underline font-semibold cursor-pointer"
                 >
                   Más información
                 </button>
               </p>
 
               <button
-                onClick={() => setShowNarutoPreview(true)}
-                className="w-full mt-4 h-11 rounded-full bg-gradient-to-r from-[#f97316] to-[#ea580c] hover:brightness-110 text-white font-bold text-[14.5px] cursor-pointer whitespace-nowrap shadow-[0_10px_24px_-8px_rgba(249,115,22,0.7)] transition-all"
+                onClick={() => setShowThemePreview(true)}
+                className="w-full mt-4 h-11 rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#7c3aed] hover:brightness-110 text-white font-bold text-[14.5px] cursor-pointer whitespace-nowrap shadow-[0_10px_24px_-8px_rgba(139,92,246,0.65)] transition-all"
               >
-                {theme === 'naruto' ? 'Tema Naruto · Konoha activo ✓' : 'Previsualizar tema Naruto'}
+                {theme === 'purple' ? 'Tema Morado activo ✓' : 'Previsualizar tema Morado'}
               </button>
             </div>
           </div>
@@ -494,41 +485,41 @@ export const QuestsView: React.FC<QuestsViewProps> = ({
         </div>
       </div>
 
-      {showNarutoPreview && (
+      {showThemePreview && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-gradient-to-b from-[#291105] to-[#120804] border border-orange-400/35 p-5 space-y-4 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl bg-gradient-to-b from-[#1a1030] to-[#0d0818] border border-violet-400/35 p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <PrimordialAppIcon className="w-8 h-8 rounded-xl border border-orange-300/35" />
+                <PrimordialAppIcon className="w-8 h-8 rounded-xl border border-violet-300/35" />
                 <h3 className="font-display font-bold text-lg text-white">
-                  Tema Naruto · Aldea de Konoha
+                  Tema Primordial · Morado
                 </h3>
               </div>
               <button
-                onClick={() => setShowNarutoPreview(false)}
+                onClick={() => setShowThemePreview(false)}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-sm text-orange-100/85 leading-relaxed">
-              Viste toda la interfaz con obsidiana cálida, acentos naranja chakra de Konoha y el sello de colaboración oficial con Naruto.
+            <p className="text-sm text-violet-100/85 leading-relaxed">
+              Viste toda la interfaz con tonos morados profundos, contraste limpio y acentos violeta característicos de Primordial.
             </p>
             <div className="flex gap-2.5 pt-2">
               <button
-                onClick={() => setShowNarutoPreview(false)}
+                onClick={() => setShowThemePreview(false)}
                 className="flex-1 h-11 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white text-sm font-semibold cursor-pointer transition-colors"
               >
                 Cerrar
               </button>
               <button
                 onClick={() => {
-                  onApplyNarutoTheme();
-                  setShowNarutoPreview(false);
+                  onApplyPurpleTheme();
+                  setShowThemePreview(false);
                 }}
-                className="flex-1 h-11 rounded-full bg-gradient-to-r from-[#f97316] to-[#ea580c] text-white text-sm font-extrabold cursor-pointer shadow-lg hover:brightness-110 transition-all"
+                className="flex-1 h-11 rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#7c3aed] text-white text-sm font-extrabold cursor-pointer shadow-lg hover:brightness-110 transition-all"
               >
-                {theme === 'naruto' ? 'Volver a Onyx' : 'Aplicar tema Naruto'}
+                {theme === 'purple' ? 'Volver a Onyx' : 'Aplicar tema Morado'}
               </button>
             </div>
           </div>

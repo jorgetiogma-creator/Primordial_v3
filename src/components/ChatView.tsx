@@ -50,10 +50,10 @@ import {
   UserProfile,
   AppPreferences,
 } from '../types/discord';
-import { NameplateStripBackground, UserAvatar } from './DiscordArt';
+import { NameplateStripBackground, UserAvatar, VerifiedBadge } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
-import { getServerPermissions } from '../utils/ownerAccess';
+import { getServerPermissions, isVerifiedAccount } from '../utils/ownerAccess';
 import { sendThreadReply, subscribeToMessageThreads } from '../services/firestoreService';
 import { getLanguageOption, translateChatMessageText } from '../utils/i18n';
 
@@ -158,17 +158,17 @@ const BUILTIN_STICKERS: { id: string; name: string; emoji: string; bg: string }[
 ];
 
 const SAMPLE_CHAT_PHOTOS = [
-  { label: 'Konoha', url: '/src/assets/images/naruto_theme_konoha_1795517348276.jpg' },
   { label: 'Arrakis', url: '/src/assets/images/banner_dune_1795280073636.jpg' },
   { label: 'Miyabi', url: '/src/assets/images/shop_miyabi_art_1795281106262.jpg' },
   { label: 'Lofi', url: '/src/assets/images/shop_lofi_plants_1795281107687.jpg' },
+  { label: 'Eclipse', url: '/src/assets/images/shop_celestial_moon_art_1795352098726.jpg' },
 ];
 
 const BUILTIN_GIFS: { id: string; name: string; emoji: string; imageUrl: string }[] = [
-  { id: 'gif-konoha', name: 'Konoha Chakra', emoji: '🍥', imageUrl: '/src/assets/images/naruto_theme_konoha_1795517348276.jpg' },
   { id: 'gif-dune', name: 'Arrakis Storm', emoji: '🏜️', imageUrl: '/src/assets/images/banner_dune_1795280073636.jpg' },
   { id: 'gif-miyabi', name: 'Miyabi Slash', emoji: '❄️', imageUrl: '/src/assets/images/shop_miyabi_art_1795281106262.jpg' },
   { id: 'gif-lofi', name: 'Lofi Chill', emoji: '🎧', imageUrl: '/src/assets/images/shop_lofi_plants_1795281107687.jpg' },
+  { id: 'gif-eclipse', name: 'Eclipse Lunar', emoji: '🌙', imageUrl: '/src/assets/images/shop_celestial_moon_art_1795352098726.jpg' },
 ];
 
 const SLASH_COMMANDS: {
@@ -920,6 +920,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     <h2 className="font-display font-bold text-[15px] text-[var(--dc-text-primary)] truncate">
                       {dm.name}
                     </h2>
+                    {!dm.isGroup && !dm.isBot && isVerifiedAccount(dm.username) && (
+                      <VerifiedBadge size="sm" />
+                    )}
                     {dm.serverTag && (
                       <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-semibold text-[var(--dc-text-secondary)] shrink-0">
                         {dm.serverTag}
@@ -1431,6 +1434,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 </span>
                               );
                             })()}
+                          {(() => {
+                            const authorUsername = isMe
+                              ? currentUser.username
+                              : mode === 'dm' && dm && !dm.isGroup
+                              ? dm.username
+                              : server?.members?.find((m) => m.uid === msg.authorId)?.username;
+                            return !msg.authorIsBot && isVerifiedAccount(authorUsername) ? (
+                              <VerifiedBadge size="sm" />
+                            ) : null;
+                          })()}
                           {authorRole && (
                             <span
                               className="px-1.5 py-[1px] rounded-md text-[10px] font-bold bg-white/[0.07] border border-white/10"

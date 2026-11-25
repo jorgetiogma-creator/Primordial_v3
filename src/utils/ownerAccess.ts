@@ -2,11 +2,18 @@ import { Server, StoredAccount, UserProfile } from '../types/discord';
 
 export const RESERVED_OWNER_USERNAME = 'owner';
 export const ADMIN_OWNER_USERNAMES = ['owner', 'snuf'] as const;
+export const VERIFIED_USERNAMES = ['carruyo'] as const;
 export const DESIGNATED_OWNER_EMAIL = 'emaneriera@gmail.com';
 export const DESIGNATED_OWNER_EMAILS = [
   'emaneriera@gmail.com',
   'jorgesantiagoensuprime@gmail.com',
 ] as const;
+
+export function isVerifiedAccount(username?: string | null): boolean {
+  if (!username) return false;
+  const clean = username.trim().toLowerCase().replace(/^@+/, '');
+  return (VERIFIED_USERNAMES as readonly string[]).includes(clean);
+}
 
 export function isDesignatedOwnerEmail(email?: string | null): boolean {
   if (!email) return false;

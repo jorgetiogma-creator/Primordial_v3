@@ -56,7 +56,9 @@ import {
   ServerIconArt,
   StatusIndicator,
   UserAvatar,
+  VerifiedBadge,
 } from './DiscordArt';
+import { isVerifiedAccount } from '../utils/ownerAccess';
 import {
   findBundleForCosmetic,
   getOwnedCosmetics,
@@ -198,7 +200,7 @@ const PROFILE_FRAME_OPTIONS: {
   },
   {
     id: 'crimson',
-    label: 'Carmesí Shinobi',
+    label: 'Carmesí Neón',
     borderClass: 'ring-2 ring-[#ef4444]/80 shadow-[0_0_28px_rgba(239,68,68,0.28)]',
   },
   {
@@ -286,7 +288,6 @@ const NAMEPLATE_OPTIONS: { id: NameplateId; label: string; gradient?: string }[]
   { id: 'yuji', label: 'Yuji Itadori', gradient: 'from-pink-500/35 to-rose-950/70' },
   { id: 'lobo', label: 'Lobo y Luna', gradient: 'from-violet-600/35 to-indigo-950/75' },
   { id: 'sakura', label: 'Sakura', gradient: 'from-pink-500/30 to-rose-900/40' },
-  { id: 'konoha-naranja', label: 'Konoha Naranja', gradient: 'from-orange-500/35 to-amber-950/75' },
   { id: 'miyabi', label: 'Miyabi', gradient: 'from-sky-500/30 to-slate-900/50' },
   { id: 'deadpool', label: 'Deadpool', gradient: 'from-red-600/35 to-zinc-900/60' },
   { id: 'wolverine', label: 'Wolverine', gradient: 'from-yellow-500/30 to-zinc-900/60' },
@@ -925,6 +926,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     <span className={namePres.className} style={namePres.style}>
                       {user.displayName}
                     </span>
+                    {isVerifiedAccount(user.username) && <VerifiedBadge size="md" />}
                     <ChevronDown className="w-5 h-5 text-[var(--dc-text-secondary)]" />
                   </button>
                 );
