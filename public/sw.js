@@ -1,4 +1,4 @@
-const CACHE_NAME = 'primordial-pwa-v3';
+const CACHE_NAME = 'primordial-pwa-v5';
 const CORE_ASSETS = [
   '/',
   '/index.html',

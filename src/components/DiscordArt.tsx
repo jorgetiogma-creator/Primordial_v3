@@ -148,12 +148,12 @@ export const PrimordialAppIcon: React.FC<{ className?: string }> = ({
   className = 'w-16 h-16 rounded-2xl',
 }) => (
   <div
-    className={`relative overflow-hidden select-none bg-gradient-to-br from-[#5865F2] via-[#4752c4] to-[#3730a3] ring-1 ring-inset ring-white/20 shadow-[0_6px_20px_-4px_rgba(88,101,242,0.55)] ${className}`}
+    className={`relative overflow-hidden select-none bg-gradient-to-br from-[#f5edff] via-[#e4d4ff] to-[#cbb5fd] ring-1 ring-inset ring-white/30 shadow-[0_6px_20px_-4px_rgba(139,92,246,0.45)] ${className}`}
   >
     <SafeImage
-      src="/icon-512.png"
+      src="/icon-512.png?v=5"
       alt="Primordial"
-      fallbackGradient="from-[#5865F2] via-[#4752c4] to-[#3730a3]"
+      fallbackGradient="from-[#f5edff] via-[#e4d4ff] to-[#cbb5fd]"
       fallbackLabel="P"
       className="w-full h-full object-cover"
     />
