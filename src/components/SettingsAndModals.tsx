@@ -1163,48 +1163,55 @@ export const FriendsView: React.FC<{
         <div className="flex items-center gap-2.5">
           <button
             onClick={onBack}
-            className="p-1.5 rounded-full hover:bg-white/10 text-white cursor-pointer"
+            aria-label="Volver"
+            className="min-w-[40px] min-h-[40px] rounded-full hover:bg-white/10 text-white flex items-center justify-center cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <Users className="w-5 h-5 text-zinc-400" />
           <h1 className="font-display font-bold text-[17px] text-white">{t('friends.title')}</h1>
         </div>
-        <button
-          onClick={() => setTab('add')}
-          className="px-3.5 py-1.5 rounded-full dc-btn-success text-xs font-bold cursor-pointer whitespace-nowrap"
-        >
-          {t('friends.addFriend')}
-        </button>
+        {tab !== 'add' && (
+          <button
+            type="button"
+            onClick={() => setTab('add')}
+            className="px-3.5 py-2 rounded-xl dc-btn-primary text-xs font-bold cursor-pointer whitespace-nowrap"
+          >
+            {t('friends.addFriend')}
+          </button>
+        )}
       </header>
 
-      <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#2e3035] overflow-x-auto no-scrollbar bg-[#1c1d22]">
-        {[
-          { id: 'online', label: t('friends.tab.online') },
-          { id: 'all', label: `${t('friends.tab.all')} (${friendThreads.length})` },
-          { id: 'pending', label: `${t('friends.tab.pending')} (${totalPendingCount})` },
-          { id: 'add', label: t('friends.tab.add') },
-        ].map((tabItem) => (
-          <button
-            key={tabItem.id}
-            onClick={() => setTab(tabItem.id as 'online' | 'all' | 'pending' | 'add')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
-              tab === tabItem.id ? 'dc-btn-primary' : 'bg-[#26272f] text-zinc-300 hover:text-white'
-            }`}
-          >
-            <span>{tabItem.label}</span>
-            {tabItem.id === 'pending' && totalPendingCount > 0 && (
-              <span className="w-2 h-2 rounded-full bg-[#f23f43]" />
-            )}
-          </button>
-        ))}
+      <div className="px-4 py-2 border-b border-[#2e3035] bg-[#16171b] shrink-0">
+        <div className="max-w-2xl mx-auto grid grid-cols-4 gap-1 p-1 bg-[#1e1f26] rounded-xl">
+          {[
+            { id: 'online', label: t('friends.tab.online') },
+            { id: 'all', label: `${t('friends.tab.all')} (${friendThreads.length})` },
+            { id: 'pending', label: `${t('friends.tab.pending')} (${totalPendingCount})` },
+            { id: 'add', label: t('friends.tab.add') },
+          ].map((tabItem) => (
+            <button
+              key={tabItem.id}
+              onClick={() => setTab(tabItem.id as 'online' | 'all' | 'pending' | 'add')}
+              className={`min-h-[36px] px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer whitespace-nowrap inline-flex items-center justify-center gap-1 transition-colors ${
+                tab === tabItem.id
+                  ? 'bg-[#5865F2] text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <span className="truncate">{tabItem.label}</span>
+              {tabItem.id === 'pending' && totalPendingCount > 0 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-[#f23f43] shrink-0" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 max-w-2xl w-full mx-auto space-y-4">
         {tab === 'pending' ? (
           <div className="space-y-4">
-            <div className="space-y-2.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-zinc-400 px-1">
                 Solicitudes recibidas ({friendRequests.length})
               </p>
               {friendRequests.length === 0 && activeOutgoingRequests.length === 0 ? (
@@ -1241,7 +1248,7 @@ export const FriendsView: React.FC<{
                   return (
                   <div
                     key={req.fromUid}
-                    className="p-3.5 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
+                    className="p-3 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
                   >
                     <button
                       type="button"
@@ -1290,7 +1297,7 @@ export const FriendsView: React.FC<{
                         type="button"
                         onClick={() => void onRespondFriendRequest?.(req, true)}
                         aria-label="Aceptar solicitud"
-                        className="w-9 h-9 rounded-full bg-[#23a55a]/20 hover:bg-[#23a55a]/35 text-[#23a55a] border border-[#23a55a]/40 flex items-center justify-center cursor-pointer"
+                        className="w-10 h-10 rounded-xl bg-[#23a55a]/20 hover:bg-[#23a55a]/35 text-[#23a55a] border border-[#23a55a]/40 flex items-center justify-center cursor-pointer"
                       >
                         <Check className="w-4 h-4" />
                       </button>
@@ -1298,7 +1305,7 @@ export const FriendsView: React.FC<{
                         type="button"
                         onClick={() => void onRespondFriendRequest?.(req, false)}
                         aria-label="Rechazar solicitud"
-                        className="w-9 h-9 rounded-full bg-[#f23f43]/15 hover:bg-[#f23f43]/30 text-[#f23f43] border border-[#f23f43]/40 flex items-center justify-center cursor-pointer"
+                        className="w-10 h-10 rounded-xl bg-[#f23f43]/15 hover:bg-[#f23f43]/30 text-[#f23f43] border border-[#f23f43]/40 flex items-center justify-center cursor-pointer"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1310,8 +1317,8 @@ export const FriendsView: React.FC<{
             </div>
 
             {activeOutgoingRequests.length > 0 && (
-              <div className="space-y-2.5">
-                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-zinc-400 px-1">
                   Solicitudes enviadas ({activeOutgoingRequests.length})
                 </p>
                 {activeOutgoingRequests.map((sent) => {
@@ -1337,7 +1344,7 @@ export const FriendsView: React.FC<{
                   return (
                   <div
                     key={sent.toUid}
-                    className="p-3.5 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
+                    className="p-3 rounded-2xl bg-[#1c1d22] border border-[#2e3035] flex items-center justify-between gap-3"
                   >
                     <button
                       type="button"
@@ -1377,7 +1384,7 @@ export const FriendsView: React.FC<{
                           )}
                         </p>
                         <p className="text-xs text-zinc-400 truncate">
-                          @{liveProf?.username || sent.toUsername} · Solicitud saliente pendiente
+                          @{liveProf?.username || sent.toUsername} · Pendiente
                         </p>
                       </div>
                     </button>
@@ -1397,7 +1404,7 @@ export const FriendsView: React.FC<{
                             })
                             .finally(() => setCancelingUid(null));
                         }}
-                        className="px-3 py-1.5 rounded-full bg-[#f23f43]/15 hover:bg-[#f23f43]/30 text-[#f23f43] border border-[#f23f43]/40 text-xs font-bold cursor-pointer disabled:opacity-50"
+                        className="px-3 py-2 rounded-xl bg-[#f23f43]/15 hover:bg-[#f23f43]/30 text-[#f23f43] border border-[#f23f43]/40 text-xs font-bold cursor-pointer disabled:opacity-50"
                       >
                         {cancelingUid === sent.toUid ? '...' : 'Cancelar'}
                       </button>
@@ -1410,7 +1417,55 @@ export const FriendsView: React.FC<{
           </div>
         ) : tab === 'add' ? (
           <>
-            {/* Invitaciones mediante enlace directo */}
+            {/* Búsqueda simple primero */}
+            <form onSubmit={handleAdd} className="space-y-2.5">
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-2 bg-[#1c1d22] border border-[#2e3035] rounded-xl px-3.5 focus-within:border-[#5865F2]">
+                  <Search className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={friendHandle}
+                    onChange={(e) => {
+                      setFriendHandle(e.target.value);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
+                    placeholder={t('friends.searchPlaceholder')}
+                    className="flex-1 bg-transparent py-2.5 text-sm text-white focus:outline-none min-w-0"
+                  />
+                  {friendHandle && (
+                    <button
+                      type="button"
+                      onClick={() => setFriendHandle('')}
+                      aria-label="Limpiar búsqueda"
+                      className="text-zinc-400 hover:text-white cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={adding || !friendHandle.trim()}
+                  className="px-4 py-2.5 rounded-xl dc-btn-primary text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-50"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>{adding ? '...' : t('friends.addButton')}</span>
+                </button>
+              </div>
+              {addedMsg && (
+                <p className="text-xs text-[#23a55a] font-semibold flex items-center gap-1 px-1">
+                  <UserCheck className="w-4 h-4" />
+                  <span>{addedMsg}</span>
+                </p>
+              )}
+              {(errorMsg || searchError) && (
+                <p className="text-xs text-[#f23f43] font-semibold px-1">
+                  {errorMsg || searchError}
+                </p>
+              )}
+            </form>
+
+            {/* Invitación compacta en una sola fila */}
             {(() => {
               const origin = typeof window !== 'undefined' ? window.location.origin : 'https://primordial.app';
               const handleSlug = encodeURIComponent(currentUsername || 'primordial');
@@ -1421,23 +1476,14 @@ export const FriendsView: React.FC<{
               const whatsappHref = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
               return (
-                <div className="rounded-2xl bg-gradient-to-br from-[#1b1633] via-[#171825] to-[#111214] border border-[#8b5cf6]/35 p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-0.5 min-w-0">
-                      <p className="font-display font-bold text-sm text-white flex items-center gap-1.5">
-                        <Link2 className="w-4 h-4 text-[#a855f7] shrink-0" />
-                        <span>Invitar amigos por enlace directo</span>
-                      </p>
-                      <p className="text-xs text-zinc-300">
-                        Comparte tu link por WhatsApp o redes sociales para agregar amigos rápido y ganar +100 Orbs.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 bg-black/35 border border-white/10 rounded-xl px-3 py-2">
-                    <span className="text-xs text-zinc-300 truncate flex-1 font-mono">
-                      {directInviteUrl}
+                <div className="rounded-xl bg-[#181920] border border-[#2e3035] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Link2 className="w-4 h-4 text-[#a855f7] shrink-0" />
+                    <span className="text-xs font-semibold text-zinc-200 truncate">
+                      Invitar por enlace (+100 Orbs)
                     </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -1446,52 +1492,26 @@ export const FriendsView: React.FC<{
                         onInviteLinkShared?.();
                         window.setTimeout(() => setInviteCopied(false), 2400);
                       }}
-                      className="px-3 py-1 rounded-lg dc-btn-primary text-[11px] font-bold cursor-pointer shrink-0"
+                      className="px-2.5 py-1.5 rounded-lg bg-[#26272f] hover:bg-[#31333d] text-white text-[11px] font-bold cursor-pointer whitespace-nowrap"
                     >
-                      {inviteCopied ? '¡Copiado!' : 'Copiar'}
+                      {inviteCopied ? 'Copiado' : 'Copiar'}
                     </button>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
                     <a
                       href={whatsappHref}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => onInviteLinkShared?.()}
-                      className="flex-1 min-w-[150px] h-9 rounded-xl bg-[#25D366] hover:brightness-105 text-[#06210f] text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-lg bg-[#25D366] hover:brightness-105 text-[#06210f] text-[11px] font-extrabold cursor-pointer whitespace-nowrap"
                     >
-                      <span>Compartir en WhatsApp</span>
+                      WhatsApp
                     </a>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (typeof navigator !== 'undefined' && navigator.share) {
-                          navigator
-                            .share({
-                              title: 'Invitación a Primordial',
-                              text: shareText,
-                              url: directInviteUrl,
-                            })
-                            .then(() => onInviteLinkShared?.())
-                            .catch(() => undefined);
-                        } else {
-                          navigator.clipboard?.writeText(shareText).catch(() => undefined);
-                          setInviteCopied(true);
-                          onInviteLinkShared?.();
-                          window.setTimeout(() => setInviteCopied(false), 2400);
-                        }
-                      }}
-                      className="px-4 h-9 rounded-xl dc-btn-secondary text-xs font-bold cursor-pointer shrink-0"
-                    >
-                      Más redes
-                    </button>
                   </div>
                 </div>
               );
             })()}
 
             {!isCloudConnected && (
-              <div className="rounded-2xl bg-amber-500/12 border border-amber-400/35 p-3.5 text-xs text-amber-200 font-medium leading-relaxed flex flex-col gap-2">
+              <div className="rounded-xl bg-amber-500/12 border border-amber-400/35 p-3 text-xs text-amber-200 font-medium leading-relaxed flex flex-col gap-2">
                 {authProviderNeedsSetup ? (
                   <>
                     <p className="font-bold text-amber-100">
@@ -1510,7 +1530,7 @@ export const FriendsView: React.FC<{
                   <button
                     type="button"
                     onClick={onRetryCloudSync}
-                    className="self-start px-3 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 text-amber-100 font-bold text-[11px] cursor-pointer"
+                    className="self-start px-3 py-1.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 text-amber-100 font-bold text-[11px] cursor-pointer"
                   >
                     Reintentar conexión con la nube
                   </button>
@@ -1518,62 +1538,9 @@ export const FriendsView: React.FC<{
               </div>
             )}
 
-            <form
-              onSubmit={handleAdd}
-              className="space-y-3 bg-[#1c1d22] p-5 rounded-2xl border border-[#2e3035]"
-            >
-              <h2 className="font-display font-bold text-base">{t('friends.searchHeading')}</h2>
-              <p className="text-xs text-zinc-400">
-                {t('friends.searchSubheading')}
-              </p>
-              <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-2 bg-[#111214] border border-[#2e3035] rounded-xl px-3.5 focus-within:border-[#5865F2]">
-                  <Search className="w-4 h-4 text-zinc-400 shrink-0" />
-                  <input
-                    type="text"
-                    value={friendHandle}
-                    onChange={(e) => {
-                      setFriendHandle(e.target.value);
-                      if (errorMsg) setErrorMsg(null);
-                    }}
-                    placeholder={t('friends.searchPlaceholder')}
-                    className="flex-1 bg-transparent py-2.5 text-sm text-white focus:outline-none"
-                  />
-                  {friendHandle && (
-                    <button
-                      type="button"
-                      onClick={() => setFriendHandle('')}
-                      className="text-zinc-400 hover:text-white cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                <button
-                  type="submit"
-                  disabled={adding || !friendHandle.trim()}
-                  className="px-4 py-2.5 rounded-xl dc-btn-primary text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-50"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>{adding ? '...' : t('friends.addButton')}</span>
-                </button>
-              </div>
-              {addedMsg && (
-                <p className="text-xs text-[#23a55a] font-semibold flex items-center gap-1">
-                  <UserCheck className="w-4 h-4" />
-                  <span>{addedMsg}</span>
-                </p>
-              )}
-              {(errorMsg || searchError) && (
-                <p className="text-xs text-[#f23f43] font-semibold">
-                  {errorMsg || searchError}
-                </p>
-              )}
-            </form>
-
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2 px-1">
-                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                <p className="text-xs font-semibold text-zinc-400 tabular-nums">
                   {searching
                     ? t('friends.searching')
                     : q
@@ -1592,7 +1559,7 @@ export const FriendsView: React.FC<{
                         .catch(() => setSearchError('No se pudo actualizar la lista ahora.'))
                         .finally(() => setSearching(false));
                     }}
-                    className="text-[11px] font-bold text-[#949cf7] hover:text-white cursor-pointer disabled:opacity-50"
+                    className="text-xs font-semibold text-[#949cf7] hover:text-white cursor-pointer disabled:opacity-50"
                   >
                     {searching ? 'Actualizando...' : 'Actualizar'}
                   </button>
@@ -1617,9 +1584,9 @@ export const FriendsView: React.FC<{
                     onClick={() =>
                       onInspectUser?.(person.id, person)
                     }
-                    className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#1c1d22] hover:bg-[#26272f] border border-[#2e3035] transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between gap-2.5 p-3 rounded-2xl bg-[#1c1d22] hover:bg-[#24252d] border border-[#2e3035] transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <UserAvatar
                         avatar={person.avatar}
                         customAvatarUrl={person.customAvatarUrl}
@@ -1627,8 +1594,8 @@ export const FriendsView: React.FC<{
                         size="md"
                         borderColor="#1c1d22"
                       />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1 min-w-0">
                           {(() => {
                             const hasCustomColor = Boolean(
                               person.displayNameColorPreset &&
@@ -1658,12 +1625,9 @@ export const FriendsView: React.FC<{
                             );
                           })()}
                           {isVerifiedAccount(person.username) && <VerifiedBadge size="sm" />}
-                          <span className="text-[11px] text-zinc-400 truncate">
-                            @{person.username}
-                          </span>
                         </div>
                         <p className="text-xs text-zinc-400 truncate mt-0.5">
-                          {formatStatusLabel(person.status)} · {person.customStatus || person.bio}
+                          @{person.username} · {formatStatusLabel(person.status)}
                         </p>
                       </div>
                     </div>
@@ -1689,18 +1653,20 @@ export const FriendsView: React.FC<{
                               })
                               .finally(() => setSendingUid(null));
                           }}
-                          className={`px-3 py-1.5 rounded-full border text-xs font-bold cursor-pointer disabled:opacity-75 ${
+                          className={`min-h-[38px] px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer whitespace-nowrap disabled:opacity-75 ${
                             sent
                               ? 'bg-[#23a55a]/20 border-[#23a55a]/40 text-[#23a55a]'
                               : 'bg-[#26272f] hover:bg-[#31333d] border-[#2e3035] text-white'
                           }`}
                         >
-                          {isSendingReq ? '...' : sent ? t('friends.requestSent') : t('friends.sendRequest')}
+                          {isSendingReq ? '...' : sent ? 'Enviada' : 'Añadir'}
                         </button>
                       )}
                       <button
                         type="button"
                         disabled={isOpeningChat}
+                        aria-label={existingDm ? t('friends.openChat') : t('friends.chatNow')}
+                        title={existingDm ? t('friends.openChat') : t('friends.chatNow')}
                         onClick={(e) => {
                           e.stopPropagation();
                           setErrorMsg(null);
@@ -1721,11 +1687,17 @@ export const FriendsView: React.FC<{
                             });
                           }
                         }}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap disabled:opacity-70 ${
-                          existingDm ? 'dc-btn-secondary' : 'dc-btn-primary'
+                        className={`min-h-[38px] rounded-xl text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap disabled:opacity-70 flex items-center justify-center ${
+                          existingDm
+                            ? 'px-3.5 dc-btn-secondary'
+                            : 'w-[38px] dc-btn-primary'
                         }`}
                       >
-                        {isOpeningChat ? 'Abriendo...' : existingDm ? t('friends.openChat') : t('friends.chatNow')}
+                        {existingDm ? (
+                          <span>{isOpeningChat ? '...' : t('friends.openChat')}</span>
+                        ) : (
+                          <MessageSquare className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </div>

@@ -3047,7 +3047,7 @@ const BASE_SHOP_BUNDLES: ShopBundle[] = [
   },
 ];
 
-const applyShopPriceIncrease = (priceOrbs: number, priceUsd: string, factor = 1.24) => {
+const applyShopPriceIncrease = (priceOrbs: number, priceUsd: string, factor = 1.4) => {
   const nextOrbs = Math.round(priceOrbs * factor);
   const numericUsd = parseFloat(priceUsd.replace(/[^\d.,]/g, '').replace(',', '.'));
   const nextUsd = Number.isFinite(numericUsd)
@@ -3056,10 +3056,13 @@ const applyShopPriceIncrease = (priceOrbs: number, priceUsd: string, factor = 1.
   return { priceOrbs: nextOrbs, priceUsd: nextUsd };
 };
 
-export const INITIAL_SHOP_BUNDLES: ShopBundle[] = BASE_SHOP_BUNDLES.map((bundle) => ({
-  ...bundle,
-  ...applyShopPriceIncrease(bundle.priceOrbs, bundle.priceUsd, 1.24),
-}));
+export const INITIAL_SHOP_BUNDLES: ShopBundle[] = BASE_SHOP_BUNDLES.map((bundle) => {
+  const previousPrice = applyShopPriceIncrease(bundle.priceOrbs, bundle.priceUsd, 1.24);
+  return {
+    ...bundle,
+    ...applyShopPriceIncrease(previousPrice.priceOrbs, previousPrice.priceUsd, 1.4),
+  };
+});
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
 

@@ -1756,24 +1756,28 @@ export const ShopView: React.FC<ShopViewProps> = ({
                 <div className="px-4 pt-5 space-y-9">
                   {/* 0. FREE ACTIVITY ORBS + PERSONALIZATION SHOWCASE */}
                   <section className="space-y-4">
-                    <div className="rounded-2xl bg-gradient-to-r from-[#1b1433] via-[#141428] to-[#0f172a] border border-[#8b5cf6]/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1 min-w-0">
+                    <div className="rounded-2xl bg-[#13141b] border border-white/10 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-0.5 min-w-0">
                         <div className="flex items-center gap-2">
-                          <OrbsCrystalIcon className="w-5 h-5 text-[#a855f7] shrink-0" />
-                          <h2 className="font-display font-bold text-[15px] text-white">
+                          <OrbsCrystalIcon className="w-4 h-4 text-[#a855f7] shrink-0" />
+                          <h2 className="font-display font-bold text-sm text-white">
                             Gana Orbs gratis con tu actividad
                           </h2>
                         </div>
-                        <p className="text-xs text-zinc-300 leading-relaxed">
-                          +15 por chatear · +25 al poner una nota rápida · +30 en salas Drop-in · +100 al invitar amigos. Canjéalos desde 74 Orbs.
+                        <p className="text-xs text-zinc-400 leading-relaxed tabular-nums">
+                          Canjéalos desde{' '}
+                          {bundles.length > 0
+                            ? Math.min(...bundles.map((b) => b.priceOrbs)).toLocaleString('es-ES')
+                            : '104'}{' '}
+                          Orbs · +15 por chatear · +100 al invitar amigos.
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setActiveCategory('personalizacion')}
-                        className="px-4 py-2 rounded-xl dc-btn-primary text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap"
+                        className="px-3.5 py-2 rounded-xl dc-btn-primary text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap"
                       >
-                        Ver Temas, Voz y Marcos
+                        Personalización
                       </button>
                     </div>
 

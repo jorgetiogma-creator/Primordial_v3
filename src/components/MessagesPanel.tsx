@@ -155,6 +155,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState(currentUser.customStatus || '');
   const [noteHours, setNoteHours] = useState<number>(4);
+  const [showDropInRooms, setShowDropInRooms] = useState(false);
 
   const quickResults = useMemo(() => {
     const q = quickSearchQuery.trim().toLowerCase();
@@ -1180,77 +1181,77 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pb-24 md:pb-4">
-        {/* Notas rápidas y estados efímeros */}
+        {/* Barra compacta de Nota rápida y Salas de voz */}
         {!searchQuery && activeContext.type === 'dm' && dmFilter === 'all' && (
-          <div className="py-2 space-y-2.5">
-            <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar pb-0.5">
+          <div className="py-1.5 space-y-2">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setNoteDraft(currentUser.customStatus || '');
                   setNoteModalOpen(true);
                 }}
-                className="shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] text-left cursor-pointer max-w-[210px] transition-colors"
+                className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] text-left cursor-pointer transition-colors"
               >
-                <UserAvatar
-                  avatar={currentUser.avatar}
-                  customAvatarUrl={currentUser.customAvatarUrl}
-                  status={currentUser.status}
-                  size="sm"
-                  borderColor="var(--dc-bg-card)"
-                />
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold text-[var(--dc-text-primary)] truncate">
-                    {currentUser.customStatus ? 'Tu nota activa' : '+ Pon tu nota rápida'}
-                  </p>
-                  <p className="text-[11px] text-[var(--dc-text-muted)] truncate">
-                    {currentUser.customStatus || 'Jugando, música o estado (+25 Orbs)'}
-                  </p>
-                </div>
+                <span className="w-2 h-2 rounded-full bg-[#23a55a] shrink-0" />
+                <span className="text-xs font-medium text-[var(--dc-text-secondary)] truncate">
+                  {currentUser.customStatus || 'Pon tu estado o nota rápida'}
+                </span>
               </button>
 
-              {dms
-                .filter((d) => !d.isGroup && !d.isBot && d.otherUid && liveProfilesByUid[d.otherUid]?.customStatus)
-                .map((d) => {
-                  const prof = liveProfilesByUid[d.otherUid!];
-                  return (
-                    <button
-                      key={`note-${d.id}`}
-                      type="button"
-                      onClick={() => onSelectDm(d.id)}
-                      className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-2xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] text-left cursor-pointer max-w-[195px]"
-                    >
-                      <UserAvatar
-                        avatar={d.avatar}
-                        customAvatarUrl={d.customAvatarUrl}
-                        status={d.status}
-                        size="sm"
-                        borderColor="var(--dc-bg-card)"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-[var(--dc-text-primary)] truncate">
-                          {d.name}
-                        </p>
-                        <p className="text-[11px] text-[#c4b5fd] truncate">
-                          {prof?.customStatus}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+              {dropInRooms.length > 0 && onJoinDropInRoom && (
+                <button
+                  type="button"
+                  onClick={() => setShowDropInRooms((v) => !v)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
+                    showDropInRooms || (voiceSession.active && dropInRooms.some((r) => r.id === voiceSession.channelId))
+                      ? 'bg-[#5865F2]/20 border-[#5865F2]/50 text-white'
+                      : 'bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border-[var(--dc-border)] text-[var(--dc-text-secondary)]'
+                  }`}
+                >
+                  <Volume2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Salas ({dropInRooms.length})</span>
+                </button>
+              )}
             </div>
 
-            {/* Salas de voz rápidas (Drop-in) */}
-            {dropInRooms.length > 0 && onJoinDropInRoom && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between px-0.5">
-                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
-                    Salas de voz rápidas (Drop-in)
-                  </span>
-                  <span className="text-[10.5px] text-[var(--dc-text-muted)]">
-                    Entra y sal libremente
-                  </span>
+            {(() => {
+              const friendNotes = dms.filter(
+                (d) => !d.isGroup && !d.isBot && d.otherUid && liveProfilesByUid[d.otherUid]?.customStatus
+              );
+              if (friendNotes.length === 0) return null;
+              return (
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                  {friendNotes.map((d) => {
+                    const prof = liveProfilesByUid[d.otherUid!];
+                    return (
+                      <button
+                        key={`note-${d.id}`}
+                        type="button"
+                        onClick={() => onSelectDm(d.id)}
+                        className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] text-left cursor-pointer max-w-[180px]"
+                      >
+                        <UserAvatar
+                          avatar={d.avatar}
+                          customAvatarUrl={d.customAvatarUrl}
+                          status={d.status}
+                          size="xs"
+                          borderColor="var(--dc-bg-card)"
+                        />
+                        <span className="text-[11px] text-[#c4b5fd] truncate">
+                          {d.name}: {prof?.customStatus}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
+              );
+            })()}
+
+            {/* Salas de voz rápidas (expandible) */}
+            {(showDropInRooms || (voiceSession.active && dropInRooms.some((r) => r.id === voiceSession.channelId))) &&
+              dropInRooms.length > 0 &&
+              onJoinDropInRoom && (
                 <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar pb-0.5">
                   {dropInRooms.map((room) => {
                     const isJoined = voiceSession.active && voiceSession.channelId === room.id;
@@ -1262,39 +1263,30 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                         key={room.id}
                         type="button"
                         onClick={() => onJoinDropInRoom(room)}
-                        className={`shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-2xl border text-left transition-all cursor-pointer min-w-[178px] max-w-[215px] ${
+                        className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all cursor-pointer min-w-[165px] max-w-[205px] ${
                           isJoined
                             ? 'bg-[#23a55a]/18 border-[#23a55a]/60'
                             : 'bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border-[var(--dc-border)]'
                         }`}
                       >
-                        <div
-                          className="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0"
-                          style={{ backgroundColor: `${room.accentColor}26` }}
-                        >
-                          <span>{room.emoji}</span>
-                        </div>
+                        <span className="text-sm shrink-0">{room.emoji}</span>
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-bold text-[var(--dc-text-primary)] truncate">
                             {room.name}
                           </p>
-                          <p className="text-[10.5px] text-[var(--dc-text-muted)] truncate flex items-center gap-1">
-                            <Volume2 className={`w-3 h-3 shrink-0 ${isJoined ? 'text-[#23a55a]' : ''}`} />
-                            <span>
-                              {isJoined
-                                ? 'Conectado ahora'
-                                : count > 0
-                                ? `${count} en sala · Entrar`
-                                : 'Abierta · 1 toque'}
-                            </span>
+                          <p className="text-[11px] text-[var(--dc-text-muted)] truncate">
+                            {isJoined
+                              ? 'Conectado'
+                              : count > 0
+                              ? `${count} en sala`
+                              : 'Entrar'}
                           </p>
                         </div>
                       </button>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
           </div>
         )}
 

@@ -142,7 +142,6 @@ import { BoostGemIcon, ServerBoostView } from './components/ServerBoostView';
 import { ServerSettingsView } from './components/ServerSettingsView';
 import { UserProfileModal } from './components/UserProfileModal';
 import { OwnerPanelModal } from './components/OwnerPanelModal';
-import { PrimordialSplashScreen } from './components/PrimordialSplashScreen';
 import { ScreenShareStudioModal } from './components/ScreenShareStudioModal';
 import { getOwnedCosmetics, sanitizeUserShopCosmetics } from './utils/shopOwnership';
 import {
@@ -685,7 +684,6 @@ export default function App() {
   const [remoteVideoStream, setRemoteVideoStream] = useState<MediaStream | null>(null);
   const [remoteAudioStream, setRemoteAudioStream] = useState<MediaStream | null>(null);
   const [incomingCalls, setIncomingCalls] = useState<IncomingDmCall[]>([]);
-  const [showIntroSplash, setShowIntroSplash] = useState(true);
   const [showScreenStudio, setShowScreenStudio] = useState(false);
   const [screenStudioNotice, setScreenStudioNotice] = useState<string | null>(null);
 
@@ -4975,11 +4973,6 @@ export default function App() {
 
   return (
     <>
-      <AnimatePresence>
-        {showIntroSplash && (
-          <PrimordialSplashScreen onFinish={() => setShowIntroSplash(false)} />
-        )}
-      </AnimatePresence>
       {!activeAccountId ? (
         <AuthView
           accounts={accounts}
