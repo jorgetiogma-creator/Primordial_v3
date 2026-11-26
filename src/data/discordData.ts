@@ -1,12 +1,15 @@
 import {
   BadgeDefinition,
+  ChatMessage,
   DirectMessageThread,
+  DropInVoiceRoom,
   FriendActivity,
   NotificationItem,
   PublicUserProfile,
   Quest,
   Server,
   ShopBundle,
+  ThemeMode,
   UserProfile,
 } from '../types/discord';
 
@@ -69,6 +72,480 @@ export interface SearchableFriendEntry {
 }
 
 export const FRIEND_DIRECTORY: SearchableFriendEntry[] = [];
+
+export const PRIMORDIAL_BOT_DM_ID = 'dm-primordial-bot';
+
+export const EPHEMERAL_STATUS_PRESETS: {
+  id: string;
+  emoji: string;
+  label: string;
+  text: string;
+}[] = [
+  { id: 'playing', emoji: '🎮', label: 'Jugando', text: '🎮 Jugando con el squad' },
+  { id: 'music', emoji: '🎧', label: 'Escuchando música', text: '🎧 Escuchando música lo-fi' },
+  { id: 'chill', emoji: '☕', label: 'Chill', text: '☕ De chill, escribe para hablar' },
+  { id: 'available', emoji: '💬', label: 'Disponible', text: '💬 Disponible para chatear' },
+  { id: 'study', emoji: '⚡', label: 'En foco', text: '⚡ En modo estudio / proyecto' },
+];
+
+export const INITIAL_DROPIN_ROOMS: DropInVoiceRoom[] = [
+  {
+    id: 'dropin-cafe',
+    name: 'Café Primordial',
+    topic: 'Entra y sal libremente para charlar un rato',
+    category: 'Social',
+    accentColor: '#8b5cf6',
+    emoji: '☕',
+    participants: [
+      { id: 'bot-host-1', name: 'Primordial Bot', avatar: 'primordial-bot', speaking: false, muted: false },
+    ],
+  },
+  {
+    id: 'dropin-gaming',
+    name: 'Gaming Drop-in',
+    topic: 'Arma partida rápida sin llamada formal',
+    category: 'Gaming',
+    accentColor: '#22c55e',
+    emoji: '🎮',
+    participants: [],
+  },
+  {
+    id: 'dropin-lofi',
+    name: 'Música & Focus',
+    topic: 'Sala abierta para escuchar beats o estudiar',
+    category: 'Música',
+    accentColor: '#06b6d4',
+    emoji: '🎧',
+    participants: [],
+  },
+];
+
+export const CURATED_PUBLIC_SERVERS: Server[] = [
+  {
+    id: 'srv-public-lounge',
+    name: 'Primordial Lounge',
+    shortCode: 'PL',
+    iconStyle: 'custom',
+    customEmoji: '✨',
+    accentColor: '#8b5cf6',
+    bannerColor: '#3b1d7a',
+    description: 'Sala principal de bienvenida, presentaciones y charlas rápidas con la comunidad.',
+    memberCount: 1420,
+    memberCountDisplay: '1.4k',
+    onlineCount: 184,
+    boostLevel: 2,
+    boostCount: 7,
+    isDiscoverable: true,
+    communityEnabled: true,
+    activeServerTag: 'PL',
+    channels: [
+      {
+        id: 'ch-lounge-general',
+        name: 'general',
+        type: 'text',
+        category: 'BIENVENIDA',
+        topic: 'Preséntate, comparte tu nota rápida o conversa con la comunidad.',
+        messages: [
+          {
+            id: 'msg-pub-lounge-1',
+            authorId: 'primordial-bot',
+            authorName: 'Primordial Bot',
+            authorAvatar: 'primordial-bot',
+            authorIsBot: true,
+            authorTag: 'APP',
+            timestamp: 'Hoy',
+            content:
+              '¡Bienvenido a **Primordial Lounge**! Puedes saludar aquí, probar salas Drop-in de voz o ganar Orbs gratis con cada mensaje.',
+            reactions: [
+              { emoji: '👋', count: 18, reacted: false },
+              { emoji: '💜', count: 12, reacted: false },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'ch-lounge-presentaciones',
+        name: 'presentaciones',
+        type: 'text',
+        category: 'BIENVENIDA',
+        topic: 'Cuenta qué te gusta hacer y encuentra gente con gustos similares.',
+        messages: [
+          {
+            id: 'msg-pub-lounge-2',
+            authorId: 'primordial-bot',
+            authorName: 'Primordial Bot',
+            authorAvatar: 'primordial-bot',
+            authorIsBot: true,
+            authorTag: 'APP',
+            timestamp: 'Hoy',
+            content: '¿Qué juegas o escuchas últimamente? Deja tu saludo para romper el hielo.',
+            reactions: [{ emoji: '🔥', count: 7, reacted: false }],
+          },
+        ],
+      },
+      {
+        id: 'ch-lounge-voz',
+        name: 'Café Drop-in',
+        type: 'voice',
+        category: 'VOZ ABIERTA',
+        topic: 'Entrada rápida sin llamada formal',
+        voiceParticipants: [],
+        messages: [],
+      },
+    ],
+  },
+  {
+    id: 'srv-public-gaming',
+    name: 'Gaming & Squads',
+    shortCode: 'GS',
+    iconStyle: 'custom',
+    customEmoji: '🎮',
+    accentColor: '#22c55e',
+    bannerColor: '#0f3d26',
+    description: 'Encuentra dúo o squad para Valorant, Minecraft, Fortnite, ZZZ y juegos cooperativos.',
+    memberCount: 2850,
+    memberCountDisplay: '2.8k',
+    onlineCount: 312,
+    boostLevel: 3,
+    boostCount: 14,
+    isDiscoverable: true,
+    communityEnabled: true,
+    activeServerTag: 'GG',
+    channels: [
+      {
+        id: 'ch-gaming-lfg',
+        name: 'buscar-equipo',
+        type: 'text',
+        category: 'SQUADS',
+        topic: 'Di tu juego y región para armar partida al instante.',
+        messages: [
+          {
+            id: 'msg-pub-gaming-1',
+            authorId: 'primordial-bot',
+            authorName: 'Primordial Bot',
+            authorAvatar: 'primordial-bot',
+            authorIsBot: true,
+            authorTag: 'APP',
+            timestamp: 'Hoy',
+            content: '¿Buscas equipo? Escribe el juego y únete directo al canal **Voz Squad**.',
+            reactions: [{ emoji: '🎮', count: 21, reacted: false }],
+          },
+        ],
+      },
+      {
+        id: 'ch-gaming-clips',
+        name: 'clips-y-logros',
+        type: 'text',
+        category: 'SQUADS',
+        topic: 'Comparte capturas y mejores momentos.',
+        messages: [],
+      },
+      {
+        id: 'ch-gaming-voz',
+        name: 'Voz Squad Drop-in',
+        type: 'voice',
+        category: 'VOZ ABIERTA',
+        topic: 'Salta directo a jugar',
+        voiceParticipants: [],
+        messages: [],
+      },
+    ],
+  },
+  {
+    id: 'srv-public-music',
+    name: 'Música & Lo-Fi',
+    shortCode: 'ML',
+    iconStyle: 'custom',
+    customEmoji: '🎧',
+    accentColor: '#06b6d4',
+    bannerColor: '#0d3647',
+    description: 'Playlists compartidas, sesiones lo-fi, recomendaciones musicales y salas de escucha.',
+    memberCount: 980,
+    memberCountDisplay: '980',
+    onlineCount: 95,
+    boostLevel: 1,
+    boostCount: 4,
+    isDiscoverable: true,
+    communityEnabled: true,
+    activeServerTag: 'FM',
+    channels: [
+      {
+        id: 'ch-music-now',
+        name: 'que-escuchas',
+        type: 'text',
+        category: 'SONIDO',
+        topic: 'Comparte el tema que tienes en bucle hoy.',
+        messages: [
+          {
+            id: 'msg-pub-music-1',
+            authorId: 'primordial-bot',
+            authorName: 'Primordial Bot',
+            authorAvatar: 'primordial-bot',
+            authorIsBot: true,
+            authorTag: 'APP',
+            timestamp: 'Hoy',
+            content: 'Deja aquí tu canción del día o entra a **Radio Lo-Fi** mientras chateas.',
+            reactions: [{ emoji: '🎵', count: 14, reacted: false }],
+          },
+        ],
+      },
+      {
+        id: 'ch-music-voz',
+        name: 'Radio Lo-Fi Drop-in',
+        type: 'voice',
+        category: 'VOZ ABIERTA',
+        topic: 'Sala relajada de audio abierto',
+        voiceParticipants: [],
+        messages: [],
+      },
+    ],
+  },
+  {
+    id: 'srv-public-art',
+    name: 'Arte, Diseño & Tech',
+    shortCode: 'AT',
+    iconStyle: 'custom',
+    customEmoji: '🎨',
+    accentColor: '#ec4899',
+    bannerColor: '#4c1138',
+    description: 'Espacio para ilustradores, desarrolladores, editores y creadores digitales.',
+    memberCount: 1140,
+    memberCountDisplay: '1.1k',
+    onlineCount: 118,
+    boostLevel: 2,
+    boostCount: 6,
+    isDiscoverable: true,
+    communityEnabled: true,
+    activeServerTag: 'ART',
+    channels: [
+      {
+        id: 'ch-art-showcase',
+        name: 'galeria-y-proyectos',
+        type: 'text',
+        category: 'ESTUDIO',
+        topic: 'Muestra diseños, avatares, código o ideas en progreso.',
+        messages: [
+          {
+            id: 'msg-pub-art-1',
+            authorId: 'primordial-bot',
+            authorName: 'Primordial Bot',
+            authorAvatar: 'primordial-bot',
+            authorIsBot: true,
+            authorTag: 'APP',
+            timestamp: 'Hoy',
+            content: 'Comparte tu último proyecto o pide feedback de diseño y desarrollo.',
+            reactions: [{ emoji: '✨', count: 15, reacted: false }],
+          },
+        ],
+      },
+      {
+        id: 'ch-art-voz',
+        name: 'Mesa Creativa',
+        type: 'voice',
+        category: 'VOZ ABIERTA',
+        topic: 'Charla abierta mientras creas',
+        voiceParticipants: [],
+        messages: [],
+      },
+    ],
+  },
+  {
+    id: 'srv-public-anime',
+    name: 'Anime & Cultura',
+    shortCode: 'AC',
+    iconStyle: 'custom',
+    customEmoji: '🌙',
+    accentColor: '#f59e0b',
+    bannerColor: '#4a260a',
+    description: 'Debates de estrenos, manga, bandas sonoras y recomendaciones sin spoilers.',
+    memberCount: 1760,
+    memberCountDisplay: '1.7k',
+    onlineCount: 204,
+    boostLevel: 2,
+    boostCount: 9,
+    isDiscoverable: true,
+    communityEnabled: true,
+    activeServerTag: 'ANI',
+    channels: [
+      {
+        id: 'ch-anime-general',
+        name: 'estrenos-y-manga',
+        type: 'text',
+        category: 'CULTURA',
+        topic: 'Habla de tus series favoritas y pide recomendaciones.',
+        messages: [
+          {
+            id: 'msg-pub-anime-1',
+            authorId: 'primordial-bot',
+            authorName: 'Primordial Bot',
+            authorAvatar: 'primordial-bot',
+            authorIsBot: true,
+            authorTag: 'APP',
+            timestamp: 'Hoy',
+            content: '¿Qué serie o manga recomiendas para ver este fin de semana?',
+            reactions: [{ emoji: '🍿', count: 19, reacted: false }],
+          },
+        ],
+      },
+      {
+        id: 'ch-anime-voz',
+        name: 'Watchparty Drop-in',
+        type: 'voice',
+        category: 'VOZ ABIERTA',
+        topic: 'Sala rápida de comentarios',
+        voiceParticipants: [],
+        messages: [],
+      },
+    ],
+  },
+];
+
+export function createWelcomeBotThread(displayName?: string): DirectMessageThread {
+  const safeName = displayName && displayName !== 'Usuario' ? displayName : 'viajero';
+  return {
+    id: PRIMORDIAL_BOT_DM_ID,
+    name: 'Primordial Bot',
+    username: 'primordial.bot',
+    avatar: 'primordial-bot',
+    isBot: true,
+    pinned: true,
+    favorite: true,
+    status: 'online',
+    serverTag: 'APP',
+    lastMessagePreview: '👋 ¡Bienvenido! Prueba /ayuda o personaliza tu perfil.',
+    lastTimestamp: 'Fijado',
+    messages: [
+      {
+        id: 'bot-welcome-1',
+        authorId: 'primordial-bot',
+        authorName: 'Primordial Bot',
+        authorAvatar: 'primordial-bot',
+        authorIsBot: true,
+        authorTag: 'APP',
+        timestamp: 'Hoy',
+        pinned: true,
+        content:
+          `¡Hola **${safeName}**! Soy **Primordial Bot**, tu guía interactivo.\n\nDesde aquí puedes configurar tu perfil, probar comandos como **/ayuda**, **/orbs**, **/tema**, **/voz** o descubrir comunidades activas con un clic.`,
+        reactions: [{ emoji: '💜', count: 1, reacted: true }],
+        quickReplies: [
+          { id: 'qr-help', label: '⚡ Probar /ayuda', command: '/ayuda' },
+          { id: 'qr-orbs', label: '💎 ¿Cómo gano Orbs?', command: '/orbs' },
+          { id: 'qr-profile', label: '🎨 Configurar perfil', navigateTo: 'tu' },
+          { id: 'qr-discover', label: '🧭 Explorar servidores', navigateTo: 'discover' },
+          { id: 'qr-shop', label: '🛍️ Ir a Tienda', navigateTo: 'tienda' },
+        ],
+      },
+    ],
+  };
+}
+
+export function generateBotReply(
+  rawInput: string,
+  user: UserProfile,
+  currentTheme: ThemeMode
+): ChatMessage {
+  const clean = rawInput.trim().toLowerCase();
+  let content = '';
+  let quickReplies: ChatMessage['quickReplies'] = [
+    { id: 'qr-cmd-ayuda', label: '📜 Ver comandos', command: '/ayuda' },
+    { id: 'qr-cmd-orbs', label: '💎 Ver mis Orbs', command: '/orbs' },
+    { id: 'qr-nav-tienda', label: '🛍️ Tienda', navigateTo: 'tienda' },
+  ];
+
+  if (clean.startsWith('/ayuda') || clean === 'ayuda' || clean === 'help') {
+    content =
+      '✨ **Comandos disponibles de Primordial Bot**\n' +
+      '• **/perfil** — Revisa tu perfil, insignia y personalización\n' +
+      '• **/orbs** — Consulta tu saldo y cómo ganar Orbs gratis\n' +
+      '• **/tema** — Opciones de temas de interfaz de la Tienda\n' +
+      '• **/voz** — Salas Drop-in y efectos de entrada de voz\n' +
+      '• **/estado** — Cómo publicar notas rápidas efímeras\n' +
+      '• **/amigos** — Genera tu enlace directo para invitar amigos';
+    quickReplies = [
+      { id: 'qr-1', label: '💎 /orbs', command: '/orbs' },
+      { id: 'qr-2', label: '🎨 /perfil', command: '/perfil' },
+      { id: 'qr-3', label: '🎙️ /voz', command: '/voz' },
+      { id: 'qr-4', label: '🔗 /amigos', command: '/amigos' },
+    ];
+  } else if (clean.startsWith('/orbs') || clean.includes('orb')) {
+    content =
+      `💎 Tienes **${user.orbs.toLocaleString('es-ES')} Orbs** en tu cuenta.\n\n` +
+      'Ganas **Orbs gratis por tu actividad**:\n' +
+      '• **+15 Orbs** al enviar mensajes en chats y servidores\n' +
+      '• **+25 Orbs** al publicar una nota o estado rápido\n' +
+      '• **+30 Orbs** al entrar a una sala de voz Drop-in o comunidad\n' +
+      '• **+100 Orbs** al compartir o abrir un enlace de invitación';
+    quickReplies = [
+      { id: 'qr-shop-orbs', label: '🛍️ Canjear en Tienda', navigateTo: 'tienda' },
+      { id: 'qr-quests-orbs', label: '🏆 Ver Misiones', navigateTo: 'misiones' },
+      { id: 'qr-voice-orbs', label: '🎙️ Probar sala Drop-in', navigateTo: 'voice' },
+    ];
+  } else if (clean.startsWith('/perfil')) {
+    content =
+      `🪪 **Resumen de tu perfil**: **${user.displayName}** (@${user.username})\n` +
+      `• Marco activo: **${user.profileFrame || 'none'}**\n` +
+      `• Insignias equipadas: **${user.equippedBadgeIds.length}**\n\n` +
+      'Toca el botón de abajo para editar tu biografía, foto, color del nombre o marco.';
+    quickReplies = [
+      { id: 'qr-edit-prof', label: '✏️ Abrir Mi Perfil', navigateTo: 'tu' },
+      { id: 'qr-shop-prof', label: '✨ Marcos y Temas', navigateTo: 'tienda' },
+    ];
+  } else if (clean.startsWith('/tema')) {
+    content =
+      `🎨 Tu tema actual de interfaz es **${currentTheme}**.\n` +
+      'En la **Tienda** puedes desbloquear los temas **Cyber Neón**, **Esmeralda** y **Carmesí Nocturno** usando tus Orbs ganados por actividad.';
+    quickReplies = [
+      { id: 'qr-open-shop-theme', label: '🎨 Ver Temas en Tienda', navigateTo: 'tienda' },
+    ];
+  } else if (clean.startsWith('/voz')) {
+    content =
+      '🎙️ Las **Salas Drop-in** te permiten entrar y salir de voz con un toque, sin llamadas formales.\n' +
+      `Tu efecto de entrada actual es: **${user.voiceEntryEffect || 'Estándar'}**. ¡Consigue sonidos Arcade, Cyber Warp o Aurora en la Tienda!`;
+    quickReplies = [
+      { id: 'qr-join-dropin', label: '🔊 Entrar a Café Primordial', navigateTo: 'voice' },
+      { id: 'qr-shop-voice', label: '🎵 Ver Efectos de Voz', navigateTo: 'tienda' },
+    ];
+  } else if (clean.startsWith('/estado') || clean.startsWith('/nota')) {
+    content =
+      '📝 En la parte superior de **Mensajes**, toca **"+ Tu nota"** para compartir qué estás jugando, escuchando música o si estás disponible. ¡Además te da **+25 Orbs**!';
+    quickReplies = [
+      { id: 'qr-friends-note', label: '👥 Invitar amigos', command: '/amigos' },
+    ];
+  } else if (clean.startsWith('/amigos') || clean.startsWith('/invitar')) {
+    content =
+      '🔗 Desde **Añadir amigo** puedes copiar tu **enlace de invitación directo** o enviarlo por **WhatsApp** con un clic para sumar amigos externos y ganar **+100 Orbs**.';
+    quickReplies = [
+      { id: 'qr-open-friends', label: '🔗 Abrir Invitaciones', navigateTo: 'amigos' },
+    ];
+  } else if (clean.startsWith('/tienda')) {
+    content =
+      '🛍️ En la **Tienda** encontrarás marcos desde **60 Orbs**, temas completos para la app, efectos de entrada en salas de voz e insignias exclusivas.';
+    quickReplies = [{ id: 'qr-go-tienda', label: '🛍️ Ir a Tienda ahora', navigateTo: 'tienda' }];
+  } else {
+    content =
+      `¡Recibido, **${user.displayName}**! 😊 Puedes escribir **/ayuda** para ver todos mis comandos o elegir una acción rápida debajo:`;
+    quickReplies = [
+      { id: 'qr-f-1', label: '⚡ /ayuda', command: '/ayuda' },
+      { id: 'qr-f-2', label: '🧭 Descubrir comunidades', navigateTo: 'discover' },
+      { id: 'qr-f-3', label: '🎙️ Sala Drop-in', navigateTo: 'voice' },
+      { id: 'qr-f-4', label: '🔗 Invitar amigos', navigateTo: 'amigos' },
+    ];
+  }
+
+  return {
+    id: `bot-reply-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    authorId: 'primordial-bot',
+    authorName: 'Primordial Bot',
+    authorAvatar: 'primordial-bot',
+    authorIsBot: true,
+    authorTag: 'APP',
+    timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+    createdAtMs: Date.now(),
+    content,
+    reactions: [],
+    quickReplies,
+  };
+}
 
 export const INITIAL_QUESTS: Quest[] = [
   {
@@ -2258,6 +2735,168 @@ export const INITIAL_SHOP_BUNDLES: ShopBundle[] = [
       },
     ],
   },
+  {
+    id: 'bundle-marco-lavanda',
+    title: 'Marco Lavanda Primordial',
+    shortTitle: 'Marco Lavanda',
+    category: 'personalizacion',
+    priceOrbs: 60,
+    priceUsd: '0,99 US$',
+    colorSwatches: ['#a855f7', '#e9d5ff'],
+    artVariant: 'marco-lavanda',
+    items: [
+      {
+        id: 'item-marco-lavanda',
+        name: 'Marco Lavanda Cristal',
+        kind: 'Marco de perfil',
+        profileFrameId: 'lavanda',
+      },
+    ],
+  },
+  {
+    id: 'bundle-tema-cyber',
+    title: 'Tema Cyber Neón',
+    shortTitle: 'Tema Cyber',
+    category: 'personalizacion',
+    priceOrbs: 120,
+    priceUsd: '1,99 US$',
+    colorSwatches: ['#06b6d4', '#08101c'],
+    artVariant: 'tema-cyber',
+    items: [
+      {
+        id: 'item-tema-cyber',
+        name: 'Interfaz Cyber Neón',
+        kind: 'Tema de interfaz',
+        uiThemeId: 'cyber',
+      },
+    ],
+  },
+  {
+    id: 'bundle-tema-emerald',
+    title: 'Tema Esmeralda Botánica',
+    shortTitle: 'Tema Esmeralda',
+    category: 'personalizacion',
+    priceOrbs: 120,
+    priceUsd: '1,99 US$',
+    colorSwatches: ['#10b981', '#0a1611'],
+    artVariant: 'tema-emerald',
+    items: [
+      {
+        id: 'item-tema-emerald',
+        name: 'Interfaz Esmeralda',
+        kind: 'Tema de interfaz',
+        uiThemeId: 'emerald',
+      },
+    ],
+  },
+  {
+    id: 'bundle-tema-crimson',
+    title: 'Tema Carmesí Nocturno',
+    shortTitle: 'Tema Carmesí',
+    category: 'personalizacion',
+    priceOrbs: 140,
+    priceUsd: '2,49 US$',
+    colorSwatches: ['#e11d48', '#160a0e'],
+    artVariant: 'tema-crimson',
+    items: [
+      {
+        id: 'item-tema-crimson',
+        name: 'Interfaz Carmesí Nocturno',
+        kind: 'Tema de interfaz',
+        uiThemeId: 'crimson',
+      },
+    ],
+  },
+  {
+    id: 'bundle-voz-arcade',
+    title: 'Entrada de Voz: Arcade',
+    shortTitle: 'Voz Arcade',
+    category: 'personalizacion',
+    priceOrbs: 80,
+    priceUsd: '0,99 US$',
+    colorSwatches: ['#f59e0b', '#fef08a'],
+    artVariant: 'voz-arcade',
+    items: [
+      {
+        id: 'item-voz-arcade',
+        name: 'Chime Arcade Retro',
+        kind: 'Efecto de entrada de voz',
+        voiceEntryEffectId: 'arcade-chime',
+      },
+    ],
+  },
+  {
+    id: 'bundle-voz-warp',
+    title: 'Entrada de Voz: Cyber Warp',
+    shortTitle: 'Cyber Warp',
+    category: 'personalizacion',
+    priceOrbs: 110,
+    priceUsd: '1,49 US$',
+    colorSwatches: ['#06b6d4', '#38bdf8'],
+    artVariant: 'voz-warp',
+    items: [
+      {
+        id: 'item-voz-warp',
+        name: 'Destello Cyber Warp',
+        kind: 'Efecto de entrada de voz',
+        voiceEntryEffectId: 'cyber-warp',
+      },
+    ],
+  },
+  {
+    id: 'bundle-voz-aurora',
+    title: 'Entrada de Voz: Aurora Bloom',
+    shortTitle: 'Aurora Bloom',
+    category: 'personalizacion',
+    priceOrbs: 110,
+    priceUsd: '1,49 US$',
+    colorSwatches: ['#a855f7', '#e9d5ff'],
+    artVariant: 'voz-aurora',
+    items: [
+      {
+        id: 'item-voz-aurora',
+        name: 'Acorde Aurora Bloom',
+        kind: 'Efecto de entrada de voz',
+        voiceEntryEffectId: 'aurora-bloom',
+      },
+    ],
+  },
+  {
+    id: 'bundle-voz-bass',
+    title: 'Entrada de Voz: Impacto Bass',
+    shortTitle: 'Impacto Bass',
+    category: 'personalizacion',
+    priceOrbs: 130,
+    priceUsd: '1,99 US$',
+    colorSwatches: ['#ef4444', '#18181b'],
+    artVariant: 'voz-bass',
+    items: [
+      {
+        id: 'item-voz-bass',
+        name: 'Pulso Impacto Bass',
+        kind: 'Efecto de entrada de voz',
+        voiceEntryEffectId: 'bass-drop',
+      },
+    ],
+  },
+  {
+    id: 'bundle-insignia-pionero',
+    title: 'Insignia Exclusiva: Pionero',
+    shortTitle: 'Insignia Pionero',
+    category: 'personalizacion',
+    priceOrbs: 180,
+    priceUsd: '2,99 US$',
+    colorSwatches: ['#a855f7', '#38bdf8'],
+    artVariant: 'insignia-pionero',
+    items: [
+      {
+        id: 'item-insignia-pionero',
+        name: 'Emblema Pionero Primordial',
+        kind: 'Insignia exclusiva',
+        exclusiveBadgeId: 'pionero',
+      },
+    ],
+  },
 ];
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
@@ -2393,6 +3032,16 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
       { id: 'jg-8', name: 'Rebelde', requirementLabel: '60 juegos', threshold: 60, color: '#d946ef' },
       { id: 'jg-9', name: 'Erudito', requirementLabel: '80 juegos', threshold: 80, color: '#ef4444' },
       { id: 'jg-10', name: 'Universalista', requirementLabel: 'Más de 100 juegos', threshold: 100, color: '#f59e0b' },
+    ],
+  },
+  {
+    id: 'pionero',
+    title: 'PIONERO PRIMORDIAL',
+    shortTitle: 'Pionero',
+    description: 'Insignia exclusiva obtenible en la Tienda usando Orbs ganados por actividad o apoyo.',
+    ctaLabel: 'Ir a Tienda',
+    tiers: [
+      { id: 'pio-1', name: 'Pionero', requirementLabel: 'Adquirida en Tienda', threshold: 1, color: '#a855f7', accent: '#e9d5ff' },
     ],
   },
 ];

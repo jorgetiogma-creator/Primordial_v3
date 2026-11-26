@@ -17,8 +17,11 @@ import {
   Search,
   Sparkles,
   Store,
+  Volume2,
   X,
 } from 'lucide-react';
+import { BadgeArtwork } from './BadgesView';
+import { playVoiceEntryEffect } from '../utils/soundEffects';
 import {
   DirectMessageThread,
   NameplateId,
@@ -394,6 +397,40 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
         glow: 'rgba(245, 158, 11, 0.32)',
         stageBg: '#120d08',
       };
+    case 'marco-lavanda':
+    case 'voz-aurora':
+    case 'insignia-pionero':
+      return {
+        gradient: 'from-[#1f1038] via-[#140d26] to-[#0a0814]',
+        glow: 'rgba(168, 85, 247, 0.42)',
+        stageBg: '#0f0a1c',
+      };
+    case 'tema-cyber':
+    case 'voz-warp':
+      return {
+        gradient: 'from-[#071f2e] via-[#0c1524] to-[#060b14]',
+        glow: 'rgba(6, 182, 212, 0.45)',
+        stageBg: '#08101c',
+      };
+    case 'tema-emerald':
+      return {
+        gradient: 'from-[#092419] via-[#0e1c16] to-[#060e0a]',
+        glow: 'rgba(16, 185, 129, 0.44)',
+        stageBg: '#0a1611',
+      };
+    case 'tema-crimson':
+    case 'voz-bass':
+      return {
+        gradient: 'from-[#2e0b14] via-[#1e0f14] to-[#0c0608]',
+        glow: 'rgba(225, 29, 72, 0.45)',
+        stageBg: '#160a0e',
+      };
+    case 'voz-arcade':
+      return {
+        gradient: 'from-[#291a06] via-[#1a1207] to-[#0d0905]',
+        glow: 'rgba(245, 158, 11, 0.44)',
+        stageBg: '#120c05',
+      };
     default:
       return {
         gradient: 'from-slate-900 to-zinc-950',
@@ -405,6 +442,8 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
 
 const getCategoryLabel = (category: ShopBundle['category']): string => {
   switch (category) {
+    case 'personalizacion':
+      return 'Personalización';
     case 'anime':
       return 'Anime';
     case 'horror':
@@ -827,6 +866,89 @@ const CollectibleCardStage: React.FC<{
     );
   }
 
+  /* 6b. UI Interface Theme Stage */
+  const themeItem = bundle.items.find((i) => i.kind === 'Tema de interfaz' && i.uiThemeId);
+  if (bundle.items.length === 1 && themeItem?.uiThemeId) {
+    const accent = activeSwatch || '#06b6d4';
+    return (
+      <div
+        className={`relative w-full aspect-[4/3] overflow-hidden bg-gradient-to-br ${theme.gradient} p-3 flex items-center justify-center`}
+      >
+        <div
+          className="w-full h-[84%] rounded-xl border border-white/20 overflow-hidden shadow-2xl flex transition-transform duration-300 group-hover:scale-[1.03]"
+          style={{ backgroundColor: theme.stageBg }}
+        >
+          <div className="w-7 h-full bg-black/45 border-r border-white/10 flex flex-col items-center py-2 gap-1.5">
+            <span className="w-4 h-4 rounded-lg" style={{ backgroundColor: accent }} />
+            <span className="w-3.5 h-3.5 rounded-full bg-white/20" />
+            <span className="w-3.5 h-3.5 rounded-full bg-white/12" />
+          </div>
+          <div className="w-16 h-full bg-black/25 border-r border-white/10 p-1.5 space-y-1.5">
+            <div className="h-2 w-10 rounded bg-white/25" />
+            <div className="h-2 w-12 rounded bg-white/15" />
+            <div className="h-2 w-8 rounded bg-white/12" />
+          </div>
+          <div className="flex-1 p-2 flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <div className="h-2.5 w-16 rounded-full" style={{ backgroundColor: accent }} />
+              <div className="h-1.5 w-20 rounded bg-white/25" />
+            </div>
+            <div className="h-5 rounded-lg bg-white/10 border border-white/10" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* 6c. Voice Entry Effect Stage */
+  const voiceItem = bundle.items.find(
+    (i) => i.kind === 'Efecto de entrada de voz' && i.voiceEntryEffectId
+  );
+  if (bundle.items.length === 1 && voiceItem) {
+    const accent = activeSwatch || '#a855f7';
+    return (
+      <div
+        className={`relative w-full aspect-[4/3] overflow-hidden bg-gradient-to-br ${theme.gradient} flex flex-col items-center justify-center gap-2.5`}
+      >
+        <div
+          className="w-14 h-14 rounded-2xl border border-white/25 flex items-center justify-center shadow-xl transition-transform duration-300 group-hover:scale-110"
+          style={{ backgroundColor: `${accent}30`, boxShadow: `0 0 28px ${accent}55` }}
+        >
+          <Volume2 className="w-7 h-7 text-white" />
+        </div>
+        <div className="flex items-end gap-1 h-5">
+          {[35, 70, 100, 60, 90, 45, 75].map((pct, idx) => (
+            <span
+              key={idx}
+              className="w-1.5 rounded-full"
+              style={{ height: `${pct}%`, backgroundColor: accent }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* 6d. Exclusive Shop Badge Stage */
+  const badgeItem = bundle.items.find(
+    (i) => i.kind === 'Insignia exclusiva' && i.exclusiveBadgeId
+  );
+  if (bundle.items.length === 1 && badgeItem?.exclusiveBadgeId) {
+    return (
+      <div
+        className={`relative w-full aspect-[4/3] overflow-hidden bg-gradient-to-br ${theme.gradient} flex items-center justify-center`}
+      >
+        <div
+          className="absolute w-28 h-28 rounded-full blur-2xl opacity-55"
+          style={{ backgroundColor: activeSwatch || '#a855f7' }}
+        />
+        <div className="relative z-10 transition-transform duration-300 group-hover:scale-110">
+          <BadgeArtwork badgeId={badgeItem.exclusiveBadgeId} unlocked size="hero" />
+        </div>
+      </div>
+    );
+  }
+
   /* 7. Multi-Item Collector Bundle Collage (Tilted Profile Card + Nameplate Strip + Bespoke Dōjutsu / Character Medallion) */
   return (
     <div
@@ -1109,6 +1231,12 @@ const BundleCard: React.FC<{
         ? 'Efecto'
         : bundle.items[0]?.kind === 'Marco de perfil'
         ? 'Marco de perfil'
+        : bundle.items[0]?.kind === 'Tema de interfaz'
+        ? 'Tema de interfaz'
+        : bundle.items[0]?.kind === 'Efecto de entrada de voz'
+        ? 'Efecto de voz'
+        : bundle.items[0]?.kind === 'Insignia exclusiva'
+        ? 'Insignia exclusiva'
         : 'Banner'
       : `${bundle.items.length} piezas · ${getCategoryLabel(bundle.category)}`;
 
@@ -1242,6 +1370,7 @@ const CollectionPromoBanner: React.FC<{
 
 const CATEGORIES = [
   { id: 'all', label: 'Todo' },
+  { id: 'personalizacion', label: 'Temas, Voz y Marcos' },
   { id: 'horror', label: 'Night Terrors' },
   { id: 'folklore', label: 'Dark Folklore' },
   { id: 'dbd', label: 'Dead by Daylight' },
@@ -1346,6 +1475,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
       b.id === 'bundle-condenacion'
   );
   const bannerBundles = bundles.filter((b) => b.category === 'banners');
+  const personalizacionBundles = bundles.filter((b) => b.category === 'personalizacion');
   const deadpoolBundle = bundles.find((b) => b.id === 'bundle-deadpool');
 
   const activeCollectionMeta = activeCollection ? COLLECTION_META[activeCollection] : null;
@@ -1591,6 +1721,67 @@ export const ShopView: React.FC<ShopViewProps> = ({
                 </div>
               ) : (
                 <div className="px-4 pt-5 space-y-9">
+                  {/* 0. FREE ACTIVITY ORBS + PERSONALIZATION SHOWCASE */}
+                  <section className="space-y-4">
+                    <div className="rounded-2xl bg-gradient-to-r from-[#1b1433] via-[#141428] to-[#0f172a] border border-[#8b5cf6]/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <OrbsCrystalIcon className="w-5 h-5 text-[#a855f7] shrink-0" />
+                          <h2 className="font-display font-bold text-[15px] text-white">
+                            Gana Orbs gratis con tu actividad
+                          </h2>
+                        </div>
+                        <p className="text-xs text-zinc-300 leading-relaxed">
+                          +15 por chatear · +25 al poner una nota rápida · +30 en salas Drop-in · +100 al invitar amigos. Canjéalos desde 60 Orbs.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCategory('personalizacion')}
+                        className="px-4 py-2 rounded-xl dc-btn-primary text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap"
+                      >
+                        Ver Temas, Voz y Marcos
+                      </button>
+                    </div>
+
+                    {personalizacionBundles.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h2 className="font-display font-bold text-base text-white">
+                              Personalización de perfil y aplicación
+                            </h2>
+                            <p className="text-xs text-zinc-400">
+                              Marcos, temas de interfaz, efectos de entrada en voz e insignias exclusivas
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveCategory('personalizacion')}
+                            className="text-xs font-semibold text-[#a855f7] hover:underline cursor-pointer shrink-0"
+                          >
+                            Ver todos ({personalizacionBundles.length})
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                          {personalizacionBundles.slice(0, 4).map((b) => (
+                            <BundleCard
+                              key={b.id}
+                              bundle={b}
+                              wishlisted={wishlistIds.includes(b.id)}
+                              owned={ownedBundleIds.includes(b.id)}
+                              onSelect={(swatch) => openBundleModal(b, swatch)}
+                              onToggleWishlist={(e) => {
+                                e.stopPropagation();
+                                onToggleWishlist(b.id);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </section>
+
                   {/* 1. NIGHT TERRORS SECTION */}
                   <section className="space-y-3.5">
                     <CollectionPromoBanner
@@ -2211,6 +2402,90 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       playKey={previewKey}
                     />
                   </motion.div>
+                ) : activeModalItem.kind === 'Tema de interfaz' ? (
+                  <motion.div
+                    key={`theme-${selectedBundle.id}-${previewKey}`}
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94 }}
+                    className={`my-2 h-52 rounded-2xl overflow-hidden relative flex items-center justify-center p-4 bg-gradient-to-br ${
+                      modalTheme?.gradient || 'from-slate-900 to-zinc-950'
+                    } border border-white/15`}
+                  >
+                    <div
+                      className="w-full max-w-xs h-36 rounded-xl border border-white/20 overflow-hidden shadow-2xl flex"
+                      style={{ backgroundColor: modalTheme?.stageBg || '#08101c' }}
+                    >
+                      <div className="w-9 bg-black/45 border-r border-white/10 p-2 flex flex-col items-center gap-2">
+                        <span
+                          className="w-5 h-5 rounded-lg"
+                          style={{ backgroundColor: modalSwatch || '#06b6d4' }}
+                        />
+                        <span className="w-4 h-4 rounded-full bg-white/20" />
+                        <span className="w-4 h-4 rounded-full bg-white/15" />
+                      </div>
+                      <div className="w-20 bg-black/25 border-r border-white/10 p-2 space-y-2">
+                        <div className="h-2.5 w-14 rounded bg-white/30" />
+                        <div className="h-2 w-12 rounded bg-white/15" />
+                        <div className="h-2 w-10 rounded bg-white/10" />
+                      </div>
+                      <div className="flex-1 p-3 flex flex-col justify-between">
+                        <div className="space-y-1.5">
+                          <div
+                            className="h-3 w-24 rounded-full"
+                            style={{ backgroundColor: modalSwatch || '#06b6d4' }}
+                          />
+                          <div className="h-2 w-28 rounded bg-white/25" />
+                        </div>
+                        <div className="h-7 rounded-lg bg-white/10 border border-white/10 flex items-center px-2">
+                          <span className="text-[10px] text-white/70">Tema aplicado a toda la app</span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : activeModalItem.kind === 'Efecto de entrada de voz' ? (
+                  <motion.div
+                    key={`voice-${selectedBundle.id}-${previewKey}`}
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94 }}
+                    className={`my-2 h-52 rounded-2xl overflow-hidden relative flex flex-col items-center justify-center gap-3 bg-gradient-to-br ${
+                      modalTheme?.gradient || 'from-slate-900 to-zinc-950'
+                    } border border-white/15`}
+                  >
+                    <div
+                      className="w-16 h-16 rounded-2xl border border-white/25 flex items-center justify-center shadow-xl"
+                      style={{
+                        backgroundColor: `${modalSwatch || '#a855f7'}35`,
+                        boxShadow: `0 0 32px ${modalSwatch || '#a855f7'}60`,
+                      }}
+                    >
+                      <Volume2 className="w-8 h-8 text-white" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => playVoiceEntryEffect(activeModalItem.voiceEntryEffectId, true)}
+                      className="px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 border border-white/25 text-xs font-bold text-white flex items-center gap-2 cursor-pointer"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                      <span>Probar efecto de sonido</span>
+                    </button>
+                  </motion.div>
+                ) : activeModalItem.kind === 'Insignia exclusiva' && activeModalItem.exclusiveBadgeId ? (
+                  <motion.div
+                    key={`badge-${selectedBundle.id}-${previewKey}`}
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94 }}
+                    className={`my-2 h-52 rounded-2xl overflow-hidden relative flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${
+                      modalTheme?.gradient || 'from-slate-900 to-zinc-950'
+                    } border border-white/15`}
+                  >
+                    <BadgeArtwork badgeId={activeModalItem.exclusiveBadgeId} unlocked size="hero" />
+                    <span className="text-xs font-semibold text-purple-200">
+                      Se añade y equipa en tu barra de insignias
+                    </span>
+                  </motion.div>
                 ) : (
                   <motion.div
                     key={`deco-${selectedBundle.id}-${activeModalItem.id}-${previewKey}`}
@@ -2341,6 +2616,23 @@ export const ShopView: React.FC<ShopViewProps> = ({
                             <span className="relative z-10 text-[10px] font-bold text-white bg-black/70 px-1.5 py-0.5 rounded">
                               Placa
                             </span>
+                          </div>
+                        ) : item.kind === 'Tema de interfaz' ? (
+                          <div className="w-full h-full relative flex flex-col items-center justify-center bg-[#0f172a] gap-1">
+                            <span
+                              className="w-5 h-5 rounded-full border border-white/40"
+                              style={{ backgroundColor: modalSwatch || '#06b6d4' }}
+                            />
+                            <span className="text-[9.5px] font-bold text-white">Tema</span>
+                          </div>
+                        ) : item.kind === 'Efecto de entrada de voz' ? (
+                          <div className="w-full h-full relative flex flex-col items-center justify-center bg-[#18122b] gap-1">
+                            <Volume2 className="w-4 h-4 text-purple-300" />
+                            <span className="text-[9.5px] font-bold text-white">Voz</span>
+                          </div>
+                        ) : item.kind === 'Insignia exclusiva' && item.exclusiveBadgeId ? (
+                          <div className="w-full h-full relative flex items-center justify-center bg-[#18122b]">
+                            <BadgeArtwork badgeId={item.exclusiveBadgeId} unlocked size="md" />
                           </div>
                         ) : (
                           <div className="w-full h-full relative flex items-center justify-center bg-zinc-900">

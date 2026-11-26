@@ -105,6 +105,7 @@ interface ChatViewProps {
   onOpenServerSettings?: (serverId: string, section?: ServerSettingsSection) => void;
   onUpdateNickname?: (serverId: string, nickname: string) => void;
   onClearLocalChat?: () => void;
+  onBotQuickAction?: (action: NonNullable<ChatMessage['quickReplies']>[number]) => void;
   onInspectUser?: (
     userId: string,
     fallback?: Partial<PublicUserProfile>,
@@ -184,6 +185,21 @@ const SLASH_COMMANDS: {
   { cmd: '/poll', desc: 'Abre el creador rápido de encuestas interactivas', badge: 'Acción' },
   { cmd: '/nick', desc: 'Cambia tu apodo en este servidor (/nick NuevoApodo)', channelOnly: true, badge: 'Perfil' },
   { cmd: '/clear', desc: 'Limpia el borrador y cierra paneles abiertos', badge: 'Utilidad' },
+];
+
+const BOT_SLASH_COMMANDS: {
+  cmd: string;
+  desc: string;
+  badge: string;
+}[] = [
+  { cmd: '/ayuda', desc: 'Muestra todos los comandos de Primordial Bot', badge: 'Guía' },
+  { cmd: '/orbs', desc: 'Cómo ganar Orbs gratis y consultar tu saldo', badge: 'Orbs' },
+  { cmd: '/perfil', desc: 'Revisa y edita tu perfil, marco o insignias', badge: 'Perfil' },
+  { cmd: '/tema', desc: 'Descubre los temas de interfaz en la Tienda', badge: 'Tema' },
+  { cmd: '/voz', desc: 'Salas Drop-in rápidas y efectos de entrada', badge: 'Voz' },
+  { cmd: '/estado', desc: 'Cómo poner notas rápidas o estados de actividad', badge: 'Notas' },
+  { cmd: '/amigos', desc: 'Invita amigos por enlace directo o WhatsApp', badge: 'Social' },
+  { cmd: '/tienda', desc: 'Personaliza marcos, temas e insignias', badge: 'Tienda' },
 ];
 
 async function compressImageForChat(file: File): Promise<string> {
@@ -270,6 +286,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenServerSettings,
   onUpdateNickname,
   onClearLocalChat,
+  onBotQuickAction,
   onInspectUser,
 }) => {
   const [input, setInput] = useState('');
@@ -680,10 +697,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const filteredSlashCommands = useMemo(() => {
     if (!slashMatch) return [];
     const q = slashMatch[1].toLowerCase();
-    return SLASH_COMMANDS.filter(
+    const base = SLASH_COMMANDS.filter(
       (c) => (!c.channelOnly || mode === 'channel') && c.cmd.slice(1).includes(q)
     );
-  }, [slashMatch, mode]);
+    if (mode === 'dm' && dm?.isBot) {
+      const botCmds = BOT_SLASH_COMMANDS.filter((c) => c.cmd.slice(1).includes(q));
+      return [...botCmds, ...base];
+    }
+    return base;
+  }, [slashMatch, mode, dm?.isBot]);
 
   const emojiMatch = !mentionMatch && !channelMatch ? input.match(/(?:^|\s):([a-zA-Z0-9_]{1,20})$/) : null;
   const filteredCustomEmojis = useMemo(() => {
@@ -1240,8 +1262,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   );
                 })()}
                 <p className="text-sm text-[var(--dc-text-muted)]">
-                  Este es el comienzo de tu historial de mensajes directos con{' '}
-                  <strong className="text-[var(--dc-text-secondary)]">{dm.name}</strong>.
+                  {dm.isBot ? (
+                    <>
+                      Tu asistente oficial de bienvenida en Primordial. Escribe{' '}
+                      <code className="px-1.5 py-0.5 rounded bg-white/10 text-purple-200 font-mono text-xs">/ayuda</code>{' '}
+                      o usa los accesos interactivos de abajo.
+                    </>
+                  ) : (
+                    <>
+                      Este es el comienzo de tu historial de mensajes directos con{' '}
+                      <strong className="text-[var(--dc-text-secondary)]">{dm.name}</strong>.
+                    </>
+                  )}
                 </p>
               </div>
             ) : (
@@ -1803,6 +1835,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         </div>
                       )}
 
+                      {/* Bot Quick Actions */}
+                      {msg.quickReplies && msg.quickReplies.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {msg.quickReplies.map((qr) => (
+                            <button
+                              key={qr.id}
+                              type="button"
+                              onClick={() => {
+                                if (onBotQuickAction) {
+                                  onBotQuickAction(qr);
+                                } else if (qr.command) {
+                                  executeSlashOrSend(qr.command);
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-[#8b5cf6]/18 hover:bg-[#8b5cf6]/30 border border-[#a855f7]/35 text-xs font-semibold text-[#e9d5ff] transition-colors cursor-pointer"
+                            >
+                              {qr.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Thread Counter Pill */}
                       {((msg.threadCount ?? 0) > 0 || (localThreads[msg.id]?.length ?? 0) > 0) && (
                         <button
@@ -2056,7 +2110,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 key={cmdItem.cmd}
                 type="button"
                 onClick={() => {
-                  if (cmdItem.cmd === '/poll' || cmdItem.cmd === '/clear') {
+                  const isImmediateBotCmd =
+                    mode === 'dm' &&
+                    dm?.isBot &&
+                    BOT_SLASH_COMMANDS.some((b) => b.cmd === cmdItem.cmd);
+                  if (cmdItem.cmd === '/poll' || cmdItem.cmd === '/clear' || isImmediateBotCmd) {
                     executeSlashOrSend(cmdItem.cmd);
                     return;
                   }

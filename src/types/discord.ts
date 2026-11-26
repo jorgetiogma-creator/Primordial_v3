@@ -1,5 +1,5 @@
 export type PresenceStatus = 'online' | 'idle' | 'dnd' | 'offline';
-export type ThemeMode = 'onyx' | 'dark' | 'purple' | 'light';
+export type ThemeMode = 'onyx' | 'dark' | 'purple' | 'light' | 'cyber' | 'emerald' | 'crimson';
 export type MainScreen =
   | 'inicio'
   | 'notificaciones'
@@ -86,7 +86,8 @@ export type AvatarKey =
   | 'carioca'
   | 'phibi'
   | 'locke'
-  | 'coffee';
+  | 'coffee'
+  | 'primordial-bot';
 
 export type DecorationId =
   | 'none'
@@ -210,7 +211,8 @@ export type BadgeId =
   | 'orbs'
   | 'regalos'
   | 'transmision'
-  | 'juegos';
+  | 'juegos'
+  | 'pionero';
 
 export interface BadgeTier {
   id: string;
@@ -303,7 +305,15 @@ export type ProfileFrameId =
   | 'sharingan-ring'
   | 'rinnegan-aura'
   | 'kurama-tails'
-  | 'susanoo-armor';
+  | 'susanoo-armor'
+  | 'lavanda';
+
+export type VoiceEntryEffectId =
+  | 'none'
+  | 'arcade-chime'
+  | 'cyber-warp'
+  | 'aurora-bloom'
+  | 'bass-drop';
 
 export interface PerServerProfile {
   nickname?: string;
@@ -334,6 +344,8 @@ export interface UserProfile {
   decoration: DecorationId;
   profileEffect?: ProfileEffectId;
   profileFrame?: ProfileFrameId;
+  voiceEntryEffect?: VoiceEntryEffectId;
+  ephemeralNoteExpiresAt?: number;
   nameplate: NameplateId;
   orbs: number;
   memberSince: string;
@@ -470,6 +482,28 @@ export interface ChatMessage {
     waveform: number[];
   };
   poll?: ChatPoll;
+  quickReplies?: {
+    id: string;
+    label: string;
+    command?: string;
+    navigateTo?: 'tu' | 'tienda' | 'amigos' | 'discover' | 'misiones' | 'voice';
+  }[];
+}
+
+export interface DropInVoiceRoom {
+  id: string;
+  name: string;
+  topic: string;
+  category: string;
+  accentColor: string;
+  emoji: string;
+  participants: {
+    id: string;
+    name: string;
+    avatar: AvatarKey;
+    speaking?: boolean;
+    muted?: boolean;
+  }[];
 }
 
 export interface ThreadMessage {
@@ -679,12 +713,18 @@ export interface ShopBundleItem {
     | 'Placa de identificación'
     | 'Efecto de perfil'
     | 'Marco de perfil'
-    | 'Banner de perfil';
+    | 'Banner de perfil'
+    | 'Tema de interfaz'
+    | 'Efecto de entrada de voz'
+    | 'Insignia exclusiva';
   decorationId?: DecorationId;
   nameplateId?: NameplateId;
   profileEffectId?: ProfileEffectId;
   profileFrameId?: ProfileFrameId;
   bannerUrl?: string;
+  uiThemeId?: ThemeMode;
+  voiceEntryEffectId?: VoiceEntryEffectId;
+  exclusiveBadgeId?: BadgeId;
 }
 
 export interface ShopBundle {
@@ -694,6 +734,7 @@ export interface ShopBundle {
   collectionId?: ShopCollectionId;
   category:
     | 'destacado'
+    | 'personalizacion'
     | 'zzz'
     | 'marvel'
     | 'dbd'
@@ -801,7 +842,16 @@ export interface ShopBundle {
     | 'sharingan-kamui'
     | 'sharingan-shisui'
     | 'ems-sasuke'
-    | 'ems-madara';
+    | 'ems-madara'
+    | 'tema-cyber'
+    | 'tema-emerald'
+    | 'tema-crimson'
+    | 'voz-arcade'
+    | 'voz-warp'
+    | 'voz-aurora'
+    | 'voz-bass'
+    | 'insignia-pionero'
+    | 'marco-lavanda';
 }
 
 export interface NotificationItem {

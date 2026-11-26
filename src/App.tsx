@@ -81,13 +81,18 @@ import {
 } from './services/rtcService';
 import {
   BADGE_DEFINITIONS,
+  CURATED_PUBLIC_SERVERS,
   INITIAL_ACTIVITIES,
   INITIAL_DMS,
+  INITIAL_DROPIN_ROOMS,
   INITIAL_NOTIFICATIONS,
   INITIAL_QUESTS,
   INITIAL_SERVERS,
   INITIAL_SHOP_BUNDLES,
   INITIAL_USER,
+  PRIMORDIAL_BOT_DM_ID,
+  createWelcomeBotThread,
+  generateBotReply,
   resolvePublicUserProfile,
 } from './data/discordData';
 import {
@@ -98,6 +103,7 @@ import {
   ChatMessage,
   CreateServerPayload,
   DirectMessageThread,
+  DropInVoiceRoom,
   FriendActivity,
   FriendRequestItem,
   MainScreen,
@@ -113,6 +119,7 @@ import {
   StoredAccount,
   ThemeMode,
   UserProfile,
+  VoiceEntryEffectId,
   VoiceSession,
 } from './types/discord';
 import {
@@ -137,7 +144,7 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { OwnerPanelModal } from './components/OwnerPanelModal';
 import { PrimordialSplashScreen } from './components/PrimordialSplashScreen';
 import { ScreenShareStudioModal } from './components/ScreenShareStudioModal';
-import { sanitizeUserShopCosmetics } from './utils/shopOwnership';
+import { getOwnedCosmetics, sanitizeUserShopCosmetics } from './utils/shopOwnership';
 import {
   canManageServer,
   getServerPermissions,
@@ -147,7 +154,7 @@ import {
   normalizeSingleOwnerAccounts,
   RESERVED_OWNER_USERNAME,
 } from './utils/ownerAccess';
-import { playUiSound, triggerHaptic } from './utils/soundEffects';
+import { playUiSound, playVoiceEntryEffect, triggerHaptic } from './utils/soundEffects';
 import {
   CreateServerModal,
   DiscoverModal,
@@ -167,6 +174,123 @@ const SHOP_OWNERSHIP_MIGRATION_KEY = 'discord_shop_ownership_v1';
 const CLEAN_EMPTY_START_KEY = 'primordial_clean_empty_v1';
 const APP_PREFS_KEY = 'primordial_app_prefs_v1';
 const SERVER_ORDER_KEY = 'primordial_server_order_v1';
+const BOT_DM_KEY_PREFIX = 'primordial_bot_dm_v1_';
+const CURATED_SERVERS_KEY_PREFIX = 'primordial_curated_srv_v1_';
+const CURATED_MSGS_KEY_PREFIX = 'primordial_curated_msgs_v1_';
+const LOCAL_PREFS_KEY_PREFIX = 'primordial_local_prefs_v1_';
+const ACTIVITY_ORBS_KEY_PREFIX = 'primordial_activity_orbs_v1_';
+
+const isCuratedServerId = (id?: string | null): boolean =>
+  Boolean(id && CURATED_PUBLIC_SERVERS.some((s) => s.id === id));
+
+const loadLocalPrefsForAccount = (
+  accountId: string | null
+): { voiceEntryEffect?: VoiceEntryEffectId; ephemeralNoteExpiresAt?: number } => {
+  try {
+    const raw = localStorage.getItem(`${LOCAL_PREFS_KEY_PREFIX}${accountId || 'guest'}`);
+    if (raw) return JSON.parse(raw) || {};
+  } catch {
+    /* ignore */
+  }
+  return {};
+};
+
+const saveLocalPrefsForAccount = (
+  accountId: string | null,
+  prefs: { voiceEntryEffect?: VoiceEntryEffectId; ephemeralNoteExpiresAt?: number }
+) => {
+  try {
+    localStorage.setItem(`${LOCAL_PREFS_KEY_PREFIX}${accountId || 'guest'}`, JSON.stringify(prefs));
+  } catch {
+    /* ignore */
+  }
+};
+
+const loadBotDmForAccount = (
+  accountId: string | null,
+  displayName?: string
+): DirectMessageThread => {
+  try {
+    const raw = localStorage.getItem(`${BOT_DM_KEY_PREFIX}${accountId || 'guest'}`);
+    if (raw) {
+      const parsed = JSON.parse(raw) as DirectMessageThread;
+      if (parsed && parsed.id === PRIMORDIAL_BOT_DM_ID && Array.isArray(parsed.messages)) {
+        return {
+          ...parsed,
+          isBot: true,
+          pinned: true,
+          avatar: 'primordial-bot',
+        };
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return createWelcomeBotThread(displayName);
+};
+
+const saveBotDmForAccount = (accountId: string | null, thread: DirectMessageThread) => {
+  try {
+    localStorage.setItem(`${BOT_DM_KEY_PREFIX}${accountId || 'guest'}`, JSON.stringify(thread));
+  } catch {
+    /* ignore */
+  }
+};
+
+const mergeBotDm = (
+  list: DirectMessageThread[],
+  accountId: string | null,
+  displayName?: string
+): DirectMessageThread[] => {
+  const withoutBot = list.filter((d) => d.id !== PRIMORDIAL_BOT_DM_ID);
+  const existingBot = list.find((d) => d.id === PRIMORDIAL_BOT_DM_ID);
+  const botThread = existingBot
+    ? { ...existingBot, isBot: true, pinned: true, avatar: 'primordial-bot' as AvatarKey }
+    : loadBotDmForAccount(accountId, displayName);
+  return [botThread, ...withoutBot];
+};
+
+const loadCuratedJoinedIds = (accountId: string | null): string[] => {
+  try {
+    const raw = localStorage.getItem(`${CURATED_SERVERS_KEY_PREFIX}${accountId || 'guest'}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+};
+
+const saveCuratedJoinedIds = (accountId: string | null, ids: string[]) => {
+  try {
+    localStorage.setItem(`${CURATED_SERVERS_KEY_PREFIX}${accountId || 'guest'}`, JSON.stringify(ids));
+  } catch {
+    /* ignore */
+  }
+};
+
+const loadCuratedMessages = (accountId: string | null): Record<string, ChatMessage[]> => {
+  try {
+    const raw = localStorage.getItem(`${CURATED_MSGS_KEY_PREFIX}${accountId || 'guest'}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return {};
+};
+
+const saveCuratedMessages = (accountId: string | null, map: Record<string, ChatMessage[]>) => {
+  try {
+    localStorage.setItem(`${CURATED_MSGS_KEY_PREFIX}${accountId || 'guest'}`, JSON.stringify(map));
+  } catch {
+    /* ignore */
+  }
+};
 
 const DEFAULT_ACCOUNT: StoredAccount = {
   id: 'acc-default',
@@ -228,6 +352,10 @@ export default function App() {
   });
 
   const [user, setUser] = useState<UserProfile>(() => {
+    const localPrefs = loadLocalPrefsForAccount(activeAccountId);
+    const noteExpired = Boolean(
+      localPrefs.ephemeralNoteExpiresAt && Date.now() >= localPrefs.ephemeralNoteExpiresAt
+    );
     try {
       localStorage.removeItem('discord_orbs_100m_granted_v1');
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -255,6 +383,9 @@ export default function App() {
             streamHours: parsedUser.streamHours ?? 0,
             gamesPlayedCount: parsedUser.gamesPlayedCount ?? 0,
             accountYears: parsedUser.accountYears ?? 0,
+            voiceEntryEffect: localPrefs.voiceEntryEffect || parsedUser.voiceEntryEffect || 'none',
+            ephemeralNoteExpiresAt: noteExpired ? undefined : localPrefs.ephemeralNoteExpiresAt,
+            customStatus: noteExpired ? '' : parsedUser.customStatus || '',
           };
           return sanitizeUserShopCosmetics(merged, owned, INITIAL_SHOP_BUNDLES);
         }
@@ -262,25 +393,29 @@ export default function App() {
     } catch {
       /* ignore */
     }
-    return DEFAULT_ACCOUNT.user;
+    return {
+      ...DEFAULT_ACCOUNT.user,
+      voiceEntryEffect: localPrefs.voiceEntryEffect || 'none',
+      ephemeralNoteExpiresAt: noteExpired ? undefined : localPrefs.ephemeralNoteExpiresAt,
+    };
   });
 
   const [dms, setDms] = useState<DirectMessageThread[]>(() => {
     try {
       if (!localStorage.getItem(CLEAN_EMPTY_START_KEY)) {
-        return INITIAL_DMS;
+        return mergeBotDm(INITIAL_DMS, activeAccountId, user.displayName);
       }
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const savedDms: DirectMessageThread[] | undefined = JSON.parse(raw).dms;
         if (Array.isArray(savedDms)) {
-          return savedDms;
+          return mergeBotDm(savedDms, activeAccountId, user.displayName);
         }
       }
     } catch {
       /* ignore */
     }
-    return INITIAL_DMS;
+    return mergeBotDm(INITIAL_DMS, activeAccountId, user.displayName);
   });
 
   const [servers, setServers] = useState<Server[]>(() => {
@@ -451,6 +586,58 @@ export default function App() {
     return [];
   });
   const hydratedUidRef = useRef<string | null>(null);
+  const [joinedCuratedIds, setJoinedCuratedIds] = useState<string[]>(() =>
+    loadCuratedJoinedIds(activeAccountId)
+  );
+  const [curatedMessagesByChannel, setCuratedMessagesByChannel] = useState<
+    Record<string, ChatMessage[]>
+  >(() => loadCuratedMessages(activeAccountId));
+  const [dropInRooms] = useState<DropInVoiceRoom[]>(INITIAL_DROPIN_ROOMS);
+  const [initialFriendQuery, setInitialFriendQuery] = useState<string | undefined>(undefined);
+  const pendingJoinServerRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const invite = params.get('invite')?.trim();
+      const joinSrv = params.get('joinServer')?.trim();
+      if (invite) {
+        setInitialFriendQuery(invite);
+      }
+      if (joinSrv) {
+        pendingJoinServerRef.current = joinSrv;
+      }
+      if (invite || joinSrv) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activeAccountId) return;
+    setJoinedCuratedIds(loadCuratedJoinedIds(activeAccountId));
+    setCuratedMessagesByChannel(loadCuratedMessages(activeAccountId));
+    const localPrefs = loadLocalPrefsForAccount(activeAccountId);
+    const expired = Boolean(
+      localPrefs.ephemeralNoteExpiresAt && Date.now() >= localPrefs.ephemeralNoteExpiresAt
+    );
+    setUser((prev) => ({
+      ...prev,
+      voiceEntryEffect: localPrefs.voiceEntryEffect || prev.voiceEntryEffect || 'none',
+      ephemeralNoteExpiresAt: expired ? undefined : localPrefs.ephemeralNoteExpiresAt,
+      ...(expired ? { customStatus: '' } : {}),
+    }));
+    setDms((prev) => mergeBotDm(prev, activeAccountId, user.displayName));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccountId]);
+
+  useEffect(() => {
+    if (activeAccountId && initialFriendQuery) {
+      setScreen('amigos');
+    }
+  }, [activeAccountId, initialFriendQuery]);
 
   const isOwner = useMemo(
     () => isActiveAccountOwner(activeAccountId, accounts, user, firebaseEmail),
@@ -821,8 +1008,8 @@ export default function App() {
           ...t,
           messages: msgMap.get(t.id) || t.messages || [],
         }));
-        const localGroups = prev.filter((d) => d.id.startsWith('dm-grp-'));
-        return [...localGroups, ...mergedRemote];
+        const localGroups = prev.filter((d) => !d.isBot && d.id.startsWith('dm-grp-'));
+        return mergeBotDm([...localGroups, ...mergedRemote], firebaseUid, user.displayName);
       });
     });
 
@@ -895,9 +1082,58 @@ export default function App() {
     };
   }, [firebaseUid, user.status]);
 
+  const mergedCuratedServers = useMemo<Server[]>(() => {
+    return CURATED_PUBLIC_SERVERS.filter((s) => joinedCuratedIds.includes(s.id)).map((srv) => ({
+      ...srv,
+      channels: srv.channels.map((ch) => {
+        const extraMsgs = curatedMessagesByChannel[ch.id] || [];
+        const isCurrentVoice =
+          voiceSession.active &&
+          voiceSession.serverId === srv.id &&
+          voiceSession.channelId === ch.id;
+        return {
+          ...ch,
+          messages: extraMsgs.length > 0 ? extraMsgs : ch.messages,
+          voiceParticipants:
+            ch.type === 'voice' && isCurrentVoice
+              ? [
+                  ...(ch.voiceParticipants || []),
+                  {
+                    id: user.id,
+                    name: user.displayName,
+                    avatar: user.avatar,
+                    speaking: !voiceSession.muted,
+                  },
+                ]
+              : ch.voiceParticipants,
+        };
+      }),
+    }));
+  }, [
+    joinedCuratedIds,
+    curatedMessagesByChannel,
+    voiceSession.active,
+    voiceSession.serverId,
+    voiceSession.channelId,
+    voiceSession.muted,
+    user.id,
+    user.displayName,
+    user.avatar,
+  ]);
+
+  const allServers = useMemo<Server[]>(() => {
+    const out = [...servers];
+    for (const cs of mergedCuratedServers) {
+      if (!out.some((s) => s.id === cs.id)) {
+        out.push(cs);
+      }
+    }
+    return out;
+  }, [servers, mergedCuratedServers]);
+
   const activeServer =
     activeContext.type === 'server'
-      ? servers.find((s) => s.id === activeContext.serverId)
+      ? allServers.find((s) => s.id === activeContext.serverId)
       : undefined;
   const activeChannelObj = activeServer?.channels.find((c) => c.id === selectedChannelId);
 
@@ -997,6 +1233,7 @@ export default function App() {
     firebaseUid &&
       activeContext.type === 'dm' &&
       activeDmId &&
+      activeDmId !== PRIMORDIAL_BOT_DM_ID &&
       !activeDmId.startsWith('dm-grp-') &&
       activeDm?.participantIds?.includes(firebaseUid)
   );
@@ -1053,7 +1290,9 @@ export default function App() {
 
   const activeServerId = activeContext.type === 'server' ? activeContext.serverId : null;
   useEffect(() => {
-    if (!firebaseUid || !activeServerId || !selectedChannelId) return;
+    if (!firebaseUid || !activeServerId || !selectedChannelId || isCuratedServerId(activeServerId)) {
+      return;
+    }
     const unsub = subscribeToChannelMessages(activeServerId, selectedChannelId, (msgs) => {
       setServers((prev) =>
         prev.map((s) =>
@@ -1073,7 +1312,7 @@ export default function App() {
 
   useEffect(() => {
     if (activeContext.type !== 'server') return;
-    const srv = servers.find((s) => s.id === activeContext.serverId);
+    const srv = allServers.find((s) => s.id === activeContext.serverId);
     if (!srv || srv.channels.length === 0) return;
     const exists = selectedChannelId && srv.channels.some((c) => c.id === selectedChannelId);
     if (!exists) {
@@ -1081,7 +1320,7 @@ export default function App() {
         srv.channels.find((c) => !c.isPrivate && c.type !== 'voice') || srv.channels[0];
       if (firstText) setSelectedChannelId(firstText.id);
     }
-  }, [activeContext, servers, selectedChannelId]);
+  }, [activeContext, allServers, selectedChannelId]);
 
   useEffect(() => {
     try {
@@ -1173,9 +1412,9 @@ export default function App() {
   };
 
   const orderedServers = useMemo(() => {
-    if (customServerOrder.length === 0) return servers;
+    if (customServerOrder.length === 0) return allServers;
     const rank = new Map(customServerOrder.map((id, idx) => [id, idx]));
-    return [...servers].sort((a, b) => {
+    return [...allServers].sort((a, b) => {
       const ra = rank.get(a.id);
       const rb = rank.get(b.id);
       if (ra !== undefined && rb !== undefined) return ra - rb;
@@ -1183,7 +1422,7 @@ export default function App() {
       if (rb !== undefined) return 1;
       return 0;
     });
-  }, [servers, customServerOrder]);
+  }, [allServers, customServerOrder]);
 
   const handleMoveServer = (serverId: string, direction: 'up' | 'down') => {
     const ids = orderedServers.map((s) => s.id);
@@ -1207,22 +1446,72 @@ export default function App() {
     }, 2800);
   };
 
+  const ownedCosmetics = useMemo(
+    () =>
+      getOwnedCosmetics(
+        isOwner ? INITIAL_SHOP_BUNDLES.map((b) => b.id) : ownedBundleIds,
+        INITIAL_SHOP_BUNDLES
+      ),
+    [ownedBundleIds, isOwner]
+  );
+
+  const rewardActivityOrbs = useCallback(
+    (
+      kind: 'chat' | 'note' | 'voice' | 'invite' | 'discover',
+      amount: number,
+      reason: string,
+      cooldownMs = 60_000
+    ) => {
+      try {
+        const key = `${ACTIVITY_ORBS_KEY_PREFIX}${activeAccountId || 'guest'}`;
+        const raw = localStorage.getItem(key);
+        const parsed: Record<string, number> = raw ? JSON.parse(raw) : {};
+        const last = parsed[kind] || 0;
+        const now = Date.now();
+        if (now - last < cooldownMs) return false;
+        parsed[kind] = now;
+        localStorage.setItem(key, JSON.stringify(parsed));
+      } catch {
+        /* ignore */
+      }
+      setUser((prev) => {
+        const nextUser: UserProfile = {
+          ...prev,
+          orbs: normalizeOrbs(prev.orbs + amount),
+        };
+        flushCloudAccountSync({ user: nextUser });
+        return nextUser;
+      });
+      showToastMsg(`+${amount} Orbs · ${reason}`);
+      return true;
+    },
+    [activeAccountId, flushCloudAccountSync]
+  );
+
+  useEffect(() => {
+    if (!user.ephemeralNoteExpiresAt) return;
+    if (Date.now() >= user.ephemeralNoteExpiresAt) {
+      saveLocalPrefsForAccount(activeAccountId, {
+        voiceEntryEffect: user.voiceEntryEffect,
+        ephemeralNoteExpiresAt: undefined,
+      });
+      setUser((prev) => {
+        const nextUser = { ...prev, customStatus: '', ephemeralNoteExpiresAt: undefined };
+        flushCloudAccountSync({ user: nextUser });
+        return nextUser;
+      });
+    }
+  }, [presenceTick, user.ephemeralNoteExpiresAt, user.voiceEntryEffect, activeAccountId, flushCloudAccountSync]);
+
   const unreadTotal = useMemo(() => {
-    const serverSum = servers.reduce((acc, s) => acc + (s.badgeCount || 0), 0);
+    const serverSum = allServers.reduce((acc, s) => acc + (s.badgeCount || 0), 0);
     return serverSum + notifications.filter((n) => n.unread).length;
-  }, [servers, notifications]);
+  }, [allServers, notifications]);
 
   const unreadNotificationsCount = notifications.filter((n) => n.unread).length;
   const hasUnclaimedQuests = quests.some((q) => !q.claimed);
 
-  const themeClass =
-    theme === 'purple'
-      ? 'theme-purple'
-      : theme === 'dark'
-      ? 'theme-dark'
-      : theme === 'light'
-      ? 'theme-light'
-      : '';
+  const themeClass = theme !== 'onyx' ? `theme-${theme}` : '';
 
 
   const handleInspectUser = (
@@ -1373,13 +1662,13 @@ export default function App() {
     setDms((prev) =>
       prev.map((d) => (d.id === dmId ? { ...d, unread: false, unreadCount: 0 } : d))
     );
-    if (firebaseUid && !dmId.startsWith('dm-grp-')) {
+    if (firebaseUid && dmId !== PRIMORDIAL_BOT_DM_ID && !dmId.startsWith('dm-grp-')) {
       void markDmThreadRead(dmId, firebaseUid).catch(() => undefined);
     }
   };
 
   const handleSelectServer = (serverId: string) => {
-    const srv = servers.find((s) => s.id === serverId);
+    const srv = allServers.find((s) => s.id === serverId);
     const firstText =
       srv?.channels.find((c) => !c.isPrivate && c.type !== 'voice' && c.name.toLowerCase().includes('general')) ||
       srv?.channels.find((c) => !c.isPrivate && c.type !== 'voice') ||
@@ -1429,9 +1718,10 @@ export default function App() {
 
   const getActiveMessagesCollectionPath = (): string | null => {
     if (activeContext.type === 'server' && activeServer && selectedChannelId) {
+      if (isCuratedServerId(activeServer.id)) return null;
       return `servers/${activeServer.id}/channels/${selectedChannelId}/messages`;
     }
-    if (activeDm && !activeDm.id.startsWith('dm-grp-')) {
+    if (activeDm && activeDm.id !== PRIMORDIAL_BOT_DM_ID && !activeDm.id.startsWith('dm-grp-')) {
       return `dms/${activeDm.id}/messages`;
     }
     return null;
@@ -1442,6 +1732,58 @@ export default function App() {
       return activeServer.channels.find((c) => c.id === selectedChannelId)?.messages || [];
     }
     return activeDm?.messages || [];
+  };
+
+  const sendToWelcomeBot = (rawText: string) => {
+    const preview = rawText.trim() || 'Mensaje';
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      authorId: user.id || 'me',
+      authorName: user.displayName,
+      authorAvatar: user.avatar,
+      timestamp: 'Ahora',
+      content: rawText,
+      reactions: [],
+    };
+    setDms((prev) => {
+      const next = prev.map((d) => {
+        if (d.id !== PRIMORDIAL_BOT_DM_ID) return d;
+        const updated: DirectMessageThread = {
+          ...d,
+          lastMessagePreview: `Tú: ${preview}`,
+          lastTimestamp: 'Ahora',
+          unread: false,
+          unreadCount: 0,
+          messages: [...d.messages, userMsg],
+        };
+        saveBotDmForAccount(activeAccountId, updated);
+        return updated;
+      });
+      return next;
+    });
+    setTypingMap((prev) => ({
+      ...prev,
+      [PRIMORDIAL_BOT_DM_ID]: 'Primordial Bot está escribiendo...',
+    }));
+    window.setTimeout(() => {
+      const botMsg = generateBotReply(rawText, user, theme);
+      setTypingMap((prev) => ({ ...prev, [PRIMORDIAL_BOT_DM_ID]: null }));
+      playUiSound('receive', appPreferences.soundsEnabled);
+      setDms((prev) =>
+        prev.map((d) => {
+          if (d.id !== PRIMORDIAL_BOT_DM_ID) return d;
+          const updated: DirectMessageThread = {
+            ...d,
+            lastMessagePreview: botMsg.content.replace(/\*\*/g, '').slice(0, 72),
+            lastTimestamp: botMsg.timestamp,
+            messages: [...d.messages, botMsg],
+          };
+          saveBotDmForAccount(activeAccountId, updated);
+          return updated;
+        })
+      );
+    }, 360);
+    rewardActivityOrbs('chat', 15, 'Chat con Primordial Bot', 120_000);
   };
 
   const handleSendRichMessage = (payload: RichMessagePayload) => {
@@ -1455,6 +1797,35 @@ export default function App() {
       const targetServerId = activeServer.id;
       const targetChannelId = selectedChannelId;
       setTypingMap((prev) => ({ ...prev, [targetChannelId]: null }));
+
+      if (isCuratedServerId(targetServerId)) {
+        const localMsg: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          authorId: user.id || 'me',
+          authorName: user.displayName,
+          authorAvatar: user.avatar,
+          timestamp: 'Ahora',
+          content: payload.content,
+          mentionEveryone: hasEveryone,
+          replyTo: payload.replyTo,
+          imageUrl: payload.imageUrl,
+          sticker: payload.sticker,
+          audioNote: payload.audioNote,
+          poll: payload.poll,
+          reactions: [],
+        };
+        setCuratedMessagesByChannel((prev) => {
+          const base =
+            prev[targetChannelId] ||
+            activeServer.channels.find((c) => c.id === targetChannelId)?.messages ||
+            [];
+          const next = { ...prev, [targetChannelId]: [...base, localMsg] };
+          saveCuratedMessages(activeAccountId, next);
+          return next;
+        });
+        rewardActivityOrbs('chat', 15, 'Actividad en comunidad', 60_000);
+        return;
+      }
 
       if (firebaseUid) {
         void sendChannelMessage({
@@ -1474,6 +1845,7 @@ export default function App() {
         }).catch(() => {
           showToastMsg('No se pudo enviar el mensaje. Inténtalo de nuevo.');
         });
+        rewardActivityOrbs('chat', 15, 'Actividad en servidor', 60_000);
         if (hasEveryone) {
           showToastMsg('Mención @everyone enviada a todos los miembros del servidor');
         }
@@ -1507,12 +1879,18 @@ export default function App() {
             : s
         )
       );
+      rewardActivityOrbs('chat', 15, 'Actividad en servidor', 60_000);
       return;
     }
 
     if (activeDm) {
       const targetId = activeDm.id;
       setTypingMap((prev) => ({ ...prev, [targetId]: null }));
+
+      if (targetId === PRIMORDIAL_BOT_DM_ID) {
+        sendToWelcomeBot(payload.content || formatMessagePreview(payload));
+        return;
+      }
 
       if (firebaseUid && !targetId.startsWith('dm-grp-')) {
         const recipients = activeDm.participantIds || (activeDm.otherUid ? [activeDm.otherUid] : []);
@@ -1529,6 +1907,7 @@ export default function App() {
         }).catch(() => {
           showToastMsg('No se pudo enviar el mensaje directo.');
         });
+        rewardActivityOrbs('chat', 15, 'Mensaje enviado', 60_000);
         return;
       }
 
@@ -1561,6 +1940,7 @@ export default function App() {
             : d
         )
       );
+      rewardActivityOrbs('chat', 15, 'Actividad en chat', 60_000);
     }
   };
 
@@ -1577,6 +1957,18 @@ export default function App() {
     dmPreviewUpdater?: (msgs: ChatMessage[]) => Partial<DirectMessageThread>
   ) => {
     if (activeContext.type === 'server' && activeServer && selectedChannelId) {
+      if (isCuratedServerId(activeServer.id)) {
+        setCuratedMessagesByChannel((prev) => {
+          const base =
+            prev[selectedChannelId] ||
+            activeServer.channels.find((c) => c.id === selectedChannelId)?.messages ||
+            [];
+          const next = { ...prev, [selectedChannelId]: updater(base) };
+          saveCuratedMessages(activeAccountId, next);
+          return next;
+        });
+        return;
+      }
       setServers((prev) =>
         prev.map((s) =>
           s.id === activeServer.id
@@ -1595,7 +1987,11 @@ export default function App() {
           if (d.id !== activeDm.id) return d;
           const nextMsgs = updater(d.messages);
           const extra = dmPreviewUpdater ? dmPreviewUpdater(nextMsgs) : {};
-          return { ...d, messages: nextMsgs, ...extra };
+          const updated = { ...d, messages: nextMsgs, ...extra };
+          if (d.id === PRIMORDIAL_BOT_DM_ID) {
+            saveBotDmForAccount(activeAccountId, updated);
+          }
+          return updated;
         })
       );
     }
@@ -1847,6 +2243,10 @@ export default function App() {
   };
 
   const handleCloseDm = (dmId: string) => {
+    if (dmId === PRIMORDIAL_BOT_DM_ID) {
+      showToastMsg('Primordial Bot siempre permanece fijado como tu guía.');
+      return;
+    }
     setDms((prev) => {
       const next = prev.filter((d) => d.id !== dmId);
       if (selectedDmId === dmId) {
@@ -1859,7 +2259,8 @@ export default function App() {
 
   const handleToggleReaction = (messageId: string, emoji: string) => {
     const targetMsg = getActiveMessagesList().find((m) => m.id === messageId);
-    if (targetMsg && firebaseUid) {
+    const collPath = getActiveMessagesCollectionPath();
+    if (targetMsg && firebaseUid && collPath) {
       const existing = targetMsg.reactions.find((r) => r.emoji === emoji);
       const nextReactions = existing
         ? existing.count - (existing.reacted ? 1 : -1) <= 0
@@ -1875,14 +2276,11 @@ export default function App() {
             )
         : [...targetMsg.reactions, { emoji, count: 1, reacted: true }];
 
-      const collPath = getActiveMessagesCollectionPath();
-      if (collPath) {
-        void updateFirestoreMessage({
-          collectionPath: collPath,
-          messageId,
-          patch: { reactions: nextReactions },
-        }).catch(() => undefined);
-      }
+      void updateFirestoreMessage({
+        collectionPath: collPath,
+        messageId,
+        patch: { reactions: nextReactions },
+      }).catch(() => undefined);
     }
 
     const toggleInList = (msgs: DirectMessageThread['messages']) =>
@@ -1904,24 +2302,7 @@ export default function App() {
         return { ...m, reactions: [...m.reactions, { emoji, count: 1, reacted: true }] };
       });
 
-    if (activeContext.type === 'server' && activeServer && selectedChannelId) {
-      setServers((prev) =>
-        prev.map((s) =>
-          s.id === activeServer.id
-            ? {
-                ...s,
-                channels: s.channels.map((c) =>
-                  c.id === selectedChannelId ? { ...c, messages: toggleInList(c.messages) } : c
-                ),
-              }
-            : s
-        )
-      );
-    } else if (activeDm) {
-      setDms((prev) =>
-        prev.map((d) => (d.id === activeDm.id ? { ...d, messages: toggleInList(d.messages) } : d))
-      );
-    }
+    mapActiveMessages((msgs) => toggleInList(msgs));
   };
 
   const unlockBadgeHelper = (
@@ -2487,6 +2868,9 @@ export default function App() {
     const banner = bundle.items.find((i) => i.bannerUrl)?.bannerUrl;
     const effect = bundle.items.find((i) => i.profileEffectId)?.profileEffectId;
     const frame = bundle.items.find((i) => i.profileFrameId)?.profileFrameId;
+    const uiTheme = bundle.items.find((i) => i.uiThemeId)?.uiThemeId;
+    const voiceEffect = bundle.items.find((i) => i.voiceEntryEffectId)?.voiceEntryEffectId;
+    const exclusiveBadge = bundle.items.find((i) => i.exclusiveBadgeId)?.exclusiveBadgeId;
     const orbsCost = isOwner && !useOrbs ? 0 : isOwner && user.orbs < bundle.priceOrbs ? 0 : bundle.priceOrbs;
     const nextUser: UserProfile = {
       ...user,
@@ -2496,15 +2880,27 @@ export default function App() {
       ...(banner ? { bannerImage: banner } : {}),
       ...(effect ? { profileEffect: effect } : {}),
       ...(frame ? { profileFrame: frame } : {}),
+      ...(voiceEffect ? { voiceEntryEffect: voiceEffect } : {}),
+      ...(exclusiveBadge ? unlockBadgeHelper(user, exclusiveBadge) : {}),
     };
+    if (uiTheme) {
+      setTheme(uiTheme);
+    }
+    if (voiceEffect) {
+      saveLocalPrefsForAccount(activeAccountId, {
+        voiceEntryEffect: voiceEffect,
+        ephemeralNoteExpiresAt: nextUser.ephemeralNoteExpiresAt,
+      });
+      playVoiceEntryEffect(voiceEffect, appPreferences.soundsEnabled);
+    }
     setOwnedBundleIds(nextOwned);
     setUser(nextUser);
     flushCloudAccountSync({ user: nextUser, ownedBundleIds: nextOwned });
-    showToastMsg(`¡${bundle.title} adquirido y guardado en tu cuenta!`);
+    showToastMsg(`¡${bundle.title} adquirido y aplicado en tu perfil!`);
   };
 
   const handleEquipBundle = (bundle: ShopBundle) => {
-    if (!ownedBundleIds.includes(bundle.id)) {
+    if (!ownedBundleIds.includes(bundle.id) && !isOwner) {
       showToastMsg('Compra este lote en la Tienda para equiparlo en tu perfil');
       return;
     }
@@ -2513,7 +2909,22 @@ export default function App() {
     const banner = bundle.items.find((i) => i.bannerUrl)?.bannerUrl;
     const effect = bundle.items.find((i) => i.profileEffectId)?.profileEffectId;
     const frame = bundle.items.find((i) => i.profileFrameId)?.profileFrameId;
-    if (deco || plate || banner || effect || frame) {
+    const uiTheme = bundle.items.find((i) => i.uiThemeId)?.uiThemeId;
+    const voiceEffect = bundle.items.find((i) => i.voiceEntryEffectId)?.voiceEntryEffectId;
+    const exclusiveBadge = bundle.items.find((i) => i.exclusiveBadgeId)?.exclusiveBadgeId;
+
+    if (uiTheme) {
+      setTheme(uiTheme);
+    }
+    if (voiceEffect) {
+      saveLocalPrefsForAccount(activeAccountId, {
+        voiceEntryEffect: voiceEffect,
+        ephemeralNoteExpiresAt: user.ephemeralNoteExpiresAt,
+      });
+      playVoiceEntryEffect(voiceEffect, appPreferences.soundsEnabled);
+    }
+
+    if (deco || plate || banner || effect || frame || uiTheme || voiceEffect || exclusiveBadge) {
       const nextUser: UserProfile = {
         ...user,
         ...(deco ? { decoration: deco } : {}),
@@ -2521,10 +2932,12 @@ export default function App() {
         ...(banner ? { bannerImage: banner } : {}),
         ...(effect ? { profileEffect: effect } : {}),
         ...(frame ? { profileFrame: frame } : {}),
+        ...(voiceEffect ? { voiceEntryEffect: voiceEffect } : {}),
+        ...(exclusiveBadge ? unlockBadgeHelper(user, exclusiveBadge) : {}),
       };
       setUser(nextUser);
       flushCloudAccountSync({ user: nextUser });
-      showToastMsg(`Estilo, marco y efectos de ${bundle.title} aplicados en tu perfil`);
+      showToastMsg(`${bundle.title} aplicado correctamente`);
     }
   };
 
@@ -2838,6 +3251,8 @@ export default function App() {
     setShowOwnerPanel(false);
     setActiveAccountId(null);
     setJoinedServerIds([]);
+    setJoinedCuratedIds([]);
+    setCuratedMessagesByChannel({});
     setDms([]);
     setServers([]);
     setNotifications([]);
@@ -3089,12 +3504,40 @@ export default function App() {
     return list;
   }, [firebaseUid]);
 
+  const handleJoinCuratedServer = useCallback(
+    (serverId: string) => {
+      const target = CURATED_PUBLIC_SERVERS.find((s) => s.id === serverId);
+      if (!target) return false;
+      setJoinedCuratedIds((prev) => {
+        if (prev.includes(serverId)) return prev;
+        const next = [...prev, serverId];
+        saveCuratedJoinedIds(activeAccountId, next);
+        return next;
+      });
+      const firstText =
+        target.channels.find((c) => c.type !== 'voice') || target.channels[0];
+      setActiveContext({ type: 'server', serverId });
+      setSelectedChannelId(firstText?.id || null);
+      setScreen('inicio');
+      setMobileChatOpen(false);
+      const earned = rewardActivityOrbs('discover', 30, `Unido a ${target.name}`, 180_000);
+      if (!earned) {
+        showToastMsg(`¡Bienvenido a ${target.name}!`);
+      }
+      return true;
+    },
+    [activeAccountId, rewardActivityOrbs]
+  );
+
   const handleJoinServerById = async (serverIdOrInvite: string): Promise<boolean> => {
     const cleanId = serverIdOrInvite
       .trim()
       .replace(/^https?:\/\/[^/]+\//i, '')
       .replace(/^primordial\.gg\//i, '');
     if (!cleanId) return false;
+    if (isCuratedServerId(cleanId)) {
+      return handleJoinCuratedServer(cleanId);
+    }
     if (!firebaseUid) {
       showToastMsg(
         authProviderNeedsSetup
@@ -3111,12 +3554,20 @@ export default function App() {
       setSelectedChannelId(null);
       setScreen('inicio');
       setMobileChatOpen(false);
-      showToastMsg('¡Te has unido al servidor!');
+      rewardActivityOrbs('discover', 30, 'Te uniste a una comunidad', 180_000);
       return true;
     } catch {
       return false;
     }
   };
+
+  useEffect(() => {
+    if (!activeAccountId || !pendingJoinServerRef.current) return;
+    const srvToJoin = pendingJoinServerRef.current;
+    pendingJoinServerRef.current = null;
+    void handleJoinServerById(srvToJoin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccountId, firebaseUid]);
 
   const handleSearchUsers = async (q: string): Promise<PublicUserProfile[]> => {
     if (!firebaseUid) return [];
@@ -3285,7 +3736,7 @@ export default function App() {
   };
 
   const handleClearLocalChat = () => {
-    if (firebaseUid && activeContext.type === 'server') {
+    if (firebaseUid && activeContext.type === 'server' && !isCuratedServerId(activeServer?.id)) {
       showToastMsg('Limpieza local disponible solo en chats temporales sin nube');
       return;
     }
@@ -3438,6 +3889,7 @@ export default function App() {
       const videoTrack = videoStream?.getVideoTracks()[0] || null;
 
       if (params.serverId && params.channelId) {
+        playVoiceEntryEffect(user.voiceEntryEffect, appPreferences.soundsEnabled);
         setVoiceSession({
           active: true,
           callNonce: Date.now(),
@@ -3453,7 +3905,7 @@ export default function App() {
           connectedSeconds: 0,
           participants: [],
         });
-        if (firebaseUid) {
+        if (firebaseUid && !isCuratedServerId(params.serverId)) {
           void upsertVoiceChannelPresence({
             serverId: params.serverId,
             channelId: params.channelId,
@@ -3463,6 +3915,7 @@ export default function App() {
             screenSharing: screenActive,
           });
         }
+        rewardActivityOrbs('voice', 30, 'Sala de voz conectada', 180_000);
         return;
       }
 
@@ -3556,8 +4009,127 @@ export default function App() {
       cleanupVoiceCall,
       firebaseUid,
       handleRemoteStreamUpdate,
+      rewardActivityOrbs,
       user,
     ]
+  );
+
+  const handleJoinDropInRoom = useCallback(
+    async (room: DropInVoiceRoom) => {
+      await cleanupVoiceCall(true);
+      playUiSound('voiceJoin', appPreferences.soundsEnabled);
+      playVoiceEntryEffect(user.voiceEntryEffect, appPreferences.soundsEnabled);
+      triggerHaptic(14);
+
+      const audioStream = await captureLocalAudio();
+      localAudioStreamRef.current = audioStream;
+      const audioTrack = audioStream?.getAudioTracks()[0] || null;
+
+      setVoiceSession({
+        active: true,
+        callNonce: Date.now(),
+        channelId: room.id,
+        callStatus: 'connected',
+        channelName: `${room.emoji} ${room.name}`,
+        contextName: `Drop-in · ${room.category}`,
+        muted: !audioTrack,
+        deafened: false,
+        videoOn: false,
+        screenSharing: false,
+        connectedSeconds: 0,
+        participants: room.participants.map((p) => ({ ...p })),
+      });
+      const earned = rewardActivityOrbs('voice', 30, `Sala Drop-in: ${room.name}`, 180_000);
+      if (!earned) {
+        showToastMsg(`Conectado a ${room.emoji} ${room.name}`);
+      }
+    },
+    [
+      appPreferences.soundsEnabled,
+      cleanupVoiceCall,
+      rewardActivityOrbs,
+      user.voiceEntryEffect,
+    ]
+  );
+
+  const handleUpdateEphemeralStatus = useCallback(
+    (status: string, expiresInHours = 4) => {
+      const clean = status.trim().slice(0, 80);
+      const expiresAt = clean ? Date.now() + expiresInHours * 3600_000 : undefined;
+      saveLocalPrefsForAccount(activeAccountId, {
+        voiceEntryEffect: user.voiceEntryEffect,
+        ephemeralNoteExpiresAt: expiresAt,
+      });
+      setUser((prev) => {
+        const nextUser: UserProfile = {
+          ...prev,
+          customStatus: clean,
+          ephemeralNoteExpiresAt: expiresAt,
+        };
+        flushCloudAccountSync({ user: nextUser });
+        return nextUser;
+      });
+      if (clean) {
+        const earned = rewardActivityOrbs('note', 25, 'Nota rápida publicada', 120_000);
+        if (!earned) {
+          showToastMsg(`Nota publicada por ${expiresInHours}h`);
+        }
+      } else {
+        showToastMsg('Nota rápida eliminada');
+      }
+    },
+    [activeAccountId, flushCloudAccountSync, rewardActivityOrbs, user.voiceEntryEffect]
+  );
+
+  const handleChangeVoiceEffect = useCallback(
+    (effectId: VoiceEntryEffectId) => {
+      saveLocalPrefsForAccount(activeAccountId, {
+        voiceEntryEffect: effectId,
+        ephemeralNoteExpiresAt: user.ephemeralNoteExpiresAt,
+      });
+      setUser((prev) => {
+        const nextUser = { ...prev, voiceEntryEffect: effectId };
+        flushCloudAccountSync({ user: nextUser });
+        return nextUser;
+      });
+      playVoiceEntryEffect(effectId, appPreferences.soundsEnabled);
+      showToastMsg(
+        effectId === 'none'
+          ? 'Efecto de entrada en voz restaurado a estándar'
+          : 'Efecto de entrada en voz actualizado'
+      );
+    },
+    [
+      activeAccountId,
+      appPreferences.soundsEnabled,
+      flushCloudAccountSync,
+      user.ephemeralNoteExpiresAt,
+    ]
+  );
+
+  const handleBotQuickAction = useCallback(
+    (action: NonNullable<ChatMessage['quickReplies']>[number]) => {
+      if (action.command) {
+        sendToWelcomeBot(action.command);
+        return;
+      }
+      if (action.navigateTo === 'tienda') {
+        setScreen('tienda');
+      } else if (action.navigateTo === 'tu') {
+        setProfileViewTrigger((k) => k + 1);
+        setScreen('tu');
+      } else if (action.navigateTo === 'misiones') {
+        setScreen('misiones');
+      } else if (action.navigateTo === 'amigos') {
+        setScreen('amigos');
+      } else if (action.navigateTo === 'discover') {
+        setShowDiscover(true);
+      } else if (action.navigateTo === 'voice') {
+        void handleJoinDropInRoom(dropInRooms[0]);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dropInRooms, handleJoinDropInRoom, theme, user]
   );
 
   const answerIncomingCall = useCallback(
@@ -3820,7 +4392,7 @@ export default function App() {
   const realDmIdsKey = useMemo(
     () =>
       dms
-        .filter((d) => !d.id.startsWith('dm-grp-'))
+        .filter((d) => d.id !== PRIMORDIAL_BOT_DM_ID && !d.id.startsWith('dm-grp-'))
         .map((d) => d.id)
         .join('|'),
     [dms]
@@ -3843,7 +4415,8 @@ export default function App() {
       !voiceSession.active ||
       !voiceSession.serverId ||
       !voiceSession.channelId ||
-      !firebaseUid
+      !firebaseUid ||
+      isCuratedServerId(voiceSession.serverId)
     ) {
       return;
     }
@@ -3894,7 +4467,7 @@ export default function App() {
       return (
         <ProfileView
           user={user}
-          servers={servers}
+          servers={allServers}
           unreadTotal={unreadTotal}
           wishlistIds={wishlistIds}
           ownedBundleIds={ownedBundleIds}
@@ -4028,7 +4601,7 @@ export default function App() {
     if (screen === 'mejoras') {
       return (
         <ServerBoostView
-          servers={servers}
+          servers={allServers}
           user={user}
           initialServerId={boostTargetServerId}
           onBack={() => {
@@ -4048,6 +4621,9 @@ export default function App() {
           theme={theme}
           appPreferences={appPreferences}
           isOwner={isOwner}
+          ownedUiThemes={ownedCosmetics.uiThemes}
+          ownedVoiceEffects={ownedCosmetics.voiceEntryEffects}
+          onChangeVoiceEffect={handleChangeVoiceEffect}
           onOpenOwnerPanel={() => isOwner && setShowOwnerPanel(true)}
           onUpdateAppPreferences={handleUpdateAppPreferences}
           onChangeTheme={setTheme}
@@ -4073,8 +4649,14 @@ export default function App() {
           friendRequests={friendRequests}
           sentFriendRequestUids={sentFriendRequestUids}
           sentFriendRequestItems={sentFriendRequestItems}
+          currentUsername={user.username}
+          currentDisplayName={user.displayName}
+          initialFriendQuery={initialFriendQuery}
           isCloudConnected={Boolean(firebaseUid)}
           authProviderNeedsSetup={authProviderNeedsSetup}
+          onInviteLinkShared={() =>
+            rewardActivityOrbs('invite', 100, 'Enlace de invitación compartido', 300_000)
+          }
           onRetryCloudSync={() => {
             if (!activeAccountId) return;
             const savedAcc = accounts.find((a) => a.id === activeAccountId);
@@ -4145,7 +4727,7 @@ export default function App() {
     }
 
     if (screen === 'servidor-ajustes' && serverSettingsTarget) {
-      const srv = servers.find((s) => s.id === serverSettingsTarget.serverId) || servers[0];
+      const srv = allServers.find((s) => s.id === serverSettingsTarget.serverId) || allServers[0];
       if (srv) {
         return (
           <ServerSettingsView
@@ -4171,6 +4753,18 @@ export default function App() {
               setScreen('mejoras');
             }}
             onLeaveServer={(serverId) => {
+              if (isCuratedServerId(serverId)) {
+                setJoinedCuratedIds((prev) => {
+                  const next = prev.filter((id) => id !== serverId);
+                  saveCuratedJoinedIds(activeAccountId, next);
+                  return next;
+                });
+                setActiveContext({ type: 'dm' });
+                setSelectedChannelId(null);
+                setScreen('inicio');
+                showToastMsg(`Has salido de ${srv.name}`);
+                return;
+              }
               const targetSrv = servers.find((s) => s.id === serverId);
               if (isServerOwner(targetSrv, user.id)) {
                 showToastMsg('Eres el dueño de este servidor y no puedes abandonarlo');
@@ -4264,7 +4858,7 @@ export default function App() {
         channelId={selectedChannelId || undefined}
         currentUser={user}
         dms={liveDms}
-        allServers={servers}
+        allServers={allServers}
         liveProfilesByUid={livePublicProfilesMap}
         typingLabel={activeTypingKey ? typingMap[activeTypingKey] || null : null}
         appPreferences={appPreferences}
@@ -4313,6 +4907,7 @@ export default function App() {
         onOpenServerSettings={handleOpenServerSettings}
         onUpdateNickname={handleUpdateNickname}
         onClearLocalChat={handleClearLocalChat}
+        onBotQuickAction={handleBotQuickAction}
         onInspectUser={handleInspectUser}
       />
     );
@@ -4509,6 +5104,10 @@ export default function App() {
                 currentUser={user}
                 typingDmIds={typingMap}
                 pendingFriendRequestsCount={friendRequests.length}
+                curatedServers={CURATED_PUBLIC_SERVERS}
+                joinedCuratedIds={joinedCuratedIds}
+                dropInRooms={dropInRooms}
+                liveProfilesByUid={livePublicProfilesMap}
                 onSelectDm={handleSelectDm}
                 onSelectChannel={handleSelectChannel}
                 onJoinVoice={(srvId, chId, chName, srvName) => {
@@ -4520,6 +5119,9 @@ export default function App() {
                     video: false,
                   });
                 }}
+                onJoinDropInRoom={(room) => void handleJoinDropInRoom(room)}
+                onUpdateEphemeralStatus={handleUpdateEphemeralStatus}
+                onJoinCuratedServer={handleJoinCuratedServer}
                 onOpenFriends={() => setScreen('amigos')}
                 onOpenNewGroupDm={() => {
                   setGroupMemberIds([]);
@@ -4662,6 +5264,12 @@ export default function App() {
                     ? tApp('theme.light')
                     : theme === 'purple'
                     ? tApp('theme.purple')
+                    : theme === 'cyber'
+                    ? 'Cyber'
+                    : theme === 'emerald'
+                    ? 'Esmeralda'
+                    : theme === 'crimson'
+                    ? 'Carmesí'
                     : tApp('theme.onyx')}
                 </span>
               </button>
@@ -4848,7 +5456,7 @@ export default function App() {
         open={showDiscover}
         onClose={() => setShowDiscover(false)}
         discoverableServers={discoverableServers}
-        joinedServerIds={joinedServerIds}
+        joinedServerIds={[...joinedServerIds, ...joinedCuratedIds]}
         onLoadServers={handleLoadDiscoverableServers}
         onJoinServer={handleJoinServerById}
         onOpenCreateServer={() => {

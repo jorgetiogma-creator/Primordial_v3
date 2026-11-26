@@ -1,11 +1,14 @@
 import { INITIAL_SHOP_BUNDLES } from '../data/discordData';
 import {
+  BadgeId,
   DecorationId,
   NameplateId,
   ProfileEffectId,
   ProfileFrameId,
   ShopBundle,
+  ThemeMode,
   UserProfile,
+  VoiceEntryEffectId,
 } from '../types/discord';
 
 export interface OwnedCosmetics {
@@ -14,6 +17,9 @@ export interface OwnedCosmetics {
   frames: Set<ProfileFrameId>;
   nameplates: Set<NameplateId>;
   banners: Set<string>;
+  uiThemes: Set<ThemeMode>;
+  voiceEntryEffects: Set<VoiceEntryEffectId>;
+  exclusiveBadges: Set<BadgeId>;
 }
 
 const BASIC_FREE_FRAMES: ProfileFrameId[] = [
@@ -25,6 +31,8 @@ const BASIC_FREE_FRAMES: ProfileFrameId[] = [
   'glitch',
 ];
 
+const FREE_THEMES: ThemeMode[] = ['onyx', 'dark', 'purple', 'light'];
+
 export function getOwnedCosmetics(
   ownedBundleIds: string[],
   bundles: ShopBundle[] = INITIAL_SHOP_BUNDLES
@@ -34,6 +42,9 @@ export function getOwnedCosmetics(
   const frames = new Set<ProfileFrameId>(BASIC_FREE_FRAMES);
   const nameplates = new Set<NameplateId>(['none']);
   const banners = new Set<string>();
+  const uiThemes = new Set<ThemeMode>(FREE_THEMES);
+  const voiceEntryEffects = new Set<VoiceEntryEffectId>(['none']);
+  const exclusiveBadges = new Set<BadgeId>();
 
   for (const bundle of bundles) {
     if (!ownedBundleIds.includes(bundle.id)) continue;
@@ -43,6 +54,9 @@ export function getOwnedCosmetics(
       if (item.profileFrameId) frames.add(item.profileFrameId);
       if (item.nameplateId) nameplates.add(item.nameplateId);
       if (item.bannerUrl) banners.add(item.bannerUrl);
+      if (item.uiThemeId) uiThemes.add(item.uiThemeId);
+      if (item.voiceEntryEffectId) voiceEntryEffects.add(item.voiceEntryEffectId);
+      if (item.exclusiveBadgeId) exclusiveBadges.add(item.exclusiveBadgeId);
     }
     // Companion variants included inside matching bundles
     if (bundle.id === 'bundle-deadpool') {
@@ -54,7 +68,16 @@ export function getOwnedCosmetics(
     }
   }
 
-  return { decorations, effects, frames, nameplates, banners };
+  return {
+    decorations,
+    effects,
+    frames,
+    nameplates,
+    banners,
+    uiThemes,
+    voiceEntryEffects,
+    exclusiveBadges,
+  };
 }
 
 export function findBundleForCosmetic(
@@ -64,6 +87,9 @@ export function findBundleForCosmetic(
     profileFrameId?: ProfileFrameId;
     nameplateId?: NameplateId;
     bannerUrl?: string;
+    uiThemeId?: ThemeMode;
+    voiceEntryEffectId?: VoiceEntryEffectId;
+    exclusiveBadgeId?: BadgeId;
   },
   bundles: ShopBundle[] = INITIAL_SHOP_BUNDLES
 ): ShopBundle | undefined {
@@ -74,7 +100,10 @@ export function findBundleForCosmetic(
         (params.profileEffectId && item.profileEffectId === params.profileEffectId) ||
         (params.profileFrameId && item.profileFrameId === params.profileFrameId) ||
         (params.nameplateId && item.nameplateId === params.nameplateId) ||
-        (params.bannerUrl && item.bannerUrl === params.bannerUrl)
+        (params.bannerUrl && item.bannerUrl === params.bannerUrl) ||
+        (params.uiThemeId && item.uiThemeId === params.uiThemeId) ||
+        (params.voiceEntryEffectId && item.voiceEntryEffectId === params.voiceEntryEffectId) ||
+        (params.exclusiveBadgeId && item.exclusiveBadgeId === params.exclusiveBadgeId)
     )
   );
   if (direct) return direct;
@@ -133,6 +162,12 @@ export function sanitizeUserShopCosmetics(
   const currentFrame = user.profileFrame || 'none';
   const safeFrame: ProfileFrameId = owned.frames.has(currentFrame) ? currentFrame : 'none';
 
+  const currentVoiceEffect = user.voiceEntryEffect || 'none';
+  const safeVoiceEffect: VoiceEntryEffectId =
+    isOwnerAccount || owned.voiceEntryEffects.has(currentVoiceEffect)
+      ? currentVoiceEffect
+      : 'none';
+
   const normalizedPlate =
     (user.nameplate as string) === 'vice-city' || (user.nameplate as string) === 'konoha-naranja'
       ? 'none'
@@ -171,6 +206,7 @@ export function sanitizeUserShopCosmetics(
     decoration: safeDecoration,
     profileEffect: safeEffect,
     profileFrame: safeFrame,
+    voiceEntryEffect: safeVoiceEffect,
     nameplate: safeNameplate,
     bannerImage: safeBannerImage,
     perServerProfiles: safePerServerProfiles,

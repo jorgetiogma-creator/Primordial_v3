@@ -15,8 +15,10 @@ import {
   ServerTemplateId,
   ThemeMode,
   UserProfile,
+  VoiceEntryEffectId,
   VoiceSession,
 } from '../types/discord';
+import { CURATED_PUBLIC_SERVERS } from '../data/discordData';
 import {
   LaurelQuestIcon,
   NitroWheelIcon,
@@ -29,7 +31,14 @@ import {
 import { isVerifiedAccount } from '../utils/ownerAccess';
 import { BoostGemIcon } from './ServerBoostView';
 import { PWAInstallButton } from './PWAPrompts';
-import { playSoundboardClip, SOUNDBOARD_CLIPS, SoundboardClipId, triggerHaptic } from '../utils/soundEffects';
+import {
+  playSoundboardClip,
+  playVoiceEntryEffect,
+  SOUNDBOARD_CLIPS,
+  SoundboardClipId,
+  triggerHaptic,
+  VOICE_ENTRY_EFFECTS,
+} from '../utils/soundEffects';
 import { APP_LANGUAGES, translateAppText, useTranslation } from '../utils/i18n';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
 
@@ -66,6 +75,9 @@ export const SettingsView: React.FC<{
   theme: ThemeMode;
   appPreferences?: AppPreferences;
   isOwner?: boolean;
+  ownedUiThemes?: Set<ThemeMode>;
+  ownedVoiceEffects?: Set<VoiceEntryEffectId>;
+  onChangeVoiceEffect?: (effectId: VoiceEntryEffectId) => void;
   onOpenOwnerPanel?: () => void;
   onUpdateAppPreferences?: (patch: Partial<AppPreferences>) => void;
   onChangeTheme: (t: ThemeMode) => void;
@@ -89,6 +101,9 @@ export const SettingsView: React.FC<{
     autoTranslateMessages: false,
   },
   isOwner = false,
+  ownedUiThemes,
+  ownedVoiceEffects,
+  onChangeVoiceEffect,
   onOpenOwnerPanel,
   onUpdateAppPreferences,
   onChangeTheme,
@@ -314,40 +329,130 @@ export const SettingsView: React.FC<{
           </button>
         </div>
       ) : activeSubPanel === 'Apariencia' ? (
-        <div className="flex-1 overflow-y-auto px-4 py-3 max-w-xl mx-auto w-full space-y-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
-            {t('settings.row.appearance')}
-          </p>
-          <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] p-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {(
-              [
-                { id: 'light', label: t('theme.light'), swatch: '#ffffff' },
-                { id: 'onyx', label: t('theme.onyx'), swatch: '#0e0e11' },
-                { id: 'dark', label: t('theme.dark'), swatch: '#313338' },
-                { id: 'purple', label: t('theme.purple'), swatch: '#8b5cf6' },
-              ] as { id: ThemeMode; label: string; swatch: string }[]
-            ).map((tItem) => (
-              <button
-                key={tItem.id}
-                onClick={() => onChangeTheme(tItem.id)}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                  theme === tItem.id
-                    ? 'border-[#5865F2] bg-[#5865F2]/15'
-                    : 'border-[var(--dc-border)] bg-[var(--dc-bg-card)]'
-                }`}
-              >
-                <div
-                  className="w-8 h-8 rounded-full border border-black/15 dark:border-white/20 mb-2 flex items-center justify-center"
-                  style={{ backgroundColor: tItem.swatch }}
-                >
-                  {theme === tItem.id && (
-                    <Check className={`w-4 h-4 ${tItem.id === 'light' ? 'text-black' : 'text-white'}`} />
-                  )}
-                </div>
-                <span className="text-xs font-bold">{tItem.label}</span>
-              </button>
-            ))}
+        <div className="flex-1 overflow-y-auto px-4 py-3 max-w-xl mx-auto w-full space-y-5">
+          <div className="space-y-2.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
+              {t('settings.row.appearance')}
+            </p>
+            <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] p-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {(
+                [
+                  { id: 'light', label: t('theme.light'), swatch: '#ffffff', shop: false },
+                  { id: 'onyx', label: t('theme.onyx'), swatch: '#0e0e11', shop: false },
+                  { id: 'dark', label: t('theme.dark'), swatch: '#313338', shop: false },
+                  { id: 'purple', label: t('theme.purple'), swatch: '#8b5cf6', shop: false },
+                  { id: 'cyber', label: 'Cyber Neón', swatch: '#06b6d4', shop: true },
+                  { id: 'emerald', label: 'Esmeralda', swatch: '#10b981', shop: true },
+                  { id: 'crimson', label: 'Carmesí', swatch: '#e11d48', shop: true },
+                ] as { id: ThemeMode; label: string; swatch: string; shop: boolean }[]
+              ).map((tItem) => {
+                const unlocked =
+                  !tItem.shop ||
+                  isOwner ||
+                  (ownedUiThemes ? ownedUiThemes.has(tItem.id) : false);
+                return (
+                  <button
+                    key={tItem.id}
+                    onClick={() => {
+                      if (!unlocked) {
+                        onOpenShop();
+                        return;
+                      }
+                      onChangeTheme(tItem.id);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      theme === tItem.id
+                        ? 'border-[#5865F2] bg-[#5865F2]/15'
+                        : 'border-[var(--dc-border)] bg-[var(--dc-bg-card)]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div
+                        className="w-8 h-8 rounded-full border border-black/15 dark:border-white/20 flex items-center justify-center"
+                        style={{ backgroundColor: tItem.swatch }}
+                      >
+                        {theme === tItem.id && (
+                          <Check
+                            className={`w-4 h-4 ${tItem.id === 'light' ? 'text-black' : 'text-white'}`}
+                          />
+                        )}
+                      </div>
+                      {!unlocked && (
+                        <span className="text-[10px] font-bold text-amber-400">Tienda</span>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold block truncate">{tItem.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {onChangeVoiceEffect && (
+            <div className="space-y-2.5">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
+                Efecto de entrada en salas de voz
+              </p>
+              <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] p-3 space-y-2">
+                {VOICE_ENTRY_EFFECTS.map((fx) => {
+                  const unlocked =
+                    fx.id === 'none' ||
+                    isOwner ||
+                    (ownedVoiceEffects ? ownedVoiceEffects.has(fx.id) : false);
+                  const active = (user.voiceEntryEffect || 'none') === fx.id;
+                  return (
+                    <div
+                      key={fx.id}
+                      className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${
+                        active
+                          ? 'border-[#8b5cf6] bg-[#8b5cf6]/12'
+                          : 'border-[var(--dc-border)] bg-[var(--dc-bg-card)]'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!unlocked) {
+                            onOpenShop();
+                            return;
+                          }
+                          onChangeVoiceEffect(fx.id);
+                          playVoiceEntryEffect(fx.id, true);
+                        }}
+                        className="flex-1 min-w-0 text-left flex items-center gap-2.5 cursor-pointer"
+                      >
+                        <span className="text-lg">{fx.emoji}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-[var(--dc-text-primary)] truncate">
+                            {fx.label}
+                          </p>
+                          <p className="text-[11px] text-[var(--dc-text-muted)] truncate">
+                            {fx.description}
+                          </p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => playVoiceEntryEffect(fx.id, true)}
+                        className="px-2.5 py-1 rounded-lg dc-btn-secondary text-[11px] font-semibold cursor-pointer shrink-0"
+                      >
+                        Probar
+                      </button>
+                      {!unlocked && (
+                        <button
+                          type="button"
+                          onClick={onOpenShop}
+                          className="px-2.5 py-1 rounded-lg dc-btn-primary text-[11px] font-bold cursor-pointer shrink-0"
+                        >
+                          Tienda
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) : activeSubPanel === 'Cuenta' ? (
         <div className="flex-1 overflow-y-auto px-4 py-4 max-w-xl mx-auto w-full space-y-4">
@@ -806,9 +911,13 @@ export const FriendsView: React.FC<{
   friendRequests?: FriendRequestItem[];
   sentFriendRequestUids?: string[];
   sentFriendRequestItems?: SentFriendRequestItem[];
+  currentUsername?: string;
+  currentDisplayName?: string;
+  initialFriendQuery?: string;
   isCloudConnected?: boolean;
   authProviderNeedsSetup?: boolean;
   onRetryCloudSync?: () => void;
+  onInviteLinkShared?: () => void;
   onBack: () => void;
   onOpenDm: (dmId: string) => void;
   onAddFriend: (
@@ -827,9 +936,13 @@ export const FriendsView: React.FC<{
   friendRequests = [],
   sentFriendRequestUids = [],
   sentFriendRequestItems = [],
+  currentUsername,
+  currentDisplayName,
+  initialFriendQuery,
   isCloudConnected = true,
   authProviderNeedsSetup = false,
   onRetryCloudSync,
+  onInviteLinkShared,
   onBack,
   onOpenDm,
   onAddFriend,
@@ -847,9 +960,16 @@ export const FriendsView: React.FC<{
   );
   const totalPendingCount = friendRequests.length + activeOutgoingRequests.length;
   const [tab, setTab] = useState<'online' | 'all' | 'pending' | 'add'>(
-    friendRequests.length > 0 ? 'pending' : friendThreads.length === 0 ? 'add' : 'all'
+    initialFriendQuery
+      ? 'add'
+      : friendRequests.length > 0
+      ? 'pending'
+      : friendThreads.length === 0
+      ? 'add'
+      : 'all'
   );
-  const [friendHandle, setFriendHandle] = useState('');
+  const [friendHandle, setFriendHandle] = useState(initialFriendQuery || '');
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [addedMsg, setAddedMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -1290,6 +1410,86 @@ export const FriendsView: React.FC<{
           </div>
         ) : tab === 'add' ? (
           <>
+            {/* Invitaciones mediante enlace directo */}
+            {(() => {
+              const origin = typeof window !== 'undefined' ? window.location.origin : 'https://primordial.app';
+              const handleSlug = encodeURIComponent(currentUsername || 'primordial');
+              const directInviteUrl = `${origin}/?invite=${handleSlug}`;
+              const shareText = `¡Únete a Primordial y agrégame como amigo (${
+                currentDisplayName || '@' + (currentUsername || 'usuario')
+              })! ${directInviteUrl}`;
+              const whatsappHref = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+
+              return (
+                <div className="rounded-2xl bg-gradient-to-br from-[#1b1633] via-[#171825] to-[#111214] border border-[#8b5cf6]/35 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="font-display font-bold text-sm text-white flex items-center gap-1.5">
+                        <Link2 className="w-4 h-4 text-[#a855f7] shrink-0" />
+                        <span>Invitar amigos por enlace directo</span>
+                      </p>
+                      <p className="text-xs text-zinc-300">
+                        Comparte tu link por WhatsApp o redes sociales para agregar amigos rápido y ganar +100 Orbs.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-black/35 border border-white/10 rounded-xl px-3 py-2">
+                    <span className="text-xs text-zinc-300 truncate flex-1 font-mono">
+                      {directInviteUrl}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(directInviteUrl).catch(() => undefined);
+                        setInviteCopied(true);
+                        onInviteLinkShared?.();
+                        window.setTimeout(() => setInviteCopied(false), 2400);
+                      }}
+                      className="px-3 py-1 rounded-lg dc-btn-primary text-[11px] font-bold cursor-pointer shrink-0"
+                    >
+                      {inviteCopied ? '¡Copiado!' : 'Copiar'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => onInviteLinkShared?.()}
+                      className="flex-1 min-w-[150px] h-9 rounded-xl bg-[#25D366] hover:brightness-105 text-[#06210f] text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Compartir en WhatsApp</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && navigator.share) {
+                          navigator
+                            .share({
+                              title: 'Invitación a Primordial',
+                              text: shareText,
+                              url: directInviteUrl,
+                            })
+                            .then(() => onInviteLinkShared?.())
+                            .catch(() => undefined);
+                        } else {
+                          navigator.clipboard?.writeText(shareText).catch(() => undefined);
+                          setInviteCopied(true);
+                          onInviteLinkShared?.();
+                          window.setTimeout(() => setInviteCopied(false), 2400);
+                        }
+                      }}
+                      className="px-4 h-9 rounded-xl dc-btn-secondary text-xs font-bold cursor-pointer shrink-0"
+                    >
+                      Más redes
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             {!isCloudConnected && (
               <div className="rounded-2xl bg-amber-500/12 border border-amber-400/35 p-3.5 text-xs text-amber-200 font-medium leading-relaxed flex flex-col gap-2">
                 {authProviderNeedsSetup ? (
@@ -2878,18 +3078,28 @@ export const DiscoverModal: React.FC<{
   useEffect(() => {
     if (!open) return;
     setJoinError(null);
+    const mergeWithCurated = (cloudList: Server[]) => {
+      const merged = [...CURATED_PUBLIC_SERVERS];
+      for (const s of cloudList) {
+        if (!merged.some((m) => m.id === s.id)) {
+          merged.push(s);
+        }
+      }
+      return merged;
+    };
+
     if (!onLoadServersRef.current) {
-      setServers(discoverableServers);
+      setServers(mergeWithCurated(discoverableServers));
       return;
     }
     let cancelled = false;
     setLoading(true);
     onLoadServersRef.current()
       .then((res) => {
-        if (!cancelled) setServers(res);
+        if (!cancelled) setServers(mergeWithCurated(res));
       })
       .catch(() => {
-        if (!cancelled) setServers([]);
+        if (!cancelled) setServers(mergeWithCurated([]));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

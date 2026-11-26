@@ -841,6 +841,12 @@ export const AvatarArtwork: React.FC<{ avatar: AvatarKey; className?: string }> 
           </text>
         </svg>
       );
+    case 'primordial-bot':
+      return (
+        <div className={`${className} relative flex items-center justify-center rounded-full overflow-hidden bg-gradient-to-br from-[#f5edff] via-[#e4d4ff] to-[#cbb5fd] p-[2px]`}>
+          <PrimordialAppIcon className="w-full h-full rounded-full shadow-none ring-0" />
+        </div>
+      );
     case 'jorge':
       return (
         <svg viewBox="0 0 100 100" className={className}>
@@ -2825,6 +2831,25 @@ export const ProfileFrameArtwork: React.FC<{
     );
   }
 
+  /* Lavanda Primordial Starter Frame */
+  if (frame === 'lavanda') {
+    const tone = accentColor || '#a855f7';
+    return (
+      <div className="absolute -inset-2 pointer-events-none z-20 overflow-visible">
+        <div
+          className="w-full h-full rounded-2xl border-2 border-[#d8b4fe]/85 shadow-[0_0_26px_rgba(168,85,247,0.42)]"
+        />
+        <svg viewBox="0 0 200 180" className="absolute -inset-1 w-[calc(100%+8px)] h-[calc(100%+8px)] overflow-visible anim-holo-glow">
+          <path d="M12 24 Q12 6 30 6" fill="none" stroke={tone} strokeWidth="3.5" strokeLinecap="round" />
+          <path d="M188 24 Q188 6 170 6" fill="none" stroke={tone} strokeWidth="3.5" strokeLinecap="round" />
+          <path d="M12 156 Q12 174 30 174" fill="none" stroke="#c084fc" strokeWidth="3.5" strokeLinecap="round" />
+          <path d="M188 156 Q188 174 170 174" fill="none" stroke="#c084fc" strokeWidth="3.5" strokeLinecap="round" />
+          <polygon points="100,-2 104,4 110,6 104,8 100,14 96,8 90,6 96,4" fill="#f3e8ff" stroke={tone} strokeWidth="1" />
+        </svg>
+      </div>
+    );
+  }
+
   return null;
 };
 
@@ -2864,7 +2889,13 @@ export const UserAvatar: React.FC<{
 
   return (
     <div className={`relative inline-flex shrink-0 ${sizeClass}`}>
-      <div className="w-full h-full rounded-full overflow-hidden bg-[var(--dc-bg-card)]">
+      <div
+        className={`w-full h-full rounded-full overflow-hidden bg-[var(--dc-bg-card)] ${
+          !customAvatarUrl && avatar === 'primordial-bot'
+            ? 'ring-2 ring-[#c4b5fd]/85 shadow-[0_0_18px_rgba(168,85,247,0.48)]'
+            : ''
+        }`}
+      >
         {customAvatarUrl ? (
           <img
             src={customAvatarUrl}

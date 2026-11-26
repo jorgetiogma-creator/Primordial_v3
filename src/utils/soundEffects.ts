@@ -167,3 +167,92 @@ export function playSoundboardClip(clipId: SoundboardClipId, enabled = true): vo
     // Ignore audio context errors
   }
 }
+
+export interface VoiceEntryEffectMeta {
+  id: 'none' | 'arcade-chime' | 'cyber-warp' | 'aurora-bloom' | 'bass-drop';
+  label: string;
+  description: string;
+  accent: string;
+  emoji: string;
+}
+
+export const VOICE_ENTRY_EFFECTS: VoiceEntryEffectMeta[] = [
+  {
+    id: 'none',
+    label: 'Estándar',
+    description: 'Tono clásico al entrar a una sala de voz.',
+    accent: '#949ba4',
+    emoji: '🔊',
+  },
+  {
+    id: 'arcade-chime',
+    label: 'Chime Arcade',
+    description: 'Acorde ascendente retro estilo consola.',
+    accent: '#f59e0b',
+    emoji: '🕹️',
+  },
+  {
+    id: 'cyber-warp',
+    label: 'Cyber Warp',
+    description: 'Destello futurista de neón sintético.',
+    accent: '#06b6d4',
+    emoji: '⚡',
+  },
+  {
+    id: 'aurora-bloom',
+    label: 'Aurora Bloom',
+    description: 'Acorde cristalino envolvente lavanda.',
+    accent: '#a855f7',
+    emoji: '✨',
+  },
+  {
+    id: 'bass-drop',
+    label: 'Impacto Bass',
+    description: 'Pulso grave con remate brillante.',
+    accent: '#ef4444',
+    emoji: '🎧',
+  },
+];
+
+export function playVoiceEntryEffect(
+  effectId: VoiceEntryEffectMeta['id'] | undefined,
+  enabled = true
+): void {
+  if (!enabled) return;
+  if (!effectId || effectId === 'none') {
+    playUiSound('voiceJoin', enabled);
+    return;
+  }
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    switch (effectId) {
+      case 'arcade-chime':
+        playTone(ctx, 523.25, 0.08, now, 'square', 0.055);
+        playTone(ctx, 659.25, 0.08, now + 0.07, 'square', 0.055);
+        playTone(ctx, 783.99, 0.09, now + 0.14, 'square', 0.055);
+        playTone(ctx, 1046.5, 0.18, now + 0.22, 'triangle', 0.07);
+        break;
+      case 'cyber-warp':
+        playTone(ctx, 260, 0.16, now, 'sawtooth', 0.055, 880);
+        playTone(ctx, 520, 0.14, now + 0.09, 'sine', 0.06, 1320);
+        playTone(ctx, 1180, 0.16, now + 0.21, 'triangle', 0.055);
+        break;
+      case 'aurora-bloom':
+        playTone(ctx, 440, 0.22, now, 'sine', 0.06);
+        playTone(ctx, 554.37, 0.22, now + 0.05, 'sine', 0.055);
+        playTone(ctx, 659.25, 0.24, now + 0.11, 'triangle', 0.055);
+        playTone(ctx, 880, 0.28, now + 0.17, 'sine', 0.06);
+        break;
+      case 'bass-drop':
+        playTone(ctx, 175, 0.24, now, 'sawtooth', 0.08, 55);
+        playTone(ctx, 90, 0.2, now + 0.08, 'sine', 0.09, 48);
+        playTone(ctx, 680, 0.14, now + 0.22, 'triangle', 0.055, 920);
+        break;
+    }
+  } catch {
+    // Ignore audio context errors
+  }
+}
+

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import {
   DirectMessageThread,
+  DropInVoiceRoom,
   FriendActivity,
   PublicUserProfile,
   Server,
@@ -39,6 +40,7 @@ import {
   UserProfile,
   VoiceSession,
 } from '../types/discord';
+import { EPHEMERAL_STATUS_PRESETS } from '../data/discordData';
 import {
   GENERATED_ASSETS,
   NameplateStripBackground,
@@ -67,9 +69,16 @@ interface MessagesPanelProps {
   currentUser: UserProfile;
   typingDmIds?: Record<string, string | null>;
   pendingFriendRequestsCount?: number;
+  curatedServers?: Server[];
+  joinedCuratedIds?: string[];
+  dropInRooms?: DropInVoiceRoom[];
+  liveProfilesByUid?: Record<string, PublicUserProfile>;
   onSelectDm: (dmId: string) => void;
   onSelectChannel: (serverId: string, channelId: string) => void;
   onJoinVoice: (serverId: string, channelId: string, channelName: string, serverName: string) => void;
+  onJoinDropInRoom?: (room: DropInVoiceRoom) => void;
+  onUpdateEphemeralStatus?: (status: string, expiresInHours?: number) => void;
+  onJoinCuratedServer?: (serverId: string) => void;
   onOpenFriends: () => void;
   onOpenNewGroupDm: () => void;
   onSelectActivity: (act: FriendActivity) => void;
@@ -101,9 +110,16 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
   currentUser,
   typingDmIds = {},
   pendingFriendRequestsCount = 0,
+  curatedServers = [],
+  joinedCuratedIds = [],
+  dropInRooms = [],
+  liveProfilesByUid = {},
   onSelectDm,
   onSelectChannel,
   onJoinVoice,
+  onJoinDropInRoom,
+  onUpdateEphemeralStatus,
+  onJoinCuratedServer,
   onOpenFriends,
   onOpenNewGroupDm,
   onSelectActivity,
@@ -134,6 +150,9 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [showServerSheet, setShowServerSheet] = useState(false);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(currentUser.customStatus || '');
+  const [noteHours, setNoteHours] = useState<number>(4);
 
   const quickResults = useMemo(() => {
     const q = quickSearchQuery.trim().toLowerCase();
@@ -494,6 +513,54 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                 Descubrir servidores públicos
               </button>
             </div>
+
+            {curatedServers.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
+                  Comunidades listas para unirte con 1 clic
+                </p>
+                {curatedServers.slice(0, 4).map((srv) => {
+                  const alreadyJoined =
+                    joinedCuratedIds.includes(srv.id) ||
+                    servers.some((existing) => existing.id === srv.id);
+                  return (
+                    <div
+                      key={srv.id}
+                      className="rounded-2xl bg-[var(--dc-bg-card)] border border-[var(--dc-border)] p-3 flex items-center gap-3"
+                    >
+                      <div className="w-11 h-11 rounded-2xl overflow-hidden shrink-0">
+                        <ServerIconArt server={srv} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display font-bold text-sm text-[var(--dc-text-primary)] truncate">
+                          {srv.name}
+                        </p>
+                        <p className="text-[11.5px] text-[var(--dc-text-muted)] truncate">
+                          {srv.onlineCount} en línea · {srv.description}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (alreadyJoined && srv.channels[0]) {
+                            onSelectChannel(srv.id, srv.channels[0].id);
+                          } else if (onJoinCuratedServer) {
+                            onJoinCuratedServer(srv.id);
+                          } else {
+                            onJoinCommunity(srv.id);
+                          }
+                        }}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer ${
+                          alreadyJoined ? 'dc-btn-secondary' : 'dc-btn-success'
+                        }`}
+                      >
+                        {alreadyJoined ? 'Abrir' : 'Unirse'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1111,6 +1178,124 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pb-24 md:pb-4">
+        {/* Notas rápidas y estados efímeros */}
+        {!searchQuery && activeContext.type === 'dm' && dmFilter === 'all' && (
+          <div className="py-2 space-y-2.5">
+            <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar pb-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setNoteDraft(currentUser.customStatus || '');
+                  setNoteModalOpen(true);
+                }}
+                className="shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] text-left cursor-pointer max-w-[210px] transition-colors"
+              >
+                <UserAvatar
+                  avatar={currentUser.avatar}
+                  customAvatarUrl={currentUser.customAvatarUrl}
+                  status={currentUser.status}
+                  size="sm"
+                  borderColor="var(--dc-bg-card)"
+                />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-[var(--dc-text-primary)] truncate">
+                    {currentUser.customStatus ? 'Tu nota activa' : '+ Pon tu nota rápida'}
+                  </p>
+                  <p className="text-[11px] text-[var(--dc-text-muted)] truncate">
+                    {currentUser.customStatus || 'Jugando, música o estado (+25 Orbs)'}
+                  </p>
+                </div>
+              </button>
+
+              {dms
+                .filter((d) => !d.isGroup && !d.isBot && d.otherUid && liveProfilesByUid[d.otherUid]?.customStatus)
+                .map((d) => {
+                  const prof = liveProfilesByUid[d.otherUid!];
+                  return (
+                    <button
+                      key={`note-${d.id}`}
+                      type="button"
+                      onClick={() => onSelectDm(d.id)}
+                      className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-2xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] text-left cursor-pointer max-w-[195px]"
+                    >
+                      <UserAvatar
+                        avatar={d.avatar}
+                        customAvatarUrl={d.customAvatarUrl}
+                        status={d.status}
+                        size="sm"
+                        borderColor="var(--dc-bg-card)"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-[var(--dc-text-primary)] truncate">
+                          {d.name}
+                        </p>
+                        <p className="text-[11px] text-[#c4b5fd] truncate">
+                          {prof?.customStatus}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
+
+            {/* Salas de voz rápidas (Drop-in) */}
+            {dropInRooms.length > 0 && onJoinDropInRoom && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between px-0.5">
+                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--dc-text-muted)]">
+                    Salas de voz rápidas (Drop-in)
+                  </span>
+                  <span className="text-[10.5px] text-[var(--dc-text-muted)]">
+                    Entra y sal libremente
+                  </span>
+                </div>
+                <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar pb-0.5">
+                  {dropInRooms.map((room) => {
+                    const isJoined = voiceSession.active && voiceSession.channelId === room.id;
+                    const count =
+                      room.participants.length +
+                      (isJoined && !room.participants.some((p) => p.id === currentUser.id) ? 1 : 0);
+                    return (
+                      <button
+                        key={room.id}
+                        type="button"
+                        onClick={() => onJoinDropInRoom(room)}
+                        className={`shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-2xl border text-left transition-all cursor-pointer min-w-[178px] max-w-[215px] ${
+                          isJoined
+                            ? 'bg-[#23a55a]/18 border-[#23a55a]/60'
+                            : 'bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border-[var(--dc-border)]'
+                        }`}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0"
+                          style={{ backgroundColor: `${room.accentColor}26` }}
+                        >
+                          <span>{room.emoji}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-[var(--dc-text-primary)] truncate">
+                            {room.name}
+                          </p>
+                          <p className="text-[10.5px] text-[var(--dc-text-muted)] truncate flex items-center gap-1">
+                            <Volume2 className={`w-3 h-3 shrink-0 ${isJoined ? 'text-[#23a55a]' : ''}`} />
+                            <span>
+                              {isJoined
+                                ? 'Conectado ahora'
+                                : count > 0
+                                ? `${count} en sala · Entrar`
+                                : 'Abierta · 1 toque'}
+                            </span>
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {!searchQuery && activeContext.type === 'dm' && dmFilter === 'all' && activities.length > 0 && (
           <div className="flex items-stretch gap-2.5 overflow-x-auto no-scrollbar py-2 mb-1">
             {activities.map((act) => {
@@ -1435,17 +1620,19 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                       {dm.muted ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
                       <span>{dm.muted ? 'Activar notificaciones' : 'Silenciar'}</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onCloseDm?.(dm.id);
-                        setOpenDmMenuId(null);
-                      }}
-                      className="w-full px-2.5 py-2 rounded-xl hover:bg-red-500/15 text-left text-red-400 flex items-center gap-2 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Cerrar conversación</span>
-                    </button>
+                    {!dm.isBot && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onCloseDm?.(dm.id);
+                          setOpenDmMenuId(null);
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-red-500/15 text-left text-red-400 flex items-center gap-2 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Cerrar conversación</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1494,6 +1681,115 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
           )}
         </div>
       </div>
+
+      {/* Ephemeral Quick Note / Status Modal */}
+      {noteModalOpen && (
+        <div
+          onClick={() => setNoteModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-end md:items-center justify-center p-0 md:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-t-3xl md:rounded-3xl bg-[#1c1d22] border border-[#2e3035] p-5 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display font-bold text-lg text-white">
+                  Nota rápida y estado
+                </h3>
+                <p className="text-xs text-[#949ba4]">
+                  Visible temporalmente sobre los mensajes (+25 Orbs al publicar).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNoteModalOpen(false)}
+                className="w-8 h-8 rounded-full dc-btn-icon flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {EPHEMERAL_STATUS_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setNoteDraft(preset.text)}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                    noteDraft === preset.text
+                      ? 'bg-[#8b5cf6]/25 border-[#a855f7] text-white'
+                      : 'bg-[#26272f] border-[#2e3035] text-[#b5bac1] hover:text-white'
+                  }`}
+                >
+                  {preset.emoji} {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#949ba4]">
+                Tu nota personalizada (máx. 80 caracteres)
+              </label>
+              <input
+                type="text"
+                maxLength={80}
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Ej. Jugando ranked o escuchando música..."
+                className="w-full bg-[#111214] border border-[#2e3035] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-[#949ba4] focus:outline-none focus:border-[#8b5cf6]"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-[#949ba4]">Duración efímera:</span>
+              <div className="flex items-center gap-1.5">
+                {[1, 4, 24].map((hrs) => (
+                  <button
+                    key={hrs}
+                    type="button"
+                    onClick={() => setNoteHours(hrs)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer ${
+                      noteHours === hrs
+                        ? 'bg-[#5865F2] text-white'
+                        : 'bg-[#26272f] text-[#b5bac1] hover:text-white'
+                    }`}
+                  >
+                    {hrs}h
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              {currentUser.customStatus && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateEphemeralStatus?.('', 0);
+                    setNoteDraft('');
+                    setNoteModalOpen(false);
+                  }}
+                  className="px-4 h-10 rounded-full dc-btn-secondary text-xs font-bold cursor-pointer"
+                >
+                  Quitar nota
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateEphemeralStatus?.(noteDraft.trim(), noteHours);
+                  setNoteModalOpen(false);
+                }}
+                className="flex-1 h-10 rounded-full dc-btn-primary text-xs font-bold cursor-pointer"
+              >
+                Publicar nota rápida
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {renderQuickSearchModal()}
     </div>
   );

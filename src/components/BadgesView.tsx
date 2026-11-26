@@ -46,6 +46,8 @@ export const getBadgeProgressValue = (badgeId: BadgeId, user: UserProfile): numb
       return user.streamHours || 0;
     case 'juegos':
       return user.gamesPlayedCount || 0;
+    case 'pionero':
+      return user.unlockedBadgeIds.includes('pionero') ? 1 : 0;
     default:
       return 0;
   }
@@ -222,6 +224,22 @@ export const BadgeArtwork: React.FC<{
           <circle cx="46" cy="33" r="2" fill="#2c353d" />
           <circle cx="38" cy="33" r="2" fill="#2c353d" />
           <circle cx="42" cy="37" r="2" fill="#2c353d" />
+        </svg>
+      );
+
+    case 'pionero':
+      return (
+        <svg viewBox="0 0 64 64" className={cls}>
+          <defs>
+            <linearGradient id="pioneroGem" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#e9d5ff" />
+              <stop offset="50%" stopColor="#a855f7" />
+              <stop offset="100%" stopColor="#6366f1" />
+            </linearGradient>
+          </defs>
+          <polygon points="32,6 54,22 46,52 18,52 10,22" fill="url(#pioneroGem)" />
+          <polygon points="32,12 46,24 40,46 24,46 18,24" fill="#f5edff" opacity="0.28" />
+          <polygon points="32,18 36,28 46,32 36,36 32,46 28,36 18,32 28,28" fill="#ffffff" />
         </svg>
       );
   }
@@ -561,6 +579,18 @@ export const BadgesView: React.FC<BadgesViewProps> = ({
                     className="w-full h-11 rounded-full dc-btn-primary font-bold text-[14.5px] cursor-pointer"
                   >
                     Ir a Misiones y Orbs
+                  </button>
+                )}
+
+                {selectedBadge.id === 'pionero' && (
+                  <button
+                    onClick={() => {
+                      setSelectedBadge(null);
+                      onOpenShop();
+                    }}
+                    className="w-full h-11 rounded-full dc-btn-primary font-bold text-[14.5px] cursor-pointer"
+                  >
+                    Ir a Tienda
                   </button>
                 )}
 
