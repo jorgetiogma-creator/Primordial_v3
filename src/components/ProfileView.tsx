@@ -58,7 +58,7 @@ import {
   UserAvatar,
   VerifiedBadge,
 } from './DiscordArt';
-import { isVerifiedAccount } from '../utils/ownerAccess';
+import { isOwnerUsername, isVerifiedAccount } from '../utils/ownerAccess';
 import {
   findBundleForCosmetic,
   getOwnedCosmetics,
@@ -143,6 +143,11 @@ const DECORATION_OPTIONS: { id: DecorationId; label: string }[] = [
   { id: 'plantas', label: 'Vibras lofi' },
   { id: 'croma', label: 'Onda cromática' },
   { id: 'gato', label: 'Gato cómodo' },
+  { id: 'zorro-aurora-noir', label: 'Zorro de la aurora (noir)' },
+  { id: 'no-te-quito-ojo', label: 'No te quito ojo' },
+  { id: 'rabia-bunny', label: 'Rabia Dark Mode' },
+  { id: 'garras-abisales', label: 'Garras abisales' },
+  { id: 'angel-caido', label: 'Ángel caído (sombranoche)' },
   { id: 'nitro-disco', label: 'Fragmento Tóxico' },
   { id: 'nitro-auris', label: 'Auriculares Neón' },
   { id: 'nitro-chip', label: 'Placa Cyber' },
@@ -184,6 +189,9 @@ const PROFILE_EFFECT_OPTIONS: { id: ProfileEffectId; label: string; desc: string
   { id: 'sparks', label: 'Chispas Neón', desc: 'Destellos eléctricos flotantes' },
   { id: 'cyber', label: 'Lluvia Cibernética', desc: 'Holograma táctico oscuro' },
   { id: 'crimson', label: 'Aura Carmesí', desc: 'Resplandor rojo chakra intenso' },
+  { id: 'rabia-bunny', label: 'Dark Mode Friday', desc: 'Conejo gótico monocromático y bruma oscura' },
+  { id: 'garras-abisales', label: 'No me sueltes', desc: 'Garras monocromáticas emergiendo de la sombra' },
+  { id: 'nunca-mas', label: 'Nunca más', desc: 'Bandada de cuervos y plumas nocturnas' },
 ];
 
 const PROFILE_FRAME_OPTIONS: {
@@ -260,6 +268,12 @@ const PROFILE_FRAME_OPTIONS: {
     borderClass: 'ring-2 ring-slate-300/45 shadow-[0_0_24px_rgba(148,163,184,0.2)]',
     ornate: true,
   },
+  {
+    id: 'rabia-bunny',
+    label: 'Marco Rabia Dark Mode',
+    borderClass: 'ring-2 ring-zinc-200/70 shadow-[0_0_26px_rgba(0,0,0,0.85)]',
+    ornate: true,
+  },
 ];
 
 const NAMEPLATE_OPTIONS: { id: NameplateId; label: string; gradient?: string }[] = [
@@ -292,6 +306,10 @@ const NAMEPLATE_OPTIONS: { id: NameplateId; label: string; gradient?: string }[]
   { id: 'deadpool', label: 'Deadpool', gradient: 'from-red-600/35 to-zinc-900/60' },
   { id: 'wolverine', label: 'Wolverine', gradient: 'from-yellow-500/30 to-zinc-900/60' },
   { id: 'dbd', label: 'Dead by Daylight', gradient: 'from-orange-700/35 to-black/70' },
+  { id: 'no-te-quito-ojo', label: 'No te quito ojo', gradient: 'from-zinc-500/35 to-black/90' },
+  { id: 'rabia-bunny', label: 'Corazón Dark Mode', gradient: 'from-zinc-400/30 to-zinc-950/90' },
+  { id: 'garras-abisales', label: 'Abrazo sombrío', gradient: 'from-zinc-500/30 to-black/90' },
+  { id: 'angel-caido', label: 'Alas sombranoche', gradient: 'from-violet-600/35 to-zinc-950/90' },
 ];
 
 const AVATAR_PRESETS: { id: AvatarKey; label: string }[] = [
@@ -919,39 +937,38 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   nitroUnlocked: nitroEffectsUnlocked,
                 });
                 return (
-                  <button
-                    onClick={() => setShowStatusSheet(true)}
-                    className="inline-flex items-center gap-1.5 text-[24px] text-[var(--dc-text-primary)] tracking-tight hover:opacity-90 cursor-pointer"
-                  >
-                    <span className={namePres.className} style={namePres.style}>
-                      {user.displayName}
-                    </span>
-                    {isVerifiedAccount(user.username) && <VerifiedBadge size="md" />}
-                    <ChevronDown className="w-5 h-5 text-[var(--dc-text-secondary)]" />
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowStatusSheet(true)}
+                      className="inline-flex items-center gap-1.5 text-[24px] text-[var(--dc-text-primary)] tracking-tight hover:opacity-90 cursor-pointer"
+                    >
+                      <span className={namePres.className} style={namePres.style}>
+                        {user.displayName}
+                      </span>
+                      {isVerifiedAccount(user.username) && <VerifiedBadge size="md" />}
+                      <ChevronDown className="w-5 h-5 text-[var(--dc-text-secondary)]" />
+                    </button>
+                    {(user.serverTag || isOwnerUsername(user.username)) && (
+                      <button
+                        onClick={() => {
+                          openEditor('principal');
+                          setActivePickerSheet('server-tag');
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#181920] border border-white/15 text-[11.5px] font-bold text-white cursor-pointer hover:bg-[#22242e]"
+                      >
+                        {user.serverTag || 'Staff'}
+                      </button>
+                    )}
+                  </div>
                 );
               })()}
 
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <span className="text-[14px] text-[var(--dc-text-secondary)]">{user.username}</span>
-                {user.pronouns && (
-                  <span className="text-[13px] text-[var(--dc-text-muted)]">· {user.pronouns}</span>
-                )}
-                {user.serverTag && (
-                  <button
-                    onClick={() => {
-                      openEditor('principal');
-                      setActivePickerSheet('server-tag');
-                    }}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#181920] border border-white/10 text-[11.5px] font-bold text-white cursor-pointer hover:bg-[#22242e]"
-                  >
-                    {user.serverTag}
-                  </button>
-                )}
                 <button
                   onClick={() => onNavigate('insignias')}
                   title="Ver y personalizar tus insignias"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl bg-[var(--dc-bg-card)] hover:bg-[var(--dc-bg-elevated)] border border-[var(--dc-border)] transition-colors cursor-pointer"
                 >
                   {(user.equippedBadgeIds || ['hypesquad', 'misiones'])
                     .filter((id) => isBadgeUnlocked(id as BadgeId, user))
@@ -962,6 +979,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     ))}
                   <ChevronRight className="w-3.5 h-3.5 text-[var(--dc-text-muted)]" />
                 </button>
+                {user.pronouns && (
+                  <span className="text-[13px] text-[var(--dc-text-muted)]">· {user.pronouns}</span>
+                )}
               </div>
 
               {/* Quick Inline Status Selector */}
@@ -1611,23 +1631,27 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           nitroUnlocked: nitroEffectsUnlocked || nitroPreviewActive,
                         });
                         return (
-                          <h3
-                            className={`text-[24px] leading-tight ${
-                              effectivePreset === 'none' || !(nitroEffectsUnlocked || nitroPreviewActive)
-                                ? 'text-white'
-                                : ''
-                            } ${draftPres.className}`}
-                            style={draftPres.style}
-                          >
-                            {draftName || user.displayName}
-                          </h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3
+                              className={`text-[24px] leading-tight ${
+                                effectivePreset === 'none' || !(nitroEffectsUnlocked || nitroPreviewActive)
+                                  ? 'text-white'
+                                  : ''
+                              } ${draftPres.className}`}
+                              style={draftPres.style}
+                            >
+                              {draftName || user.displayName}
+                            </h3>
+                            {(draftServerTag || isOwnerUsername(user.username)) && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#181920] border border-white/15 text-[11.5px] font-bold text-white">
+                                {draftServerTag || 'Staff'}
+                              </span>
+                            )}
+                          </div>
                         );
                       })()}
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="text-[14px] text-zinc-300">{user.username}</span>
-                        {draftPronouns && (
-                          <span className="text-[13px] text-zinc-400">· {draftPronouns}</span>
-                        )}
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#14151a] border border-white/10">
                           {(user.equippedBadgeIds || ['hypesquad', 'misiones'])
                             .filter((id) => isBadgeUnlocked(id as BadgeId, user))
@@ -1641,10 +1665,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                               />
                             ))}
                         </span>
-                        {draftServerTag && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#181920] border border-white/10 text-[11.5px] font-bold text-white">
-                            {draftServerTag}
-                          </span>
+                        {draftPronouns && (
+                          <span className="text-[13px] text-zinc-400">· {draftPronouns}</span>
                         )}
                       </div>
                     </div>

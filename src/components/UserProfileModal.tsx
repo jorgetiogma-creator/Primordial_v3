@@ -23,7 +23,7 @@ import {
   VerifiedBadge,
 } from './DiscordArt';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
-import { isVerifiedAccount } from '../utils/ownerAccess';
+import { isOwnerUsername, isVerifiedAccount } from '../utils/ownerAccess';
 
 interface UserProfileModalProps {
   profile: PublicUserProfile | null;
@@ -253,15 +253,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <Check className="w-2.5 h-2.5 stroke-[3]" /> APP
                     </span>
                   )}
-                  {profile.serverTag && (
+                  {(profile.serverTag || isOwnerUsername(profile.username)) && (
                     <span className="px-2 py-0.5 rounded-md bg-black/50 border border-white/15 text-[11px] font-bold text-white">
-                      {profile.serverTag}
+                      {profile.serverTag || 'Staff'}
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-[#b5bac1]">
-                  <span>@{profile.username}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>@{profile.username}</span>
+                    {profile.badgeIds && profile.badgeIds.length > 0 && (
+                      <BadgeArtwork
+                        badgeId={profile.badgeIds[0] as BadgeId}
+                        unlocked
+                        user={isSelf ? currentUser : undefined}
+                        size="sm"
+                      />
+                    )}
+                  </span>
                   {profile.pronouns && <span className="text-[#949ba4]">· {profile.pronouns}</span>}
                   <span className="inline-flex items-center gap-1 text-[11px] text-[#b5bac1]">
                     <StatusIndicator status={profile.status} size="xs" borderColor="#111214" />

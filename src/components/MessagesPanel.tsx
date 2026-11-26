@@ -30,6 +30,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  BadgeId,
   DirectMessageThread,
   DropInVoiceRoom,
   FriendActivity,
@@ -41,6 +42,7 @@ import {
   VoiceSession,
 } from '../types/discord';
 import { EPHEMERAL_STATUS_PRESETS } from '../data/discordData';
+import { BadgeArtwork } from './BadgesView';
 import {
   GENERATED_ASSETS,
   NameplateStripBackground,
@@ -51,7 +53,7 @@ import {
 } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
-import { getServerPermissions, isVerifiedAccount } from '../utils/ownerAccess';
+import { getServerPermissions, isOwnerUsername, isVerifiedAccount } from '../utils/ownerAccess';
 import { useTranslation } from '../utils/i18n';
 
 interface MessagesPanelProps {
@@ -1502,13 +1504,24 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
                         {!dm.isGroup && !dm.isBot && isVerifiedAccount(dm.username) && (
                           <VerifiedBadge size="sm" />
                         )}
+                        {!dm.isGroup &&
+                          !dm.isBot &&
+                          (() => {
+                            const dmLive = liveProfilesByUid[dm.id];
+                            const badgeId = dmLive?.badgeIds?.[0] as BadgeId | undefined;
+                            return badgeId ? (
+                              <span className="inline-flex items-center shrink-0">
+                                <BadgeArtwork badgeId={badgeId} unlocked size="sm" />
+                              </span>
+                            ) : null;
+                          })()}
                         {dm.favorite && (
                           <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
                         )}
 
-                        {dm.serverTag && (
+                        {(dm.serverTag || (!dm.isGroup && !dm.isBot && isOwnerUsername(dm.username))) && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/15 dark:bg-white/10 text-[10.5px] font-semibold text-[var(--dc-text-secondary)] shrink-0">
-                            {dm.serverTag}
+                            {dm.serverTag || 'Staff'}
                           </span>
                         )}
 

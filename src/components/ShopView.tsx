@@ -173,6 +173,16 @@ const getBundleArtUrl = (variant: ShopBundle['artVariant']): string | null => {
     case 'random-xd':
     case 'scene-xd':
       return GENERATED_ASSETS.shopRawrSceneArt;
+    case 'zorro-aurora-noir':
+      return GENERATED_ASSETS.shopLoboLuna;
+    case 'no-te-quito-ojo':
+      return GENERATED_ASSETS.shopObserverEyes;
+    case 'rabia-bunny':
+      return GENERATED_ASSETS.shopPesadillaArt;
+    case 'garras-abisales':
+      return GENERATED_ASSETS.shopTrappedSouls;
+    case 'angel-caido':
+      return GENERATED_ASSETS.shopLoboLuna;
     default:
       return null;
   }
@@ -235,10 +245,20 @@ const getBundleTheme = (variant: ShopBundle['artVariant']): BundleThemeMeta => {
     case 'observador-marco':
     case 'tentempie':
     case 'acechador':
+    case 'zorro-aurora-noir':
+    case 'no-te-quito-ojo':
+    case 'rabia-bunny':
+    case 'garras-abisales':
       return {
         gradient: 'from-[#151519] via-[#0c0c10] to-[#050507]',
         glow: 'rgba(228, 228, 231, 0.24)',
         stageBg: '#08080b',
+      };
+    case 'angel-caido':
+      return {
+        gradient: 'from-[#1c1336] via-[#0f0c1d] to-[#06060b]',
+        glow: 'rgba(139, 92, 246, 0.42)',
+        stageBg: '#090714',
       };
     case 'hombre-polilla':
     case 'polilla':
@@ -489,6 +509,14 @@ interface CollectionMeta {
 }
 
 const COLLECTION_META: Record<ShopCollectionId, CollectionMeta> = {
+  'dark-mode-friday': {
+    id: 'dark-mode-friday',
+    title: 'DARK MODE FRIDAY',
+    subtitle: 'Rabia Dark Mode, No me sueltes, Zorro noir, No te quito ojo y Nunca más',
+    backdropUrl: GENERATED_ASSETS.shopPesadillaArt,
+    accentGradient: 'from-zinc-950/95 via-zinc-900/80 to-black/95',
+    titleStyleClass: 'font-display font-black italic tracking-tighter uppercase text-white drop-shadow-[0_2px_14px_rgba(255,255,255,0.45)]',
+  },
   'night-terrors': {
     id: 'night-terrors',
     title: 'NIGHT TERRORS',
@@ -1455,6 +1483,9 @@ export const ShopView: React.FC<ShopViewProps> = ({
   });
 
   // Collection Groups for Structured Storefront
+  const darkModeFridayBundles = bundles.filter(
+    (b) => b.collectionId === 'dark-mode-friday' || b.id === 'bundle-orejas'
+  );
   const nightTerrorsBundles = bundles.filter((b) => b.collectionId === 'night-terrors');
   const darkFolkloreBundles = bundles.filter((b) => b.collectionId === 'dark-folklore');
   const dbdBundles = bundles.filter((b) => b.collectionId === 'dbd');
@@ -1480,7 +1511,9 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
   const activeCollectionMeta = activeCollection ? COLLECTION_META[activeCollection] : null;
   const collectionItems = activeCollection
-    ? bundles.filter((b) => b.collectionId === activeCollection)
+    ? activeCollection === 'dark-mode-friday'
+      ? darkModeFridayBundles
+      : bundles.filter((b) => b.collectionId === activeCollection)
     : [];
 
   // Group collection items neatly by section inside Collection Sub-Pages
@@ -1732,7 +1765,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                           </h2>
                         </div>
                         <p className="text-xs text-zinc-300 leading-relaxed">
-                          +15 por chatear · +25 al poner una nota rápida · +30 en salas Drop-in · +100 al invitar amigos. Canjéalos desde 60 Orbs.
+                          +15 por chatear · +25 al poner una nota rápida · +30 en salas Drop-in · +100 al invitar amigos. Canjéalos desde 74 Orbs.
                         </p>
                       </div>
                       <button
@@ -1781,6 +1814,36 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       </div>
                     )}
                   </section>
+
+                  {/* 0.5 DARK MODE FRIDAY SECTION */}
+                  {darkModeFridayBundles.length > 0 && (
+                    <section className="space-y-3.5">
+                      <CollectionPromoBanner
+                        title="DARK MODE FRIDAY"
+                        subtitle="Rabia Dark Mode, No me sueltes, Zorro noir, No te quito ojo y Nunca más"
+                        metaText={`${darkModeFridayBundles.length} artículos · Edición especial`}
+                        imageUrl={GENERATED_ASSETS.shopPesadillaArt}
+                        titleClass="font-display font-black italic text-2xl tracking-tighter text-white drop-shadow-[0_2px_12px_rgba(255,255,255,0.45)]"
+                        gradientClass="from-black/95 via-zinc-950/65 to-transparent"
+                        onClick={() => openCollectionPage('dark-mode-friday')}
+                      />
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                        {darkModeFridayBundles.map((b) => (
+                          <BundleCard
+                            key={b.id}
+                            bundle={b}
+                            wishlisted={wishlistIds.includes(b.id)}
+                            owned={ownedBundleIds.includes(b.id)}
+                            onSelect={(swatch) => openBundleModal(b, swatch)}
+                            onToggleWishlist={(e) => {
+                              e.stopPropagation();
+                              onToggleWishlist(b.id);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
 
                   {/* 1. NIGHT TERRORS SECTION */}
                   <section className="space-y-3.5">

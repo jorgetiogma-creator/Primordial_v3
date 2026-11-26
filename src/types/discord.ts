@@ -160,7 +160,12 @@ export type DecorationId =
   | 'sharingan-kamui'
   | 'sharingan-shisui'
   | 'ems-sasuke'
-  | 'ems-madara';
+  | 'ems-madara'
+  | 'zorro-aurora-noir'
+  | 'no-te-quito-ojo'
+  | 'rabia-bunny'
+  | 'garras-abisales'
+  | 'angel-caido';
 
 export type NameplateId =
   | 'none'
@@ -200,7 +205,11 @@ export type NameplateId =
   | 'obito-kamui'
   | 'madara-susanoo'
   | 'boruto-karma'
-  | 'naruto-sabio';
+  | 'naruto-sabio'
+  | 'no-te-quito-ojo'
+  | 'rabia-bunny'
+  | 'garras-abisales'
+  | 'angel-caido';
 
 export type BadgeId =
   | 'hypesquad'
@@ -288,7 +297,10 @@ export type ProfileEffectId =
   | 'susanoo-madara'
   | 'chidori-sasuke'
   | 'baryon-mode'
-  | 'karma-boruto';
+  | 'karma-boruto'
+  | 'rabia-bunny'
+  | 'garras-abisales'
+  | 'nunca-mas';
 
 export type ProfileFrameId =
   | 'none'
@@ -308,7 +320,8 @@ export type ProfileFrameId =
   | 'rinnegan-aura'
   | 'kurama-tails'
   | 'susanoo-armor'
-  | 'lavanda';
+  | 'lavanda'
+  | 'rabia-bunny';
 
 export type VoiceEntryEffectId =
   | 'none'
@@ -693,6 +706,7 @@ export interface Quest {
 }
 
 export type ShopCollectionId =
+  | 'dark-mode-friday'
   | 'night-terrors'
   | 'dark-folklore'
   | 'dbd'
@@ -854,7 +868,12 @@ export interface ShopBundle {
     | 'voz-aurora'
     | 'voz-bass'
     | 'insignia-pionero'
-    | 'marco-lavanda';
+    | 'marco-lavanda'
+    | 'zorro-aurora-noir'
+    | 'no-te-quito-ojo'
+    | 'rabia-bunny'
+    | 'garras-abisales'
+    | 'angel-caido';
 }
 
 export interface NotificationItem {

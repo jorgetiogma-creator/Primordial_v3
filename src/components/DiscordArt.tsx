@@ -491,6 +491,90 @@ export const CollectorAvatarCore: React.FC<{
     );
   }
 
+  if (variant === 'zorro-aurora-noir') {
+    const aura = accentColor || '#e4e4e7';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="fox-noir-core" cx="46%" cy="40%" r="58%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="48%" stopColor={aura} />
+            <stop offset="100%" stopColor="#18181b" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="#0b0b0f" />
+        <circle cx="50" cy="50" r="34" fill="url(#fox-noir-core)" opacity="0.22" />
+        <path d="M24 22 L38 42 L20 50 Z" fill="#f4f4f5" stroke="#18181b" strokeWidth="2.5" strokeLinejoin="round" />
+        <path d="M76 22 L62 42 L80 50 Z" fill="#f4f4f5" stroke="#18181b" strokeWidth="2.5" strokeLinejoin="round" />
+        <ellipse cx="50" cy="56" rx="22" ry="17" fill="#18181b" stroke="#f4f4f5" strokeWidth="2" />
+        <path d="M37 51 L44 55 L38 58 Z" fill="#f4f4f5" />
+        <path d="M63 51 L56 55 L62 58 Z" fill="#f4f4f5" />
+        <polygon points="50,65 46,60 54,60" fill="#e4e4e7" />
+      </svg>
+    );
+  }
+
+  if (variant === 'no-te-quito-ojo') {
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <rect width="100" height="100" fill="#050507" />
+        <g stroke="#f4f4f5" strokeWidth="1.6" fill="#ffffff">
+          <ellipse cx="32" cy="36" rx="13" ry="7" />
+          <circle cx="32" cy="36" r="4" fill="#050507" />
+          <ellipse cx="68" cy="38" rx="12" ry="6.5" />
+          <circle cx="68" cy="38" r="3.8" fill="#050507" />
+          <ellipse cx="50" cy="60" rx="20" ry="11" />
+          <circle cx="50" cy="60" r="6.5" fill="#050507" />
+          <circle cx="48" cy="58" r="2" fill="#ffffff" />
+        </g>
+      </svg>
+    );
+  }
+
+  if (variant === 'rabia-bunny') {
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <rect width="100" height="100" fill="#09090d" />
+        <ellipse cx="37" cy="22" rx="7" ry="16" fill="#18181b" stroke="#f4f4f5" strokeWidth="2.2" transform="rotate(-10 37 22)" />
+        <ellipse cx="63" cy="22" rx="7" ry="16" fill="#18181b" stroke="#f4f4f5" strokeWidth="2.2" transform="rotate(10 63 22)" />
+        <circle cx="50" cy="56" r="25" fill="#18181b" stroke="#f4f4f5" strokeWidth="2.4" />
+        <path d="M39 50 C37 46 32 48 34 53 C36 56 41 58 41 58 C41 58 44 54 44 50 C44 47 40 47 39 50 Z" fill="#ffffff" />
+        <path d="M61 50 C59 46 54 48 56 53 C58 56 63 58 63 58 C63 58 66 54 66 50 C66 47 62 47 61 50 Z" fill="#ffffff" />
+        <path d="M41 68 L44 63 L47 68 L50 63 L53 68 L56 63 L59 68 Z" fill="#ffffff" />
+      </svg>
+    );
+  }
+
+  if (variant === 'garras-abisales') {
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <rect width="100" height="100" fill="#07070a" />
+        <path d="M18 68 C22 44 35 34 45 48 C42 36 30 32 22 44 M26 74 C30 56 42 48 48 58" fill="none" stroke="#f4f4f5" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M82 68 C78 44 65 34 55 48 C58 36 70 32 78 44 M74 74 C70 56 58 48 52 58" fill="none" stroke="#f4f4f5" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M46 64 C42 58 48 52 50 56 C52 52 58 58 54 64 L50 70 Z" fill="#e4e4e7" />
+      </svg>
+    );
+  }
+
+  if (variant === 'angel-caido') {
+    const wingGlow = accentColor || '#8b5cf6';
+    return (
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <defs>
+          <radialGradient id="angel-core" cx="50%" cy="45%" r="55%">
+            <stop offset="0%" stopColor="#e9d5ff" />
+            <stop offset="55%" stopColor={wingGlow} />
+            <stop offset="100%" stopColor="#090714" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#angel-core)" />
+        <path d="M48 64 Q24 44 16 20 Q28 24 38 38 Q22 36 18 50 Q32 50 48 64 Z" fill="#f4f4f5" stroke="#1e1b4b" strokeWidth="1.8" />
+        <path d="M52 64 Q76 44 84 20 Q72 24 62 38 Q78 36 82 50 Q68 50 52 64 Z" fill="#f4f4f5" stroke="#1e1b4b" strokeWidth="1.8" />
+        <circle cx="50" cy="40" r="7" fill="none" stroke="#ffffff" strokeWidth="2.2" opacity="0.85" />
+      </svg>
+    );
+  }
+
   /* Rich Illustration Crop inside Collector Medallion for Characters & All Other Bundles */
   if (fallbackArtUrl) {
     return (
@@ -1304,29 +1388,32 @@ export const AvatarDecorationRing: React.FC<{
 
   /* 12. Orejas de gato — Ultra-Plush Multi-Swatch Cat Ears & Tapered Whiskers */
   if (decoration === 'orejas') {
-    const innerTint = accentColor || '#f9a8d4';
-    const outerTint =
-      accentColor === '#fde047'
-        ? '#fefce8'
-        : accentColor === '#86efac'
-        ? '#f0fdf4'
-        : accentColor === '#c084fc'
-        ? '#faf5ff'
-        : '#f8fafc';
-    const shadowTint =
-      accentColor === '#fde047'
-        ? '#fef08a'
-        : accentColor === '#86efac'
-        ? '#bbf7d0'
-        : accentColor === '#c084fc'
-        ? '#e9d5ff'
-        : '#e2e8f0';
+    const isNoir = accentColor === '#18181b';
+    const innerTint = isNoir ? '#3f3f46' : accentColor || '#f9a8d4';
+    const outerTint = isNoir
+      ? '#18181b'
+      : accentColor === '#fde047'
+      ? '#fefce8'
+      : accentColor === '#86efac'
+      ? '#f0fdf4'
+      : accentColor === '#c084fc'
+      ? '#faf5ff'
+      : '#f8fafc';
+    const shadowTint = isNoir
+      ? '#09090b'
+      : accentColor === '#fde047'
+      ? '#fef08a'
+      : accentColor === '#86efac'
+      ? '#bbf7d0'
+      : accentColor === '#c084fc'
+      ? '#e9d5ff'
+      : '#e2e8f0';
     return (
       <div className="absolute -inset-[22%] w-[144%] h-[144%] pointer-events-none z-10">
         <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-float">
           <defs>
-            <linearGradient id="catEarOuterL" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#ffffff" />
+            <linearGradient id={`catEarOuterL-${isNoir ? 'noir' : 'light'}`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={isNoir ? '#3f3f46' : '#ffffff'} />
               <stop offset="65%" stopColor={outerTint} />
               <stop offset="100%" stopColor={shadowTint} />
             </linearGradient>
@@ -1342,8 +1429,8 @@ export const AvatarDecorationRing: React.FC<{
             {/* Left Plush Ear */}
             <path
               d="M15 49 Q13 13 24 8 Q37 12 49 28 Q32 36 15 49 Z"
-              fill="url(#catEarOuterL)"
-              stroke="#18181b"
+              fill={`url(#catEarOuterL-${isNoir ? 'noir' : 'light'})`}
+              stroke={isNoir ? '#e4e4e7' : '#18181b'}
               strokeWidth="2.2"
               strokeLinejoin="round"
             />
@@ -1352,8 +1439,8 @@ export const AvatarDecorationRing: React.FC<{
             {/* Right Plush Ear */}
             <path
               d="M105 49 Q107 13 96 8 Q83 12 71 28 Q88 36 105 49 Z"
-              fill="url(#catEarOuterL)"
-              stroke="#18181b"
+              fill={`url(#catEarOuterL-${isNoir ? 'noir' : 'light'})`}
+              stroke={isNoir ? '#e4e4e7' : '#18181b'}
               strokeWidth="2.2"
               strokeLinejoin="round"
             />
@@ -2536,6 +2623,179 @@ export const AvatarDecorationRing: React.FC<{
     );
   }
 
+  /* D1. Zorro de la aurora (noir) — Silver-White & Noir Plush Fox Hood Ears + Fluffy Fox Tail */
+  if (decoration === 'zorro-aurora-noir') {
+    const tint = accentColor || '#f4f4f5';
+    return (
+      <div className="absolute -inset-[25%] w-[150%] h-[150%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible">
+          <defs>
+            <linearGradient id="foxNoirFur" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="55%" stopColor={tint === '#38bdf8' ? '#bae6fd' : '#d4d4d8'} />
+              <stop offset="100%" stopColor="#27272a" />
+            </linearGradient>
+            <linearGradient id="foxNoirTail" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#f4f4f5" />
+              <stop offset="58%" stopColor="#a1a1aa" />
+              <stop offset="100%" stopColor="#18181b" />
+            </linearGradient>
+          </defs>
+          {/* Plush Circular Fur Ring */}
+          <circle cx="60" cy="60" r="49" fill="none" stroke="url(#foxNoirFur)" strokeWidth="6.5" />
+          {/* Left & Right Fox Hood Ears + Cheek Fur Tufts */}
+          <g className="anim-float">
+            <path d="M16 44 Q11 8 27 4 Q41 11 49 23 Q30 28 16 44 Z" fill="url(#foxNoirFur)" stroke="#09090b" strokeWidth="2.2" strokeLinejoin="round" />
+            <path d="M22 36 Q20 17 28 12 Q35 16 42 24 Z" fill="#18181b" />
+            <path d="M104 44 Q109 8 93 4 Q79 11 71 23 Q90 28 104 44 Z" fill="url(#foxNoirFur)" stroke="#09090b" strokeWidth="2.2" strokeLinejoin="round" />
+            <path d="M98 36 Q100 17 92 12 Q85 16 78 24 Z" fill="#18181b" />
+            {/* Forehead Fur Crest */}
+            <path d="M47 13 L56 4 L60 11 L67 4 L72 13 Z" fill="#f4f4f5" stroke="#18181b" strokeWidth="1.5" strokeLinejoin="round" />
+            {/* Side Cheek Fur Tufts */}
+            <path d="M12 52 L3 60 L11 66 L5 74 L15 78" fill="#f4f4f5" stroke="#18181b" strokeWidth="2" strokeLinejoin="round" />
+            <path d="M108 52 L117 60 L109 66 L115 74 L105 78" fill="#e4e4e7" stroke="#18181b" strokeWidth="2" strokeLinejoin="round" />
+          </g>
+          {/* Sweeping Fluffy Fox Tail Across Bottom */}
+          <path
+            d="M16 90 Q36 122 86 112 Q105 106 94 94 Q72 103 44 96 Q24 91 16 90 Z"
+            fill="url(#foxNoirTail)"
+            stroke="#09090b"
+            strokeWidth="2.3"
+            strokeLinejoin="round"
+          />
+          <circle cx="96" cy="24" r="1.8" fill="#ffffff" opacity="0.85" />
+          <circle cx="105" cy="40" r="1.3" fill="#e4e4e7" opacity="0.7" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* D2. No te quito ojo — Swirling Monochrome Manga Ink Tendrils Studded With Staring Eyes */
+  if (decoration === 'no-te-quito-ojo') {
+    const eyes = [
+      { cx: 60, cy: 11, rx: 8.5, ry: 4.5, r: 0 },
+      { cx: 34, cy: 17, rx: 7, ry: 3.8, r: -28 },
+      { cx: 88, cy: 18, rx: 7.5, ry: 4, r: 26 },
+      { cx: 14, cy: 40, rx: 7.5, ry: 4.2, r: -62 },
+      { cx: 106, cy: 42, rx: 7.2, ry: 4, r: 64 },
+      { cx: 12, cy: 69, rx: 7, ry: 3.8, r: -98 },
+      { cx: 108, cy: 70, rx: 7.5, ry: 4, r: 95 },
+      { cx: 26, cy: 96, rx: 8, ry: 4.5, r: 40 },
+      { cx: 92, cy: 96, rx: 8, ry: 4.5, r: -38 },
+      { cx: 60, cy: 109, rx: 9, ry: 4.8, r: 0 },
+    ];
+    return (
+      <div className="absolute -inset-[26%] w-[152%] h-[152%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-ghost">
+          {/* Dense Swirling Ink Halo */}
+          <circle cx="60" cy="60" r="51" fill="none" stroke="#09090b" strokeWidth="13" />
+          <circle cx="60" cy="60" r="56" fill="none" stroke="#e4e4e7" strokeWidth="1.6" strokeDasharray="11 7 5 6" opacity="0.82" />
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#f4f4f5" strokeWidth="1.4" strokeDasharray="8 6" opacity="0.7" />
+          {/* Curling Ink Tendrils */}
+          <path d="M18 28 Q6 14 22 6 Q16 18 28 16" fill="none" stroke="#09090b" strokeWidth="5.5" strokeLinecap="round" />
+          <path d="M102 28 Q114 14 98 6 Q104 18 92 16" fill="none" stroke="#09090b" strokeWidth="5.5" strokeLinecap="round" />
+          <path d="M18 92 Q4 106 24 114 Q14 102 28 104" fill="none" stroke="#09090b" strokeWidth="5.5" strokeLinecap="round" />
+          <path d="M102 92 Q116 106 96 114 Q106 102 92 104" fill="none" stroke="#09090b" strokeWidth="5.5" strokeLinecap="round" />
+          {/* Staring Monochrome Eyes */}
+          <g className="anim-eye-blink">
+            {eyes.map((eye, idx) => (
+              <g key={idx} transform={`translate(${eye.cx}, ${eye.cy}) rotate(${eye.r})`}>
+                <ellipse cx="0" cy="0" rx={eye.rx} ry={eye.ry} fill="#ffffff" stroke="#09090b" strokeWidth="1.5" />
+                <circle cx="0" cy="0" r={eye.ry * 0.62} fill="#09090b" />
+                <circle cx={-eye.ry * 0.22} cy={-eye.ry * 0.22} r={eye.ry * 0.19} fill="#ffffff" />
+              </g>
+            ))}
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  /* D3. Rabia Dark Mode — Stitched Gothic Plush Bunny Ears, Heart Eyes & Jagged Fangs */
+  if (decoration === 'rabia-bunny') {
+    const stitchPink = accentColor === '#ec4899' ? '#f472b6' : '#e4e4e7';
+    return (
+      <div className="absolute -inset-[25%] w-[150%] h-[150%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-float">
+          <circle cx="60" cy="60" r="49" fill="none" stroke="#18181b" strokeWidth="6" />
+          <circle cx="60" cy="60" r="52" fill="none" stroke="#f4f4f5" strokeWidth="1.6" strokeDasharray="5 4" />
+          {/* Jagged Gothic Bunny Ears */}
+          <path d="M22 44 Q14 4 31 2 Q45 8 47 26 Z" fill="#18181b" stroke="#f4f4f5" strokeWidth="2.2" strokeLinejoin="round" />
+          <path d="M27 36 Q24 14 32 10 Q39 14 40 25 Z" fill="#3f3f46" />
+          <path d="M98 44 Q106 4 89 2 Q75 8 73 26 Z" fill="#18181b" stroke="#f4f4f5" strokeWidth="2.2" strokeLinejoin="round" />
+          <path d="M93 36 Q96 14 88 10 Q81 14 80 25 Z" fill="#3f3f46" />
+          {/* Top Stitched Gothic Lace Bow & Heart Badge */}
+          <path d="M44 14 L76 14" stroke={stitchPink} strokeWidth="2.2" strokeDasharray="4 3" />
+          <path d="M60 18 C54 12 46 16 49 23 C51 27 60 32 60 32 C60 32 69 27 71 23 C74 16 66 12 60 18 Z" fill="#09090b" stroke={stitchPink} strokeWidth="1.8" />
+          {/* Side Plush Paw Accents */}
+          <circle cx="14" cy="84" r="9.5" fill="#18181b" stroke="#f4f4f5" strokeWidth="1.8" />
+          <circle cx="14" cy="85" r="3.5" fill={stitchPink} />
+          <circle cx="106" cy="84" r="9.5" fill="#18181b" stroke="#f4f4f5" strokeWidth="1.8" />
+          <circle cx="106" cy="85" r="3.5" fill={stitchPink} />
+        </svg>
+      </div>
+    );
+  }
+
+  /* D4. Garras abisales (No me sueltes) — Twin Monochrome Clawed Hands Gripping Avatar Edges */
+  if (decoration === 'garras-abisales') {
+    return (
+      <div className="absolute -inset-[26%] w-[152%] h-[152%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-ghost">
+          <circle cx="60" cy="60" r="49" fill="none" stroke="#18181b" strokeWidth="4.5" />
+          <circle cx="60" cy="60" r="51.5" fill="none" stroke="#e4e4e7" strokeWidth="1.3" opacity="0.65" />
+          {/* Left Gripping Clawed Hand */}
+          <g fill="#f4f4f5" stroke="#09090b" strokeWidth="2" strokeLinejoin="round">
+            <path d="M4 54 Q6 34 22 24 L29 31 Q17 40 16 52 Z" />
+            <path d="M2 66 Q4 48 23 40 L28 48 Q16 55 15 66 Z" />
+            <path d="M5 78 Q10 62 27 56 L30 64 Q18 70 18 80 Z" />
+            <path d="M12 90 Q18 76 34 73 L36 81 Q25 84 23 94 Z" />
+          </g>
+          {/* Right Gripping Clawed Hand */}
+          <g fill="#f4f4f5" stroke="#09090b" strokeWidth="2" strokeLinejoin="round">
+            <path d="M116 54 Q114 34 98 24 L91 31 Q103 40 104 52 Z" />
+            <path d="M118 66 Q116 48 97 40 L92 48 Q104 55 105 66 Z" />
+            <path d="M115 78 Q110 62 93 56 L90 64 Q102 70 102 80 Z" />
+            <path d="M108 90 Q102 76 86 73 L84 81 Q95 84 97 94 Z" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  /* D5. Ángel caído (sombranoche) — Twin Violet-Indigo & Silver Feathered Angel Wings */
+  if (decoration === 'angel-caido') {
+    const primaryWing = accentColor || '#8b5cf6';
+    return (
+      <div className="absolute -inset-[27%] w-[154%] h-[154%] pointer-events-none z-10">
+        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible anim-float">
+          <defs>
+            <linearGradient id="fallenWingL" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="45%" stopColor="#c4b5fd" />
+              <stop offset="100%" stopColor={primaryWing} />
+            </linearGradient>
+            <filter id="fallenWingGlow" x="-25%" y="-25%" width="150%" height="150%">
+              <feGaussianBlur stdDeviation="2.2" result="b" />
+              <feMerge>
+                <feMergeNode in="b" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <g filter="url(#fallenWingGlow)">
+            {/* Left Layered Angel Wing */}
+            <path d="M44 102 Q10 72 8 18 Q26 24 38 48 Q18 42 15 58 Q28 60 40 72 Q22 72 22 86 Q34 86 44 102 Z" fill="url(#fallenWingL)" stroke="#1e1b4b" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M14 26 L36 52 M18 46 L38 68 M24 68 L41 86" stroke="#312e81" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
+            {/* Right Layered Angel Wing */}
+            <path d="M76 102 Q110 72 112 18 Q94 24 82 48 Q102 42 105 58 Q92 60 80 72 Q98 72 98 86 Q86 86 76 102 Z" fill="url(#fallenWingL)" stroke="#1e1b4b" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M106 26 L84 52 M102 46 L82 68 M96 68 L79 86" stroke="#312e81" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
   /* 36. Fallback Premium Iridescent Ring (ofrenda / enfado / etc.) */
   return (
     <div className="absolute -inset-[18%] w-[136%] h-[136%] pointer-events-none z-10">
@@ -2845,6 +3105,24 @@ export const ProfileFrameArtwork: React.FC<{
           <path d="M12 156 Q12 174 30 174" fill="none" stroke="#c084fc" strokeWidth="3.5" strokeLinecap="round" />
           <path d="M188 156 Q188 174 170 174" fill="none" stroke="#c084fc" strokeWidth="3.5" strokeLinecap="round" />
           <polygon points="100,-2 104,4 110,6 104,8 100,14 96,8 90,6 96,4" fill="#f3e8ff" stroke={tone} strokeWidth="1" />
+        </svg>
+      </div>
+    );
+  }
+
+  /* Dark Mode Friday: Marco Rabia Dark Mode — Gothic Lace & Stitched Plush Bunny Ears Frame */
+  if (frame === 'rabia-bunny') {
+    const stitch = accentColor === '#ec4899' ? '#f472b6' : '#f4f4f5';
+    return (
+      <div className="absolute -inset-2 pointer-events-none z-20 overflow-visible">
+        <div className="w-full h-full rounded-2xl border-[3px] border-zinc-200/75 shadow-[0_0_28px_rgba(0,0,0,0.95)] ring-1 ring-black" />
+        <svg viewBox="0 0 200 180" className="absolute -top-7 inset-x-0 w-full h-auto overflow-visible anim-float">
+          <path d="M56 36 Q48 2 67 0 Q82 6 82 28 Z" fill="#18181b" stroke="#f4f4f5" strokeWidth="2.2" strokeLinejoin="round" />
+          <path d="M144 36 Q152 2 133 0 Q118 6 118 28 Z" fill="#18181b" stroke="#f4f4f5" strokeWidth="2.2" strokeLinejoin="round" />
+          <circle cx="100" cy="24" r="15" fill="#18181b" stroke="#f4f4f5" strokeWidth="2" />
+          <path d="M93 20 C91 17 87 19 89 23 C91 25 94 26 94 26 C94 26 97 23 97 20 C97 18 94 18 93 20 Z" fill="#ffffff" />
+          <path d="M107 20 C105 17 101 19 103 23 C105 25 108 26 108 26 C108 26 111 23 111 20 C111 18 108 18 107 20 Z" fill="#ffffff" />
+          <path d="M93 31 L96 27 L100 31 L104 27 L107 31" fill="none" stroke={stitch} strokeWidth="1.8" strokeLinejoin="round" />
         </svg>
       </div>
     );
@@ -3216,6 +3494,39 @@ export const NameplateStripBackground: React.FC<{
     );
   }
 
+  if (nameplate === 'no-te-quito-ojo' || nameplate === 'rabia-bunny' || nameplate === 'garras-abisales' || nameplate === 'angel-caido') {
+    const bgStyle =
+      nameplate === 'angel-caido'
+        ? 'linear-gradient(90deg, rgba(16,14,32,0.94) 0%, rgba(109,40,217,0.34) 54%, rgba(228,228,231,0.22) 100%)'
+        : nameplate === 'rabia-bunny'
+        ? 'linear-gradient(90deg, rgba(12,12,16,0.96) 0%, rgba(39,39,42,0.85) 55%, rgba(244,244,245,0.22) 100%)'
+        : 'linear-gradient(90deg, rgba(8,8,12,0.96) 0%, rgba(24,24,27,0.92) 55%, rgba(212,212,216,0.2) 100%)';
+
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="w-full h-full" style={{ background: bgStyle }} />
+        {nameplate === 'no-te-quito-ojo' && (
+          <svg viewBox="0 0 240 60" className="absolute right-0 inset-y-0 h-full w-auto opacity-75">
+            <ellipse cx="148" cy="22" rx="18" ry="10" fill="#ffffff" stroke="#09090b" strokeWidth="2" />
+            <circle cx="148" cy="22" r="5.5" fill="#09090b" />
+            <ellipse cx="195" cy="36" rx="22" ry="12" fill="#ffffff" stroke="#09090b" strokeWidth="2" />
+            <circle cx="195" cy="36" r="7" fill="#09090b" />
+            <ellipse cx="226" cy="16" rx="12" ry="6.5" fill="#ffffff" stroke="#09090b" strokeWidth="1.6" />
+            <circle cx="226" cy="16" r="3.5" fill="#09090b" />
+          </svg>
+        )}
+        {nameplate === 'angel-caido' && (
+          <svg viewBox="0 0 240 60" className="absolute right-0 inset-y-0 h-full w-auto opacity-80">
+            <path d="M165 56 Q190 22 232 10 Q218 32 235 44 Q205 48 165 56 Z" fill="#18181b" stroke="#c4b5fd" strokeWidth="1.2" />
+            <path d="M134 18 Q144 10 152 18 L145 21 Z" fill="#09090b" />
+            <path d="M174 28 Q182 20 190 28 L184 31 Z" fill="#09090b" />
+          </svg>
+        )}
+        <div className="absolute inset-x-0 top-0 h-[1px] bg-white/25" />
+      </div>
+    );
+  }
+
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       <div
@@ -3383,6 +3694,47 @@ export const NameplateRowDecor: React.FC<{ nameplate: NameplateId }> = ({ namepl
       <svg viewBox="0 0 36 32" className="w-8 h-7 shrink-0 z-10 anim-holo-glow">
         <polygon points="18,6 28,16 18,26 8,16" fill="#09090b" stroke="#22d3ee" strokeWidth="2" />
         <circle cx="18" cy="16" r="2.8" fill="#bae6fd" />
+      </svg>
+    );
+  }
+
+  if (nameplate === 'no-te-quito-ojo') {
+    return (
+      <svg viewBox="0 0 40 32" className="w-9 h-7 shrink-0 z-10 anim-eye-blink">
+        <ellipse cx="20" cy="16" rx="14" ry="8" fill="#ffffff" stroke="#09090b" strokeWidth="1.8" />
+        <circle cx="20" cy="16" r="4.8" fill="#09090b" />
+        <circle cx="18.5" cy="14.5" r="1.5" fill="#ffffff" />
+      </svg>
+    );
+  }
+
+  if (nameplate === 'rabia-bunny') {
+    return (
+      <svg viewBox="0 0 40 32" className="w-9 h-7 shrink-0 z-10 anim-float">
+        <ellipse cx="14" cy="9" rx="3" ry="7" fill="#18181b" stroke="#f4f4f5" strokeWidth="1.2" transform="rotate(-10 14 9)" />
+        <ellipse cx="26" cy="9" rx="3" ry="7" fill="#18181b" stroke="#f4f4f5" strokeWidth="1.2" transform="rotate(10 26 9)" />
+        <circle cx="20" cy="20" r="8" fill="#18181b" stroke="#f4f4f5" strokeWidth="1.4" />
+        <circle cx="17" cy="19" r="1.6" fill="#ffffff" />
+        <circle cx="23" cy="19" r="1.6" fill="#ffffff" />
+      </svg>
+    );
+  }
+
+  if (nameplate === 'garras-abisales') {
+    return (
+      <svg viewBox="0 0 40 32" className="w-9 h-7 shrink-0 z-10 anim-ghost">
+        <path d="M8 22 Q11 8 20 14 Q29 8 32 22 Q24 27 20 29 Q16 27 8 22 Z" fill="none" stroke="#f4f4f5" strokeWidth="2.2" strokeLinejoin="round" />
+        <path d="M12 10 L16 18 M28 10 L24 18" stroke="#e4e4e7" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (nameplate === 'angel-caido') {
+    return (
+      <svg viewBox="0 0 40 32" className="w-9 h-7 shrink-0 z-10 anim-float">
+        <path d="M18 24 Q6 14 6 4 Q14 8 18 16 Z" fill="#c4b5fd" stroke="#1e1b4b" strokeWidth="1.2" />
+        <path d="M22 24 Q34 14 34 4 Q26 8 22 16 Z" fill="#c4b5fd" stroke="#1e1b4b" strokeWidth="1.2" />
+        <circle cx="20" cy="18" r="2.4" fill="#ffffff" />
       </svg>
     );
   }
@@ -3694,6 +4046,27 @@ export const PROFILE_EFFECT_META: Record<
     secondary: '#6366f1',
     artUrl: GENERATED_ASSETS.narutoSasukeBorutoArt,
     particles: 'cyber',
+  },
+  'rabia-bunny': {
+    title: 'DARK MODE FRIDAY',
+    primary: '#f4f4f5',
+    secondary: '#18181b',
+    artUrl: GENERATED_ASSETS.shopPesadillaArt,
+    particles: 'horror',
+  },
+  'garras-abisales': {
+    title: 'NO ME SUELTES',
+    primary: '#e4e4e7',
+    secondary: '#3f3f46',
+    artUrl: GENERATED_ASSETS.shopTrappedSouls,
+    particles: 'horror',
+  },
+  'nunca-mas': {
+    title: 'NUNCA MÁS',
+    primary: '#a78bfa',
+    secondary: '#e4e4e7',
+    artUrl: GENERATED_ASSETS.shopLoboLuna,
+    particles: 'horror',
   },
 };
 

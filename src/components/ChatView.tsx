@@ -39,7 +39,9 @@ import {
   X,
 } from 'lucide-react';
 import {
+  AppPreferences,
   AvatarKey,
+  BadgeId,
   ChatMessage,
   DirectMessageThread,
   PublicUserProfile,
@@ -48,12 +50,12 @@ import {
   ServerSettingsSection,
   ThreadMessage,
   UserProfile,
-  AppPreferences,
 } from '../types/discord';
+import { BadgeArtwork, isBadgeUnlocked } from './BadgesView';
 import { NameplateStripBackground, UserAvatar, VerifiedBadge } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
-import { getServerPermissions, isVerifiedAccount } from '../utils/ownerAccess';
+import { getServerPermissions, isOwnerUsername, isVerifiedAccount } from '../utils/ownerAccess';
 import { sendThreadReply, subscribeToMessageThreads } from '../services/firestoreService';
 import { getLanguageOption, translateChatMessageText } from '../utils/i18n';
 
@@ -1547,28 +1549,54 @@ export const ChatView: React.FC<ChatViewProps> = ({
                               );
                             })()}
                           {(() => {
+                            const liveProfile = !isMe ? liveProfilesByUid[msg.authorId] : undefined;
                             const authorUsername = isMe
                               ? currentUser.username
-                              : mode === 'dm' && dm && !dm.isGroup
-                              ? dm.username
-                              : server?.members?.find((m) => m.uid === msg.authorId)?.username;
-                            return !msg.authorIsBot && isVerifiedAccount(authorUsername) ? (
-                              <VerifiedBadge size="sm" />
-                            ) : null;
+                              : liveProfile?.username ||
+                                (mode === 'dm' && dm && !dm.isGroup ? dm.username : undefined) ||
+                                server?.members?.find((m) => m.uid === msg.authorId)?.username;
+                            const primaryBadgeId: BadgeId | undefined = isMe
+                              ? (currentUser.equippedBadgeIds || []).find((id) =>
+                                  isBadgeUnlocked(id as BadgeId, currentUser)
+                                ) as BadgeId | undefined
+                              : (liveProfile?.badgeIds?.[0] as BadgeId | undefined);
+                            const tagText = isMe
+                              ? currentUser.serverTag ||
+                                (isOwnerUsername(currentUser.username) ? 'Staff' : undefined)
+                              : msg.authorTag ||
+                                liveProfile?.serverTag ||
+                                (isOwnerUsername(authorUsername) ? 'Staff' : undefined);
+                            return (
+                              <>
+                                {!msg.authorIsBot && isVerifiedAccount(authorUsername) && (
+                                  <VerifiedBadge size="sm" />
+                                )}
+                                {primaryBadgeId && (
+                                  <span className="inline-flex items-center self-center shrink-0">
+                                    <BadgeArtwork
+                                      badgeId={primaryBadgeId}
+                                      unlocked
+                                      user={isMe ? currentUser : undefined}
+                                      size="sm"
+                                    />
+                                  </span>
+                                )}
+                                {authorRole && (
+                                  <span
+                                    className="px-1.5 py-[1px] rounded-md text-[10px] font-bold bg-white/[0.07] border border-white/10"
+                                    style={{ color: authorRole.color }}
+                                  >
+                                    {authorRole.name}
+                                  </span>
+                                )}
+                                {tagText && (
+                                  <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-semibold text-[var(--dc-text-secondary)]">
+                                    {tagText}
+                                  </span>
+                                )}
+                              </>
+                            );
                           })()}
-                          {authorRole && (
-                            <span
-                              className="px-1.5 py-[1px] rounded-md text-[10px] font-bold bg-white/[0.07] border border-white/10"
-                              style={{ color: authorRole.color }}
-                            >
-                              {authorRole.name}
-                            </span>
-                          )}
-                          {(isMe ? currentUser.serverTag : msg.authorTag) && (
-                            <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-semibold text-[var(--dc-text-secondary)]">
-                              {isMe ? currentUser.serverTag : msg.authorTag}
-                            </span>
-                          )}
                           {msg.authorIsBot && (
                             <span className="px-1 py-[1px] rounded bg-[var(--dc-blurple)] text-[9.5px] font-bold text-white uppercase">
                               APP
@@ -2715,6 +2743,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             {isSelf && isVerifiedAccount(currentUser.username) && (
                               <VerifiedBadge size="sm" />
                             )}
+                            {(() => {
+                              const liveMember = !isSelf ? liveProfilesByUid[member.uid] : undefined;
+                              const badgeId = isSelf
+                                ? ((currentUser.equippedBadgeIds || []).find((id) =>
+                                    isBadgeUnlocked(id as BadgeId, currentUser)
+                                  ) as BadgeId | undefined)
+                                : (liveMember?.badgeIds?.[0] as BadgeId | undefined);
+                              return badgeId ? (
+                                <span className="inline-flex items-center shrink-0">
+                                  <BadgeArtwork
+                                    badgeId={badgeId}
+                                    unlocked
+                                    user={isSelf ? currentUser : undefined}
+                                    size="sm"
+                                  />
+                                </span>
+                              ) : null;
+                            })()}
                             {isSrvOwner ? (
                               <span title="Dueño del servidor">
                                 <Crown className="w-3.5 h-3.5 text-[#f0b232] shrink-0" />

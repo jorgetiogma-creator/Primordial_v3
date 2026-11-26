@@ -688,7 +688,7 @@ export const INITIAL_QUESTS: Quest[] = [
   },
 ];
 
-export const INITIAL_SHOP_BUNDLES: ShopBundle[] = [
+const BASE_SHOP_BUNDLES: ShopBundle[] = [
   {
     id: 'bundle-miyabi',
     title: 'Lote de Hoshimi Miyabi',
@@ -2569,7 +2569,7 @@ export const INITIAL_SHOP_BUNDLES: ShopBundle[] = [
     category: 'lofi',
     priceOrbs: 350,
     priceUsd: '4,99 US$',
-    colorSwatches: ['#f9a8d4', '#f5f5f4', '#fde047', '#86efac'],
+    colorSwatches: ['#18181b', '#f9a8d4', '#f5f5f4', '#fde047', '#86efac'],
     hasExtraSwatches: true,
     artVariant: 'orejas',
     items: [
@@ -2898,7 +2898,168 @@ export const INITIAL_SHOP_BUNDLES: ShopBundle[] = [
       },
     ],
   },
+
+  /* ===================================================================== */
+  /* DARK MODE FRIDAY COLLECTION                                           */
+  /* ===================================================================== */
+  {
+    id: 'bundle-rabia-dark-mode',
+    title: 'Lote de Rabia Dark Mode',
+    shortTitle: 'Lote de Rabia Dark Mode',
+    collectionId: 'dark-mode-friday',
+    category: 'horror',
+    priceOrbs: 850,
+    priceUsd: '11,99 US$',
+    colorSwatches: ['#18181b', '#f4f4f5', '#ec4899'],
+    artVariant: 'rabia-bunny',
+    items: [
+      {
+        id: 'rabia-deco',
+        name: 'Rabia Dark Mode',
+        kind: 'Decoración de avatar',
+        decorationId: 'rabia-bunny',
+      },
+      {
+        id: 'rabia-frame',
+        name: 'Marco Rabia Dark Mode',
+        kind: 'Marco de perfil',
+        profileFrameId: 'rabia-bunny',
+      },
+      {
+        id: 'rabia-fx',
+        name: 'Dark Mode Friday',
+        kind: 'Efecto de perfil',
+        profileEffectId: 'rabia-bunny',
+      },
+      {
+        id: 'rabia-plate',
+        name: 'Corazón Dark Mode',
+        kind: 'Placa de identificación',
+        nameplateId: 'rabia-bunny',
+      },
+    ],
+  },
+  {
+    id: 'bundle-no-me-sueltes',
+    title: 'Lote de No me sueltes',
+    shortTitle: 'Lote de No me sueltes',
+    collectionId: 'dark-mode-friday',
+    category: 'horror',
+    priceOrbs: 750,
+    priceUsd: '9,99 US$',
+    colorSwatches: ['#e4e4e7', '#18181b', '#a855f7'],
+    artVariant: 'garras-abisales',
+    items: [
+      {
+        id: 'no-me-sueltes-deco',
+        name: 'Garras abisales',
+        kind: 'Decoración de avatar',
+        decorationId: 'garras-abisales',
+      },
+      {
+        id: 'no-me-sueltes-plate',
+        name: 'Abrazo sombrío',
+        kind: 'Placa de identificación',
+        nameplateId: 'garras-abisales',
+      },
+      {
+        id: 'no-me-sueltes-fx',
+        name: 'No me sueltes',
+        kind: 'Efecto de perfil',
+        profileEffectId: 'garras-abisales',
+      },
+    ],
+  },
+  {
+    id: 'bundle-zorro-aurora-noir',
+    title: 'Zorro de la aurora (noir)',
+    shortTitle: 'Zorro de la aurora (noir)',
+    collectionId: 'dark-mode-friday',
+    category: 'horror',
+    priceOrbs: 450,
+    priceUsd: '5,99 US$',
+    colorSwatches: ['#f4f4f5', '#71717a', '#38bdf8'],
+    artVariant: 'zorro-aurora-noir',
+    items: [
+      {
+        id: 'zorro-aurora-noir-deco',
+        name: 'Zorro de la aurora (noir)',
+        kind: 'Decoración de avatar',
+        decorationId: 'zorro-aurora-noir',
+      },
+    ],
+  },
+  {
+    id: 'bundle-no-te-quito-ojo',
+    title: 'Lote de No te quito ojo',
+    shortTitle: 'Lote de No te quito ojo',
+    collectionId: 'dark-mode-friday',
+    category: 'horror',
+    priceOrbs: 650,
+    priceUsd: '8,49 US$',
+    colorSwatches: ['#f4f4f5', '#09090b', '#71717a'],
+    artVariant: 'no-te-quito-ojo',
+    items: [
+      {
+        id: 'no-te-quito-ojo-deco',
+        name: 'No te quito ojo',
+        kind: 'Decoración de avatar',
+        decorationId: 'no-te-quito-ojo',
+      },
+      {
+        id: 'no-te-quito-ojo-plate',
+        name: 'No te quito ojo',
+        kind: 'Placa de identificación',
+        nameplateId: 'no-te-quito-ojo',
+      },
+    ],
+  },
+  {
+    id: 'bundle-nunca-mas',
+    title: 'Lote de Nunca más',
+    shortTitle: 'Lote de Nunca más',
+    collectionId: 'dark-mode-friday',
+    category: 'horror',
+    priceOrbs: 950,
+    priceUsd: '12,99 US$',
+    colorSwatches: ['#8b5cf6', '#e4e4e7', '#312e81'],
+    artVariant: 'angel-caido',
+    items: [
+      {
+        id: 'nunca-mas-deco',
+        name: 'Ángel caído (sombranoche)',
+        kind: 'Decoración de avatar',
+        decorationId: 'angel-caido',
+      },
+      {
+        id: 'nunca-mas-plate',
+        name: 'Alas sombranoche',
+        kind: 'Placa de identificación',
+        nameplateId: 'angel-caido',
+      },
+      {
+        id: 'nunca-mas-fx',
+        name: 'Nunca más',
+        kind: 'Efecto de perfil',
+        profileEffectId: 'nunca-mas',
+      },
+    ],
+  },
 ];
+
+const applyShopPriceIncrease = (priceOrbs: number, priceUsd: string, factor = 1.24) => {
+  const nextOrbs = Math.round(priceOrbs * factor);
+  const numericUsd = parseFloat(priceUsd.replace(/[^\d.,]/g, '').replace(',', '.'));
+  const nextUsd = Number.isFinite(numericUsd)
+    ? `${(Math.round(numericUsd * factor * 100) / 100).toFixed(2).replace('.', ',')} US$`
+    : priceUsd;
+  return { priceOrbs: nextOrbs, priceUsd: nextUsd };
+};
+
+export const INITIAL_SHOP_BUNDLES: ShopBundle[] = BASE_SHOP_BUNDLES.map((bundle) => ({
+  ...bundle,
+  ...applyShopPriceIncrease(bundle.priceOrbs, bundle.priceUsd, 1.24),
+}));
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
 

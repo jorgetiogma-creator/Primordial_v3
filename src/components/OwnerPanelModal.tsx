@@ -106,6 +106,11 @@ const ALL_DECO_CHOICES: { id: DecorationId; label: string }[] = [
   { id: 'plantas', label: 'Vibras lofi' },
   { id: 'croma', label: 'Onda cromática' },
   { id: 'gato', label: 'Gato cómodo' },
+  { id: 'zorro-aurora-noir', label: 'Zorro de la aurora (noir)' },
+  { id: 'no-te-quito-ojo', label: 'No te quito ojo' },
+  { id: 'rabia-bunny', label: 'Rabia Dark Mode' },
+  { id: 'garras-abisales', label: 'Garras abisales' },
+  { id: 'angel-caido', label: 'Ángel caído (sombranoche)' },
 ];
 
 const ALL_FRAME_CHOICES: { id: ProfileFrameId; label: string }[] = [
@@ -122,6 +127,7 @@ const ALL_FRAME_CHOICES: { id: ProfileFrameId; label: string }[] = [
   { id: 'neon-blue', label: 'Neón Azul' },
   { id: 'gold', label: 'Dorado Real' },
   { id: 'glitch', label: 'Cyber Glitch' },
+  { id: 'rabia-bunny', label: 'Marco Rabia Dark Mode' },
 ];
 
 const ALL_EFFECT_CHOICES: { id: ProfileEffectId; label: string }[] = [
@@ -160,6 +166,9 @@ const ALL_EFFECT_CHOICES: { id: ProfileEffectId; label: string }[] = [
   { id: 'cyber', label: 'Lluvia Cyber (Nitro)' },
   { id: 'sparks', label: 'Chispas Neón (Nitro)' },
   { id: 'crimson', label: 'Aura Carmesí (Nitro)' },
+  { id: 'rabia-bunny', label: 'Dark Mode Friday' },
+  { id: 'garras-abisales', label: 'No me sueltes' },
+  { id: 'nunca-mas', label: 'Nunca más' },
 ];
 
 const ALL_PLATE_CHOICES: { id: NameplateId; label: string }[] = [
@@ -192,6 +201,10 @@ const ALL_PLATE_CHOICES: { id: NameplateId; label: string }[] = [
   { id: 'deadpool', label: 'Deadpool' },
   { id: 'wolverine', label: 'Wolverine' },
   { id: 'dbd', label: 'Dead by Daylight' },
+  { id: 'no-te-quito-ojo', label: 'No te quito ojo' },
+  { id: 'rabia-bunny', label: 'Corazón Dark Mode' },
+  { id: 'garras-abisales', label: 'Abrazo sombrío' },
+  { id: 'angel-caido', label: 'Alas sombranoche' },
 ];
 
 export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
