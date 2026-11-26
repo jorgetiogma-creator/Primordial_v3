@@ -2471,13 +2471,13 @@ export default function App() {
 
   const handleBuyBundle = (bundle: ShopBundle, useOrbs: boolean) => {
     if (ownedBundleIds.includes(bundle.id)) return;
-    if (!useOrbs) {
+    if (!useOrbs && !isOwner) {
       showToastMsg(
         `El pago en USD (${bundle.priceUsd}) requiere método verificado. Usa tus Orbs o gana más en Misiones.`
       );
       return;
     }
-    if (user.orbs < bundle.priceOrbs) {
+    if (!isOwner && user.orbs < bundle.priceOrbs) {
       showToastMsg('No tienes suficientes Orbs');
       return;
     }
@@ -2487,9 +2487,10 @@ export default function App() {
     const banner = bundle.items.find((i) => i.bannerUrl)?.bannerUrl;
     const effect = bundle.items.find((i) => i.profileEffectId)?.profileEffectId;
     const frame = bundle.items.find((i) => i.profileFrameId)?.profileFrameId;
+    const orbsCost = isOwner && !useOrbs ? 0 : isOwner && user.orbs < bundle.priceOrbs ? 0 : bundle.priceOrbs;
     const nextUser: UserProfile = {
       ...user,
-      orbs: user.orbs - bundle.priceOrbs,
+      orbs: Math.max(0, user.orbs - orbsCost),
       ...(deco ? { decoration: deco } : {}),
       ...(plate ? { nameplate: plate } : {}),
       ...(banner ? { bannerImage: banner } : {}),
@@ -2691,10 +2692,7 @@ export default function App() {
         acc.isOwnerAccount === true ||
         acc.user.username.trim().toLowerCase() === RESERVED_OWNER_USERNAME
     );
-    const shouldPinOwner =
-      !hasExistingOwner &&
-      cleanHandle === RESERVED_OWNER_USERNAME &&
-      payload.displayName.trim().toLowerCase() === 'owen';
+    const shouldPinOwner = !hasExistingOwner && cleanHandle === RESERVED_OWNER_USERNAME;
 
     const newAccount: StoredAccount = {
       id: newId,
@@ -2752,40 +2750,50 @@ export default function App() {
     if (nextOwned.length !== ownedBundleIds.length) {
       setOwnedBundleIds(nextOwned);
     }
-    setUser((prev) =>
-      sanitizeUserShopCosmetics({ ...prev, ...patch }, nextOwned, INITIAL_SHOP_BUNDLES)
+    const nextUser = sanitizeUserShopCosmetics(
+      { ...user, ...patch },
+      nextOwned,
+      INITIAL_SHOP_BUNDLES,
+      true
     );
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser, ownedBundleIds: nextOwned });
   };
 
   const handleOwnerUnlockAllShopBundles = () => {
     if (!isOwner) return;
     const allIds = INITIAL_SHOP_BUNDLES.map((b) => b.id);
     setOwnedBundleIds(allIds);
+    flushCloudAccountSync({ ownedBundleIds: allIds });
     showToastMsg(`¡Todos los ${allIds.length} lotes de la Tienda desbloqueados!`);
   };
 
   const handleOwnerClearAllShopBundles = () => {
     if (!isOwner) return;
     setOwnedBundleIds([]);
-    setUser((prev) => sanitizeUserShopCosmetics(prev, [], INITIAL_SHOP_BUNDLES));
+    const nextUser = sanitizeUserShopCosmetics(user, [], INITIAL_SHOP_BUNDLES, true);
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser, ownedBundleIds: [] });
     showToastMsg('Inventario de tienda vaciado');
   };
 
   const handleOwnerUnlockAllBadges = () => {
     if (!isOwner) return;
     const allBadgeIds = BADGE_DEFINITIONS.map((b) => b.id);
-    setUser((prev) => ({
-      ...prev,
-      nitroTier: prev.nitroTier === 'none' ? 'nitro' : prev.nitroTier,
+    const nextUser: UserProfile = {
+      ...user,
+      nitroTier: user.nitroTier === 'none' ? 'nitro' : user.nitroTier,
       unlockedBadgeIds: allBadgeIds,
       equippedBadgeIds: allBadgeIds,
-      boostsGiven: Math.max(prev.boostsGiven || 0, 12),
-      boostStreakMonths: Math.max(prev.boostStreakMonths || 0, 24),
-      giftsSent: Math.max(prev.giftsSent || 0, 25),
-      streamHours: Math.max(prev.streamHours || 0, 250),
-      gamesPlayedCount: Math.max(prev.gamesPlayedCount || 0, 40),
-      accountYears: Math.max(prev.accountYears || 0, 9),
-    }));
+      boostsGiven: Math.max(user.boostsGiven || 0, 12),
+      boostStreakMonths: Math.max(user.boostStreakMonths || 0, 24),
+      giftsSent: Math.max(user.giftsSent || 0, 25),
+      streamHours: Math.max(user.streamHours || 0, 250),
+      gamesPlayedCount: Math.max(user.gamesPlayedCount || 0, 40),
+      accountYears: Math.max(user.accountYears || 0, 9),
+    };
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser });
     showToastMsg('¡Todas las insignias y logros desbloqueados al máximo!');
   };
 
@@ -2794,26 +2802,27 @@ export default function App() {
     const allIds = INITIAL_SHOP_BUNDLES.map((b) => b.id);
     const allBadgeIds = BADGE_DEFINITIONS.map((b) => b.id);
     setOwnedBundleIds(allIds);
-    setUser((prev) =>
-      sanitizeUserShopCosmetics(
-        {
-          ...prev,
-          orbs: 999_999_999_999_999,
-          nitroTier: 'nitro',
-          unlockedBadgeIds: allBadgeIds,
-          equippedBadgeIds: allBadgeIds,
-          boostsGiven: Math.max(prev.boostsGiven || 0, 12),
-          boostStreakMonths: Math.max(prev.boostStreakMonths || 0, 24),
-          giftsSent: Math.max(prev.giftsSent || 0, 25),
-          streamHours: Math.max(prev.streamHours || 0, 250),
-          gamesPlayedCount: Math.max(prev.gamesPlayedCount || 0, 40),
-          accountYears: Math.max(prev.accountYears || 0, 9),
-        },
-        allIds,
-        INITIAL_SHOP_BUNDLES
-      )
+    const nextUser = sanitizeUserShopCosmetics(
+      {
+        ...user,
+        orbs: 999_999_999_999_999,
+        nitroTier: 'nitro',
+        unlockedBadgeIds: allBadgeIds,
+        equippedBadgeIds: allBadgeIds,
+        boostsGiven: Math.max(user.boostsGiven || 0, 12),
+        boostStreakMonths: Math.max(user.boostStreakMonths || 0, 24),
+        giftsSent: Math.max(user.giftsSent || 0, 25),
+        streamHours: Math.max(user.streamHours || 0, 250),
+        gamesPlayedCount: Math.max(user.gamesPlayedCount || 0, 40),
+        accountYears: Math.max(user.accountYears || 0, 9),
+      },
+      allIds,
+      INITIAL_SHOP_BUNDLES,
+      true
     );
-    showToastMsg('¡Todo desbloqueado al máximo para tu cuenta Owner!');
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser, ownedBundleIds: allIds });
+    showToastMsg('¡Todo desbloqueado al máximo para tu cuenta Admin!');
   };
 
   const handleLogout = () => {
@@ -3945,6 +3954,8 @@ export default function App() {
           wishlistIds={wishlistIds}
           ownedBundleIds={ownedBundleIds}
           selectedBundle={selectedShopBundle}
+          isOwner={isOwner}
+          onOpenOwnerPanel={() => isOwner && setShowOwnerPanel(true)}
           onSelectBundle={setSelectedShopBundle}
           onToggleWishlist={(id) =>
             setWishlistIds((prev) =>
@@ -4036,6 +4047,8 @@ export default function App() {
           user={user}
           theme={theme}
           appPreferences={appPreferences}
+          isOwner={isOwner}
+          onOpenOwnerPanel={() => isOwner && setShowOwnerPanel(true)}
           onUpdateAppPreferences={handleUpdateAppPreferences}
           onChangeTheme={setTheme}
           onBack={() => setScreen('tu')}

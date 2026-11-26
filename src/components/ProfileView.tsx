@@ -846,11 +846,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               {isOwner && onOpenOwnerPanel && (
                 <button
                   onClick={onOpenOwnerPanel}
-                  title="Abrir Panel Privado de Owner"
+                  title="Abrir Panel de Admin"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white text-xs font-black transition-all cursor-pointer shadow-lg active:scale-95"
                 >
                   <Crown className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Owner</span>
+                  <span>Admin</span>
                 </button>
               )}
               {activeProfileEffect !== 'none' && (
@@ -1118,10 +1118,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-black text-pink-200 truncate">
-                        Panel Privado de Owner
+                        Panel de Admin
                       </p>
                       <p className="text-xs text-zinc-300 truncate">
-                        Ponte Orbs, cosméticos, insignias, Nitro y todo al instante
+                        Darse Orbs, cosméticos, insignias, Nitro y todo al instante
                       </p>
                     </div>
                   </div>

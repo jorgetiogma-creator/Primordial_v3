@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
+  Crown,
   Eye,
   Flame,
   Gift,
@@ -54,6 +55,8 @@ interface ShopViewProps {
   onEquipBundle: (bundle: ShopBundle) => void;
   onGiftBundle: (bundle: ShopBundle, recipientId: string, recipientName: string) => void;
   onBack: () => void;
+  isOwner?: boolean;
+  onOpenOwnerPanel?: () => void;
 }
 
 const getBundleArtUrl = (variant: ShopBundle['artVariant']): string | null => {
@@ -1267,6 +1270,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
   onEquipBundle,
   onGiftBundle,
   onBack,
+  isOwner = false,
+  onOpenOwnerPanel,
 }) => {
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [modalSwatch, setModalSwatch] = useState<string | undefined>(undefined);
@@ -1470,6 +1475,16 @@ export const ShopView: React.FC<ShopViewProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {isOwner && onOpenOwnerPanel && (
+                <button
+                  type="button"
+                  onClick={onOpenOwnerPanel}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white text-xs font-black cursor-pointer shadow-lg shrink-0"
+                >
+                  <Crown className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Admin</span>
+                </button>
+              )}
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#13141b] border border-white/12 text-white text-xs sm:text-sm font-bold tabular-nums whitespace-nowrap">
                 <OrbsCrystalIcon className="w-4 h-4 text-indigo-400 shrink-0" />
                 <span>{user.orbs.toLocaleString('es-ES')}</span>
@@ -2381,6 +2396,20 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       <span>
                         Comprar lote (◈ {selectedBundle.priceOrbs.toLocaleString('es-ES')})
                       </span>
+                    </motion.button>
+                  ) : isOwner ? (
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => {
+                        onBuyBundle(selectedBundle, false);
+                        setJustBoughtId(selectedBundle.id);
+                        if (boughtTimerRef.current !== null) window.clearTimeout(boughtTimerRef.current);
+                        boughtTimerRef.current = window.setTimeout(() => setJustBoughtId(null), 1600);
+                      }}
+                      className="flex-1 h-12 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white font-bold text-[15px] cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap shadow-lg"
+                    >
+                      <Crown className="w-4 h-4" />
+                      <span>Obtener gratis (Admin)</span>
                     </motion.button>
                   ) : (
                     <button

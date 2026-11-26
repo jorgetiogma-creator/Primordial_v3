@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, AtSign, Award, Bell, Check, CheckCheck, ChevronRight, Clapperboard, Clock, Gamepad2, Globe, Headphones, HeadphoneOff, HelpCircle, Info, Languages, Link2, LogOut, Maximize2, MessageSquare, MessageSquareMore, Mic, MicOff, Minimize2, Monitor, Music, Palette, PenTool, PhoneCall, PhoneOff, Plus, QrCode, Search, Settings, Shield, Smartphone, Sparkles, Store, Trash2, Upload, User, UserCheck, UserPlus, Users, Video, VideoOff, Volume2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, AtSign, Award, Bell, Check, CheckCheck, ChevronRight, Clapperboard, Clock, Crown, Gamepad2, Globe, Headphones, HeadphoneOff, HelpCircle, Info, Languages, Link2, LogOut, Maximize2, MessageSquare, MessageSquareMore, Mic, MicOff, Minimize2, Monitor, Music, Palette, PenTool, PhoneCall, PhoneOff, Plus, QrCode, Search, Settings, Shield, Smartphone, Sparkles, Store, Trash2, Upload, User, UserCheck, UserPlus, Users, Video, VideoOff, Volume2, X } from 'lucide-react';
 import {
   AppLanguage,
   AppPreferences,
@@ -65,6 +65,8 @@ export const SettingsView: React.FC<{
   user: UserProfile;
   theme: ThemeMode;
   appPreferences?: AppPreferences;
+  isOwner?: boolean;
+  onOpenOwnerPanel?: () => void;
   onUpdateAppPreferences?: (patch: Partial<AppPreferences>) => void;
   onChangeTheme: (t: ThemeMode) => void;
   onBack: () => void;
@@ -86,6 +88,8 @@ export const SettingsView: React.FC<{
     language: 'es',
     autoTranslateMessages: false,
   },
+  isOwner = false,
+  onOpenOwnerPanel,
   onUpdateAppPreferences,
   onChangeTheme,
   onBack,
@@ -538,6 +542,26 @@ export const SettingsView: React.FC<{
                 {t('settings.section.account')}
               </h2>
               <div className="rounded-2xl bg-[var(--dc-bg-chat)] border border-[var(--dc-border)] divide-y divide-[var(--dc-border)] overflow-hidden">
+                {isOwner && onOpenOwnerPanel && (
+                  <button
+                    type="button"
+                    onClick={onOpenOwnerPanel}
+                    className="w-full px-4 py-3.5 flex items-center justify-between bg-gradient-to-r from-pink-500/18 via-rose-500/12 to-fuchsia-600/15 hover:from-pink-500/25 hover:to-fuchsia-600/25 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <Crown className="w-5 h-5 text-pink-400 shrink-0" />
+                      <div className="min-w-0 text-left">
+                        <span className="text-[15px] font-bold text-pink-200 block truncate">
+                          Panel de Admin
+                        </span>
+                        <span className="text-[11px] text-zinc-400 block truncate">
+                          Darse Orbs, Nitro, insignias y todos los artículos
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-pink-300 shrink-0" />
+                  </button>
+                )}
                 {accountRows.map((row) => {
                   const Icon = row.icon;
                   return (

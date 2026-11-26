@@ -249,7 +249,7 @@ export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
     colorPreset: user.displayNameColorPreset,
     customColors: user.displayNameCustomColors,
     glow: user.displayNameGlow,
-    nitroUnlocked: user.nitroTier !== 'none',
+    nitroUnlocked: true,
   });
 
   return (
@@ -270,14 +270,14 @@ export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="font-display font-black text-base sm:text-lg text-white truncate">
-                  Panel Admin · Owner
+                  Panel de Admin
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-400/45 text-pink-200 text-[10px] font-extrabold uppercase tracking-wider shrink-0">
                   Admin · @{user.username}
                 </span>
               </div>
               <p className="text-xs text-zinc-300 truncate">
-                Darse Orbs, Nitro, insignias y artículos · Solo visible para ti
+                Darse Orbs, Nitro, insignias y todos los artículos · Solo para tu cuenta
               </p>
             </div>
           </div>
@@ -285,7 +285,7 @@ export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar panel de Owner"
+            aria-label="Cerrar panel de Admin"
             className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
@@ -354,12 +354,12 @@ export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   {[
+                    { label: '+1.000', val: 1_000 },
                     { label: '+10.000', val: 10_000 },
                     { label: '+1.000.000', val: 1_000_000 },
                     { label: '+100M', val: 100_000_000 },
                     { label: '+1 Mil M', val: 1_000_000_000 },
                     { label: '+1 Billón', val: 1_000_000_000_000 },
-                    { label: '+1 Cuatrillón', val: 100_000_000_000_000 },
                   ].map((p) => (
                     <button
                       key={p.label}

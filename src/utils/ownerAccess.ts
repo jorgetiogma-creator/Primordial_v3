@@ -1,7 +1,7 @@
 import { Server, StoredAccount, UserProfile } from '../types/discord';
 
-export const RESERVED_OWNER_USERNAME = 'owner';
-export const ADMIN_OWNER_USERNAMES = ['owner', 'snuf'] as const;
+export const RESERVED_OWNER_USERNAME = 'snuf';
+export const ADMIN_OWNER_USERNAMES = ['snuf'] as const;
 export const VERIFIED_USERNAMES = ['carruyo'] as const;
 export const DESIGNATED_OWNER_EMAIL = 'emaneriera@gmail.com';
 export const DESIGNATED_OWNER_EMAILS = [
@@ -33,10 +33,6 @@ export function isOwnerIdentity(params: {
   firebaseEmail?: string | null;
   isOwnerAccount?: boolean;
 }): boolean {
-  if (params.isOwnerAccount) return true;
-  if (isDesignatedOwnerEmail(params.firebaseEmail) || isDesignatedOwnerEmail(params.email)) {
-    return true;
-  }
   return isOwnerUsername(params.username);
 }
 
@@ -50,33 +46,20 @@ export interface ServerPermissions {
 }
 
 /**
- * Resolves the ONE AND ONLY private Owner account ID.
+ * Resolves the ONE AND ONLY private Admin account ID (@snuf).
  */
 export function resolveSingleOwnerAccountId(accounts: StoredAccount[]): string | null {
-  const pinned = accounts.find((acc) => acc.isOwnerAccount === true);
-  if (pinned) return pinned.id;
-
-  const exactOwenOwner = accounts.find(
-    (acc) =>
-      acc.user.username.trim().toLowerCase() === RESERVED_OWNER_USERNAME &&
-      acc.user.displayName.trim().toLowerCase() === 'owen'
-  );
-  if (exactOwenOwner) return exactOwenOwner.id;
-
   const usernameOwner = accounts.find((acc) => isOwnerUsername(acc.user.username));
   return usernameOwner ? usernameOwner.id : null;
 }
 
 /**
- * Ensures stored accounts keep owner pinning consistent.
+ * Ensures stored accounts keep admin pinning strictly on @snuf only.
  */
 export function normalizeSingleOwnerAccounts(accounts: StoredAccount[]): StoredAccount[] {
-  const ownerId = resolveSingleOwnerAccountId(accounts);
-  if (!ownerId) return accounts;
-
   let changed = false;
   const next = accounts.map((acc) => {
-    const shouldBeOwner = acc.id === ownerId || isOwnerUsername(acc.user.username);
+    const shouldBeOwner = isOwnerUsername(acc.user.username);
     if (Boolean(acc.isOwnerAccount) !== shouldBeOwner) {
       changed = true;
       return { ...acc, isOwnerAccount: shouldBeOwner };
@@ -88,39 +71,24 @@ export function normalizeSingleOwnerAccounts(accounts: StoredAccount[]): StoredA
 }
 
 /**
- * Checks whether the currently active session belongs to an authorized Admin/Owner account.
+ * Checks whether the currently active session belongs exclusively to the authorized Admin account (@snuf).
  */
 export function isActiveAccountOwner(
   activeAccountId: string | null,
   accounts: StoredAccount[],
   currentUser: UserProfile,
-  firebaseEmail?: string | null
+  _firebaseEmail?: string | null
 ): boolean {
-  if (
-    isOwnerIdentity({
-      username: currentUser.username,
-      email: currentUser.email,
-      firebaseEmail,
-    })
-  ) {
+  if (isOwnerUsername(currentUser.username)) {
     return true;
   }
   if (!activeAccountId) return false;
   const activeAccount = accounts.find((acc) => acc.id === activeAccountId);
-  if (
+  return Boolean(
     activeAccount &&
-    isOwnerIdentity({
-      username: activeAccount.user.username,
-      email: activeAccount.user.email || activeAccount.contact,
-      firebaseEmail,
-      isOwnerAccount: activeAccount.isOwnerAccount,
-    })
-  ) {
-    return true;
-  }
-  const ownerId = resolveSingleOwnerAccountId(accounts);
-  if (!ownerId || activeAccountId !== ownerId) return false;
-  return Boolean(activeAccount && activeAccount.user.id === currentUser.id);
+      isOwnerUsername(activeAccount.user.username) &&
+      activeAccount.user.id === currentUser.id
+  );
 }
 
 export function isServerOwner(server: Server | undefined, userId?: string | null): boolean {
