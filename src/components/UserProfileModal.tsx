@@ -12,7 +12,7 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import { BadgeId, PublicUserProfile, ServerRole } from '../types/discord';
+import { BadgeId, PublicUserProfile, ServerRole, UserProfile } from '../types/discord';
 import { BadgeArtwork } from './BadgesView';
 import {
   NameplateStripBackground,
@@ -27,6 +27,7 @@ import { isVerifiedAccount } from '../utils/ownerAccess';
 
 interface UserProfileModalProps {
   profile: PublicUserProfile | null;
+  currentUser?: UserProfile;
   isSelf?: boolean;
   isFriend?: boolean;
   requestSent?: boolean;
@@ -44,6 +45,7 @@ const NOTES_STORAGE_KEY = 'discord_user_notes_v1';
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   profile,
+  currentUser,
   isSelf = false,
   isFriend = false,
   requestSent = false,
@@ -270,7 +272,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 {profile.badgeIds && profile.badgeIds.length > 0 && (
                   <div className="inline-flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-xl bg-black/55 border border-[#2e3035]">
                     {profile.badgeIds.map((b) => (
-                      <BadgeArtwork key={b} badgeId={b as BadgeId} unlocked size="sm" />
+                      <BadgeArtwork
+                        key={b}
+                        badgeId={b as BadgeId}
+                        unlocked
+                        user={isSelf ? currentUser : undefined}
+                        size="sm"
+                      />
                     ))}
                   </div>
                 )}

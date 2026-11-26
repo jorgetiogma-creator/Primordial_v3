@@ -185,7 +185,11 @@ const isCuratedServerId = (id?: string | null): boolean =>
 
 const loadLocalPrefsForAccount = (
   accountId: string | null
-): { voiceEntryEffect?: VoiceEntryEffectId; ephemeralNoteExpiresAt?: number } => {
+): {
+  voiceEntryEffect?: VoiceEntryEffectId;
+  ephemeralNoteExpiresAt?: number;
+  betaTestsCount?: number;
+} => {
   try {
     const raw = localStorage.getItem(`${LOCAL_PREFS_KEY_PREFIX}${accountId || 'guest'}`);
     if (raw) return JSON.parse(raw) || {};
@@ -197,10 +201,15 @@ const loadLocalPrefsForAccount = (
 
 const saveLocalPrefsForAccount = (
   accountId: string | null,
-  prefs: { voiceEntryEffect?: VoiceEntryEffectId; ephemeralNoteExpiresAt?: number }
+  prefs: {
+    voiceEntryEffect?: VoiceEntryEffectId;
+    ephemeralNoteExpiresAt?: number;
+    betaTestsCount?: number;
+  }
 ) => {
   try {
-    localStorage.setItem(`${LOCAL_PREFS_KEY_PREFIX}${accountId || 'guest'}`, JSON.stringify(prefs));
+    const merged = { ...loadLocalPrefsForAccount(accountId), ...prefs };
+    localStorage.setItem(`${LOCAL_PREFS_KEY_PREFIX}${accountId || 'guest'}`, JSON.stringify(merged));
   } catch {
     /* ignore */
   }
@@ -383,6 +392,7 @@ export default function App() {
             streamHours: parsedUser.streamHours ?? 0,
             gamesPlayedCount: parsedUser.gamesPlayedCount ?? 0,
             accountYears: parsedUser.accountYears ?? 0,
+            betaTestsCount: localPrefs.betaTestsCount ?? parsedUser.betaTestsCount ?? 0,
             voiceEntryEffect: localPrefs.voiceEntryEffect || parsedUser.voiceEntryEffect || 'none',
             ephemeralNoteExpiresAt: noteExpired ? undefined : localPrefs.ephemeralNoteExpiresAt,
             customStatus: noteExpired ? '' : parsedUser.customStatus || '',
@@ -395,6 +405,7 @@ export default function App() {
     }
     return {
       ...DEFAULT_ACCOUNT.user,
+      betaTestsCount: localPrefs.betaTestsCount ?? 0,
       voiceEntryEffect: localPrefs.voiceEntryEffect || 'none',
       ephemeralNoteExpiresAt: noteExpired ? undefined : localPrefs.ephemeralNoteExpiresAt,
     };
@@ -625,6 +636,7 @@ export default function App() {
     );
     setUser((prev) => ({
       ...prev,
+      betaTestsCount: localPrefs.betaTestsCount ?? prev.betaTestsCount ?? 0,
       voiceEntryEffect: localPrefs.voiceEntryEffect || prev.voiceEntryEffect || 'none',
       ephemeralNoteExpiresAt: expired ? undefined : localPrefs.ephemeralNoteExpiresAt,
       ...(expired ? { customStatus: '' } : {}),
@@ -2815,39 +2827,68 @@ export default function App() {
   };
 
   const handleLogStreamHour = () => {
-    setUser((prev) => {
-      const nextHours = prev.streamHours + 1;
-      return {
-        ...prev,
-        streamHours: nextHours,
-        ...(nextHours >= 1 ? unlockBadgeHelper(prev, 'transmision') : {}),
-      };
-    });
+    const nextHours = user.streamHours + 1;
+    const nextUser: UserProfile = {
+      ...user,
+      streamHours: nextHours,
+      ...(nextHours >= 1 ? unlockBadgeHelper(user, 'transmision') : {}),
+    };
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser });
     showToastMsg('¡+1 hora transmitida! Progreso de Transmisión actualizado');
   };
 
   const handleLogGamePlayed = (gameName: string) => {
-    setUser((prev) => {
-      const nextGames = prev.gamesPlayedCount + 1;
-      return {
-        ...prev,
-        gamesPlayedCount: nextGames,
-        ...(nextGames >= 2 ? unlockBadgeHelper(prev, 'juegos') : {}),
-      };
-    });
+    const nextGames = user.gamesPlayedCount + 1;
+    const nextUser: UserProfile = {
+      ...user,
+      gamesPlayedCount: nextGames,
+      ...(nextGames >= 2 ? unlockBadgeHelper(user, 'juegos') : {}),
+    };
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser });
     showToastMsg(`¡Partida registrada en ${gameName}!`);
   };
 
   const handleAdvanceAccountYear = () => {
-    setUser((prev) => {
-      const nextYears = prev.accountYears + 1;
-      return {
-        ...prev,
-        accountYears: nextYears,
-        ...(nextYears >= 1 ? unlockBadgeHelper(prev, 'antiguedad') : {}),
-      };
-    });
-    showToastMsg('¡Aniversario de cuenta avanzado (+1 año)!');
+    const nextYears = (user.accountYears || 0) + 1;
+    const nextUser: UserProfile = {
+      ...user,
+      accountYears: nextYears,
+      ...(nextYears >= 1 ? unlockBadgeHelper(user, 'antiguedad') : {}),
+    };
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser });
+    const antiquityDef = BADGE_DEFINITIONS.find((b) => b.id === 'antiguedad');
+    const reachedTier = antiquityDef?.tiers
+      .slice()
+      .reverse()
+      .find((t) => nextYears >= t.threshold);
+    showToastMsg(
+      `¡Antigüedad avanzada a ${nextYears} ${nextYears === 1 ? 'año' : 'años'}${
+        reachedTier ? ` (${reachedTier.name})` : ''
+      }!`
+    );
+  };
+
+  const handleLogBetaTest = () => {
+    const nextTests = (user.betaTestsCount || 0) + 1;
+    saveLocalPrefsForAccount(activeAccountId, { betaTestsCount: nextTests });
+    const nextUser: UserProfile = {
+      ...user,
+      betaTestsCount: nextTests,
+      ...unlockBadgeHelper(user, 'cazabugs'),
+    };
+    setUser(nextUser);
+    flushCloudAccountSync({ user: nextUser });
+    const betaDef = BADGE_DEFINITIONS.find((b) => b.id === 'cazabugs');
+    const reachedTier = betaDef?.tiers
+      .slice()
+      .reverse()
+      .find((t) => nextTests >= t.threshold);
+    showToastMsg(
+      `¡Prueba Beta #${nextTests} registrada${reachedTier ? ` · ${reachedTier.name}` : ''}!`
+    );
   };
 
   const handleBuyBundle = (bundle: ShopBundle, useOrbs: boolean) => {
@@ -3193,6 +3234,8 @@ export default function App() {
   const handleOwnerUnlockAllBadges = () => {
     if (!isOwner) return;
     const allBadgeIds = BADGE_DEFINITIONS.map((b) => b.id);
+    const maxBetaTests = Math.max(user.betaTestsCount || 0, 6);
+    saveLocalPrefsForAccount(activeAccountId, { betaTestsCount: maxBetaTests });
     const nextUser: UserProfile = {
       ...user,
       nitroTier: user.nitroTier === 'none' ? 'nitro' : user.nitroTier,
@@ -3204,6 +3247,7 @@ export default function App() {
       streamHours: Math.max(user.streamHours || 0, 250),
       gamesPlayedCount: Math.max(user.gamesPlayedCount || 0, 40),
       accountYears: Math.max(user.accountYears || 0, 9),
+      betaTestsCount: maxBetaTests,
     };
     setUser(nextUser);
     flushCloudAccountSync({ user: nextUser });
@@ -3214,6 +3258,8 @@ export default function App() {
     if (!isOwner) return;
     const allIds = INITIAL_SHOP_BUNDLES.map((b) => b.id);
     const allBadgeIds = BADGE_DEFINITIONS.map((b) => b.id);
+    const maxBetaTests = Math.max(user.betaTestsCount || 0, 6);
+    saveLocalPrefsForAccount(activeAccountId, { betaTestsCount: maxBetaTests });
     setOwnedBundleIds(allIds);
     const nextUser = sanitizeUserShopCosmetics(
       {
@@ -3228,6 +3274,7 @@ export default function App() {
         streamHours: Math.max(user.streamHours || 0, 250),
         gamesPlayedCount: Math.max(user.gamesPlayedCount || 0, 40),
         accountYears: Math.max(user.accountYears || 0, 9),
+        betaTestsCount: maxBetaTests,
       },
       allIds,
       INITIAL_SHOP_BUNDLES,
@@ -4595,6 +4642,7 @@ export default function App() {
           onLogStreamHour={handleLogStreamHour}
           onLogGamePlayed={handleLogGamePlayed}
           onAdvanceAccountYear={handleAdvanceAccountYear}
+          onLogBetaTest={handleLogBetaTest}
         />
       );
     }
@@ -5782,6 +5830,7 @@ export default function App() {
 
       <UserProfileModal
         profile={inspectedUser?.profile || null}
+        currentUser={user}
         isSelf={
           inspectedUser?.profile.id === 'me' ||
           inspectedUser?.profile.id === user.id

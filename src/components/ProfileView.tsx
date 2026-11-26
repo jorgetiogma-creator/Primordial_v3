@@ -957,7 +957,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     .filter((id) => isBadgeUnlocked(id as BadgeId, user))
                     .map((badgeId) => (
                       <span key={badgeId} className="inline-flex items-center justify-center">
-                        <BadgeArtwork badgeId={badgeId as BadgeId} unlocked size="sm" />
+                        <BadgeArtwork badgeId={badgeId as BadgeId} unlocked user={user} size="sm" />
                       </span>
                     ))}
                   <ChevronRight className="w-3.5 h-3.5 text-[var(--dc-text-muted)]" />
@@ -1197,7 +1197,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     {BADGE_DEFINITIONS.filter((b) => isBadgeUnlocked(b.id, user))
                       .slice(0, 3)
                       .map((b) => (
-                        <BadgeArtwork key={b.id} badgeId={b.id} unlocked size="sm" />
+                        <BadgeArtwork key={b.id} badgeId={b.id} unlocked user={user} size="sm" />
                       ))}
                   </div>
                   <ChevronRight className="w-4 h-4 text-[var(--dc-text-muted)]" />
@@ -1636,6 +1636,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                 key={badgeId}
                                 badgeId={badgeId as BadgeId}
                                 unlocked
+                                user={user}
                                 size="sm"
                               />
                             ))}
@@ -1778,6 +1779,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                               key={badgeId}
                               badgeId={badgeId as BadgeId}
                               unlocked
+                              user={user}
                               size="sm"
                             />
                           ))}

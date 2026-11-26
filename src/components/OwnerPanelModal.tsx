@@ -565,7 +565,7 @@ export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
                             : 'bg-[#0c0d12] border-white/10 text-zinc-400'
                         }`}
                       >
-                        <BadgeArtwork badgeId={b.id} unlocked size="sm" />
+                        <BadgeArtwork badgeId={b.id} unlocked user={user} size="sm" />
                         <span className="text-[11px] font-semibold truncate">{b.shortTitle}</span>
                       </button>
                     );

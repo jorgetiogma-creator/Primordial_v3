@@ -212,7 +212,9 @@ export type BadgeId =
   | 'regalos'
   | 'transmision'
   | 'juegos'
-  | 'pionero';
+  | 'pionero'
+  | 'beta'
+  | 'cazabugs';
 
 export interface BadgeTier {
   id: string;
@@ -360,6 +362,7 @@ export interface UserProfile {
   streamHours: number;
   gamesPlayedCount: number;
   accountYears: number;
+  betaTestsCount?: number;
   perServerProfiles?: Record<string, PerServerProfile>;
 }
 

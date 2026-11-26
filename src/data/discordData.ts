@@ -33,7 +33,7 @@ export const INITIAL_USER: UserProfile = {
   note: '',
   nitroTier: 'none',
   serverTag: '',
-  unlockedBadgeIds: ['hypesquad'],
+  unlockedBadgeIds: ['hypesquad', 'beta'],
   equippedBadgeIds: ['hypesquad'],
   boostsGiven: 0,
   boostStreakMonths: 0,
@@ -41,6 +41,7 @@ export const INITIAL_USER: UserProfile = {
   streamHours: 0,
   gamesPlayedCount: 0,
   accountYears: 0,
+  betaTestsCount: 0,
   perServerProfiles: {},
 };
 
@@ -3042,6 +3043,27 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
     ctaLabel: 'Ir a Tienda',
     tiers: [
       { id: 'pio-1', name: 'Pionero', requirementLabel: 'Adquirida en Tienda', threshold: 1, color: '#a855f7', accent: '#e9d5ff' },
+    ],
+  },
+  {
+    id: 'beta',
+    title: 'PROBADOR BETA',
+    shortTitle: 'Probador Beta',
+    description: 'Acceso anticipado a funciones experimentales y nuevas versiones de Primordial.',
+    tiers: [
+      { id: 'beta-1', name: 'Probador Beta', requirementLabel: 'Acceso Beta activo', threshold: 1, color: '#8b5cf6', accent: '#38bdf8' },
+    ],
+  },
+  {
+    id: 'cazabugs',
+    title: 'CAZADOR DE BUGS BETA',
+    shortTitle: 'Cazador de Bugs',
+    description: 'Prueba funciones Beta y reporta hallazgos para hacer evolucionar tu emblema QA.',
+    ctaLabel: 'Registrar prueba Beta (+1)',
+    tiers: [
+      { id: 'bug-1', name: 'Explorador Beta', requirementLabel: '1 prueba Beta', threshold: 1, color: '#22c55e' },
+      { id: 'bug-2', name: 'Cazador de Bugs', requirementLabel: '3 pruebas Beta', threshold: 3, color: '#06b6d4', accent: '#67e8f9' },
+      { id: 'bug-3', name: 'Guardián QA Dorado', requirementLabel: '6 pruebas Beta', threshold: 6, color: '#f59e0b', accent: '#fde68a' },
     ],
   },
 ];
