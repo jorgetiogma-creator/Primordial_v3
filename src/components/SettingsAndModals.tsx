@@ -657,7 +657,7 @@ export const SettingsView: React.FC<{
                       <Crown className="w-5 h-5 text-pink-400 shrink-0" />
                       <div className="min-w-0 text-left">
                         <span className="text-[15px] font-bold text-pink-200 block truncate">
-                          Panel de Admin
+                          Panel de Owner
                         </span>
                         <span className="text-[11px] text-zinc-400 block truncate">
                           Darse Orbs, Nitro, insignias y todos los artículos
@@ -2491,9 +2491,21 @@ const DEFAULT_STARTER_ROLES: ServerRole[] = [
     permissions: ['Administrador'],
   },
   {
-    id: 'role-mod',
-    name: '🛡️ Moderador',
+    id: 'role-staff',
+    name: '🛡️ Staff',
     color: '#38bdf8',
+    hoist: true,
+    permissions: [
+      'Gestionar canales',
+      'Gestionar mensajes',
+      'Expulsar miembros',
+      'Fijar mensajes',
+    ],
+  },
+  {
+    id: 'role-mod',
+    name: '⚔️ Moderador',
+    color: '#a855f7',
     hoist: true,
     permissions: ['Gestionar mensajes', 'Fijar mensajes'],
   },

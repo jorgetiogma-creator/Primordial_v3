@@ -1645,7 +1645,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white text-xs font-black cursor-pointer shadow-lg shrink-0"
                 >
                   <Crown className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Admin</span>
+                  <span>Owner</span>
                 </button>
               )}
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#13141b] border border-white/12 text-white text-xs sm:text-sm font-bold tabular-nums whitespace-nowrap">
@@ -2768,7 +2768,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                       className="flex-1 h-12 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white font-bold text-[15px] cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap shadow-lg"
                     >
                       <Crown className="w-4 h-4" />
-                      <span>Obtener gratis (Admin)</span>
+                      <span>Obtener gratis (Owner)</span>
                     </motion.button>
                   ) : (
                     <button

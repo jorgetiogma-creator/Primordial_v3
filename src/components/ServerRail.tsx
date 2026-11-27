@@ -25,6 +25,8 @@ interface ServerRailProps {
   onOpenBotDm: () => void;
   onOpenAddServer: () => void;
   onOpenDiscover: () => void;
+  isAiAssistantActive?: boolean;
+  onOpenAiAssistant?: () => void;
   onMoveServer?: (serverId: string, direction: 'up' | 'down') => void;
 }
 
@@ -36,6 +38,8 @@ export const ServerRail: React.FC<ServerRailProps> = ({
   onSelectServer,
   onOpenAddServer,
   onOpenDiscover,
+  isAiAssistantActive = false,
+  onOpenAiAssistant,
   onMoveServer,
 }) => {
   const [reorderMode, setReorderMode] = useState(false);
@@ -207,10 +211,31 @@ export const ServerRail: React.FC<ServerRailProps> = ({
       <button
         onClick={onOpenDiscover}
         title="Descubrir servidores públicos"
-        className="w-12 h-12 rounded-full hover:rounded-2xl bg-[#26272f] hover:bg-[#23a55a] text-[#23a55a] hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0 mb-2"
+        className="w-12 h-12 rounded-full hover:rounded-2xl bg-[#26272f] hover:bg-[#23a55a] text-[#23a55a] hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
       >
         <Compass className="w-5 h-5" />
       </button>
+
+      {onOpenAiAssistant && (
+        <div className="relative w-full flex items-center justify-center mb-2">
+          {isAiAssistantActive && (
+            <span className="absolute left-0 w-1 h-9 bg-white rounded-r-full transition-all duration-200" />
+          )}
+          <button
+            type="button"
+            onClick={onOpenAiAssistant}
+            title="IA · Asistente de Servidores"
+            aria-label="IA · Asistente de Servidores"
+            className={`w-12 h-12 flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0 ${
+              isAiAssistantActive
+                ? 'bg-[#23a55a] text-white rounded-2xl shadow-[0_6px_18px_-4px_rgba(35,165,90,0.65)]'
+                : 'bg-[#26272f] hover:bg-[#23a55a] text-[#3dd67d] hover:text-white border border-[#23a55a]/35 rounded-full hover:rounded-2xl'
+            }`}
+          >
+            <span className="text-[15px] font-black tracking-tight leading-none">IA</span>
+          </button>
+        </div>
+      )}
     </aside>
   );
 };

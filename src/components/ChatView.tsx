@@ -55,7 +55,7 @@ import { BadgeArtwork, isBadgeUnlocked } from './BadgesView';
 import { NameplateStripBackground, UserAvatar, VerifiedBadge } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
-import { getServerPermissions, isOwnerUsername, isVerifiedAccount } from '../utils/ownerAccess';
+import { getServerPermissions, isOwnerIdentity, isOwnerUsername, isVerifiedAccount } from '../utils/ownerAccess';
 import { sendThreadReply, subscribeToMessageThreads } from '../services/firestoreService';
 import { getLanguageOption, translateChatMessageText } from '../utils/i18n';
 
@@ -1562,10 +1562,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
                               : (liveProfile?.badgeIds?.[0] as BadgeId | undefined);
                             const tagText = isMe
                               ? currentUser.serverTag ||
-                                (isOwnerUsername(currentUser.username) ? 'Staff' : undefined)
+                                (isOwnerIdentity({
+                                  username: currentUser.username,
+                                  email: currentUser.email,
+                                })
+                                  ? '👑 Owner'
+                                  : undefined)
                               : msg.authorTag ||
                                 liveProfile?.serverTag ||
-                                (isOwnerUsername(authorUsername) ? 'Staff' : undefined);
+                                (isOwnerUsername(authorUsername) ? '👑 Owner' : undefined);
                             return (
                               <>
                                 {!msg.authorIsBot && isVerifiedAccount(authorUsername) && (

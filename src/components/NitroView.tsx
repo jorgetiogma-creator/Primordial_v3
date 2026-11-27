@@ -264,7 +264,7 @@ export const NitroView: React.FC<NitroViewProps> = ({
               <div className="border-t border-[#2e3035] pt-2 flex items-center justify-between">
                 <span className="text-[#949ba4]">Método de pago</span>
                 <span className="font-semibold text-[#f2f3f5]">
-                  {isOwner ? 'Admin autorizado' : 'Pago USD requerido'}
+                  {isOwner ? 'Owner autorizado' : 'Pago USD requerido'}
                 </span>
               </div>
             </div>
@@ -298,7 +298,7 @@ export const NitroView: React.FC<NitroViewProps> = ({
                   className="flex-1 h-11 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white text-sm font-bold cursor-pointer inline-flex items-center justify-center gap-1.5"
                 >
                   <Crown className="w-4 h-4" />
-                  <span>Activar (Admin)</span>
+                  <span>Activar (Owner)</span>
                 </button>
               ) : (
                 <button
@@ -324,7 +324,7 @@ export const NitroView: React.FC<NitroViewProps> = ({
                 }}
                 className="w-full py-2 text-xs font-semibold text-pink-300 hover:text-pink-200 cursor-pointer text-center"
               >
-                Abrir Panel Admin completo →
+                Abrir Panel Owner completo →
               </button>
             )}
           </div>

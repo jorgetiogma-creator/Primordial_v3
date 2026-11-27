@@ -12,7 +12,8 @@ export type MainScreen =
   | 'servidores'
   | 'insignias'
   | 'mejoras'
-  | 'servidor-ajustes';
+  | 'servidor-ajustes'
+  | 'ia-asistente';
 
 export type ServerSettingsSection =
   | 'menu'
@@ -70,6 +71,12 @@ export interface ServerSticker {
 }
 
 export type AvatarKey =
+  | 'discord-blurple'
+  | 'discord-green'
+  | 'discord-yellow'
+  | 'discord-red'
+  | 'discord-pink'
+  | 'discord-cyan'
   | 'madara'
   | 'snuf'
   | 'bumper'
@@ -376,6 +383,7 @@ export interface UserProfile {
   gamesPlayedCount: number;
   accountYears: number;
   betaTestsCount?: number;
+  aiCredits?: number;
   perServerProfiles?: Record<string, PerServerProfile>;
 }
 
@@ -938,5 +946,68 @@ export interface CreateServerPayload {
   includeStarterRoles: boolean;
   includeVoiceChannels: boolean;
   starterRoles?: ServerRole[];
+}
+
+export interface AiBuiltChannelSpec {
+  name: string;
+  type: 'text' | 'voice' | 'announcement';
+  category: string;
+  topic: string;
+  isPrivate?: boolean;
+  starterMessage?: string;
+}
+
+export interface AiBuiltRoleSpec {
+  name: string;
+  color: string;
+  hoist?: boolean;
+  permissions: string[];
+}
+
+export interface AiChannelUpdateSpec {
+  currentName: string;
+  newName?: string;
+  topic?: string;
+  category?: string;
+}
+
+export interface AiServerBuildPlan {
+  serverName?: string;
+  summary: string;
+  serverDescription: string;
+  accentColor: string;
+  categoriesOrder: string[];
+  channels: AiBuiltChannelSpec[];
+  channelUpdates?: AiChannelUpdateSpec[];
+  roles: AiBuiltRoleSpec[];
+}
+
+export interface AiAssistantMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  mode: 'build' | 'chat';
+  content: string;
+  images?: string[];
+  suggestedBuildPrompt?: string;
+  creditsSpent?: number;
+  elapsedSeconds?: number;
+  buildResult?: {
+    serverId: string;
+    serverName: string;
+    channelsCreated: number;
+    channelsUpdated?: number;
+    rolesCreated: number;
+    channelNames: string[];
+    updatedChannelNames?: string[];
+    roleNames: string[];
+  };
+  error?: boolean;
+}
+
+export interface AiConversationState {
+  chatMessages: AiAssistantMessage[];
+  buildMessages: AiAssistantMessage[];
+  selectedTargetId: string;
+  mode: 'build' | 'chat';
 }
 

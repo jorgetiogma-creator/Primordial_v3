@@ -1513,7 +1513,7 @@ export const MessagesPanel: React.FC<MessagesPanelProps> = ({
 
                         {(dm.serverTag || (!dm.isGroup && !dm.isBot && isOwnerUsername(dm.username))) && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/15 dark:bg-white/10 text-[10.5px] font-semibold text-[var(--dc-text-secondary)] shrink-0">
-                            {dm.serverTag || 'Staff'}
+                            {dm.serverTag || '👑 Owner'}
                           </span>
                         )}
 

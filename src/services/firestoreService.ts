@@ -1508,6 +1508,19 @@ export async function leaveFirestoreServer(uid: string, serverId: string): Promi
   }
 }
 
+export async function deleteFirestoreServer(serverId: string, uid: string): Promise<void> {
+  const path = `servers/${serverId}`;
+  try {
+    await deleteDoc(doc(db, 'servers', serverId));
+    await updateDoc(doc(db, 'users', uid, 'private', 'account'), {
+      joinedServerIds: arrayRemove(serverId),
+      updatedAt: serverTimestamp(),
+    }).catch(() => undefined);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
 export async function fetchDiscoverableServers(): Promise<Server[]> {
   const path = 'servers';
   try {
@@ -2383,3 +2396,62 @@ export function subscribeToVoiceChannelPresence(
   );
 }
 
+export async function inviteAiBotToFirestoreServer(params: {
+  serverId: string;
+  botUid: string;
+  roleIds?: string[];
+}): Promise<void> {
+  const { serverId, botUid, roleIds = ['role-ai-bot'] } = params;
+  const path = `servers/${serverId}/members/${botUid}`;
+  try {
+    await setDoc(
+      doc(db, 'servers', serverId, 'members', botUid),
+      stripUndefined({
+        uid: botUid,
+        displayName: 'Primordial Architect AI',
+        username: 'architect_ai',
+        avatar: 'primordial-bot',
+        status: 'online',
+        roleIds: roleIds.slice(0, 20),
+        isAdmin: true,
+        joinedAt: serverTimestamp(),
+      })
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function sendAiBotChannelMessage(params: {
+  serverId: string;
+  channelId: string;
+  senderUid: string;
+  content: string;
+}): Promise<void> {
+  const { serverId, channelId, senderUid, content } = params;
+  const msgId = makeSafeId('msg');
+  const path = `servers/${serverId}/channels/${channelId}/messages/${msgId}`;
+  try {
+    await setDoc(
+      doc(db, 'servers', serverId, 'channels', channelId, 'messages', msgId),
+      stripUndefined({
+        id: msgId,
+        authorId: senderUid,
+        authorName: 'Primordial Architect AI',
+        authorAvatar: 'primordial-bot',
+        authorTag: 'IA BOT',
+        content: clampStr(content, 2000) || 'Estructura aplicada.',
+        timestamp: formatShortTime(),
+        createdAtMs: Date.now(),
+        edited: false,
+        pinned: false,
+        mentionEveryone: false,
+        threadCount: 0,
+        reactions: [],
+        createdAt: serverTimestamp(),
+      })
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}

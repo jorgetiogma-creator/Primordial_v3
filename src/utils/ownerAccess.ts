@@ -31,9 +31,15 @@ export function isOwnerIdentity(params: {
   username?: string | null;
   email?: string | null;
   firebaseEmail?: string | null;
+  contact?: string | null;
   isOwnerAccount?: boolean;
 }): boolean {
-  return isOwnerUsername(params.username);
+  return Boolean(
+    isOwnerUsername(params.username) ||
+      isDesignatedOwnerEmail(params.email) ||
+      isDesignatedOwnerEmail(params.firebaseEmail) ||
+      isDesignatedOwnerEmail(params.contact)
+  );
 }
 
 export interface ServerPermissions {
@@ -46,20 +52,30 @@ export interface ServerPermissions {
 }
 
 /**
- * Resolves the ONE AND ONLY private Admin account ID (@snuf).
+ * Resolves the authorized Owner account ID (@snuf or designated owner email).
  */
 export function resolveSingleOwnerAccountId(accounts: StoredAccount[]): string | null {
-  const usernameOwner = accounts.find((acc) => isOwnerUsername(acc.user.username));
-  return usernameOwner ? usernameOwner.id : null;
+  const ownerAcc = accounts.find((acc) =>
+    isOwnerIdentity({
+      username: acc.user.username,
+      email: acc.user.email,
+      contact: acc.contact,
+    })
+  );
+  return ownerAcc ? ownerAcc.id : null;
 }
 
 /**
- * Ensures stored accounts keep admin pinning strictly on @snuf only.
+ * Ensures stored accounts pin Owner status strictly on verified owner identities only.
  */
 export function normalizeSingleOwnerAccounts(accounts: StoredAccount[]): StoredAccount[] {
   let changed = false;
   const next = accounts.map((acc) => {
-    const shouldBeOwner = isOwnerUsername(acc.user.username);
+    const shouldBeOwner = isOwnerIdentity({
+      username: acc.user.username,
+      email: acc.user.email,
+      contact: acc.contact,
+    });
     if (Boolean(acc.isOwnerAccount) !== shouldBeOwner) {
       changed = true;
       return { ...acc, isOwnerAccount: shouldBeOwner };
@@ -71,23 +87,34 @@ export function normalizeSingleOwnerAccounts(accounts: StoredAccount[]): StoredA
 }
 
 /**
- * Checks whether the currently active session belongs exclusively to the authorized Admin account (@snuf).
+ * Checks whether the currently active session belongs exclusively to an authorized Owner account.
  */
 export function isActiveAccountOwner(
   activeAccountId: string | null,
   accounts: StoredAccount[],
   currentUser: UserProfile,
-  _firebaseEmail?: string | null
+  firebaseEmail?: string | null
 ): boolean {
-  if (isOwnerUsername(currentUser.username)) {
+  if (
+    isOwnerIdentity({
+      username: currentUser.username,
+      email: currentUser.email,
+      firebaseEmail,
+    })
+  ) {
     return true;
   }
   if (!activeAccountId) return false;
   const activeAccount = accounts.find((acc) => acc.id === activeAccountId);
   return Boolean(
     activeAccount &&
-      isOwnerUsername(activeAccount.user.username) &&
-      activeAccount.user.id === currentUser.id
+      activeAccount.user.id === currentUser.id &&
+      isOwnerIdentity({
+        username: activeAccount.user.username,
+        email: activeAccount.user.email,
+        contact: activeAccount.contact,
+        firebaseEmail,
+      })
   );
 }
 

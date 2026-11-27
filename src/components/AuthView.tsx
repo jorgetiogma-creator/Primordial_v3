@@ -67,12 +67,12 @@ const COUNTRY_CODES = [
 ];
 
 const AVATAR_CHOICES: { id: AvatarKey; label: string }[] = [
-  { id: 'madara', label: 'Gato Noir' },
-  { id: 'snuf', label: 'Tokyo Night' },
-  { id: 'alex', label: 'Atardecer' },
-  { id: 'joawasa', label: 'Shiba Inu' },
-  { id: 'dragon', label: 'Cumbre B&N' },
-  { id: 'coffee', label: 'Café & Vinilo' },
+  { id: 'discord-blurple', label: 'Azul Discord' },
+  { id: 'discord-green', label: 'Verde Discord' },
+  { id: 'discord-yellow', label: 'Amarillo Discord' },
+  { id: 'discord-red', label: 'Rojo Discord' },
+  { id: 'discord-pink', label: 'Rosa Nitro' },
+  { id: 'discord-cyan', label: 'Celeste Discord' },
 ];
 
 const SECURITY_CHALLENGES = [
@@ -528,7 +528,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regShowPass, setRegShowPass] = useState(false);
-  const [regAvatar, setRegAvatar] = useState<AvatarKey>('madara');
+  const [regAvatar, setRegAvatar] = useState<AvatarKey>('discord-blurple');
   const [regEnable2FA, setRegEnable2FA] = useState(false);
   const [regBackupCodes] = useState<string[]>(() => generateBackupCodes());
   const [copiedCodes, setCopiedCodes] = useState(false);
@@ -598,18 +598,16 @@ export const AuthView: React.FC<AuthViewProps> = ({
   };
 
   const resolveAccountForQuickAuth = (): StoredAccount | null => {
-    const idClean = loginIdentifier.trim().toLowerCase();
-    if (idClean) {
-      return (
-        accounts.find(
-          (a) =>
-            a.contact.toLowerCase() === idClean ||
-            a.user.username.toLowerCase() === idClean ||
-            a.user.displayName.toLowerCase() === idClean
-        ) || null
-      );
-    }
-    return accounts[0] || null;
+    const idClean = loginIdentifier.trim().toLowerCase().replace(/^@+/, '');
+    if (!idClean) return null;
+    return (
+      accounts.find(
+        (a) =>
+          a.contact.toLowerCase() === idClean ||
+          a.user.username.toLowerCase().replace(/^@+/, '') === idClean ||
+          a.user.displayName.toLowerCase() === idClean
+      ) || null
+    );
   };
 
   const finalizeAuthenticatedLogin = (account: StoredAccount, rememberDevice = false) => {
@@ -685,7 +683,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
       return;
     }
 
-    if (found.password !== loginPassword && loginPassword !== 'demo1234') {
+    if (found.password !== loginPassword) {
       registerFailedAttempt('Contraseña incorrecta.');
       return;
     }

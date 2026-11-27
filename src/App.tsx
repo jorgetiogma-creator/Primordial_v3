@@ -32,10 +32,12 @@ import {
   createFirestoreServer,
   deleteFirestoreChannel,
   deleteFirestoreMessage,
+  deleteFirestoreServer,
   fetchDiscoverableServers,
   fetchPublicProfileById,
   fetchUserAccountBundle,
   getOrCreateDmThread,
+  inviteAiBotToFirestoreServer,
   joinFirestoreServer,
   kickFirestoreServerMember,
   leaveFirestoreServer,
@@ -48,6 +50,7 @@ import {
   resolveEffectivePresence,
   respondFriendRequest,
   searchRealUsers,
+  sendAiBotChannelMessage,
   sendChannelMessage,
   sendDmMessage,
   sendFriendRequest,
@@ -96,6 +99,9 @@ import {
   resolvePublicUserProfile,
 } from './data/discordData';
 import {
+  AiAssistantMessage,
+  AiConversationState,
+  AiServerBuildPlan,
   AppPreferences,
   AvatarKey,
   BadgeId,
@@ -112,6 +118,7 @@ import {
   Quest,
   SentFriendRequestItem,
   Server,
+  ServerMemberSummary,
   ServerRole,
   ServerSettingsSection,
   ServerTemplateId,
@@ -143,6 +150,10 @@ import { ServerSettingsView } from './components/ServerSettingsView';
 import { UserProfileModal } from './components/UserProfileModal';
 import { OwnerPanelModal } from './components/OwnerPanelModal';
 import { ScreenShareStudioModal } from './components/ScreenShareStudioModal';
+import {
+  AI_BUILDER_BOT_UID,
+  AiServerAssistantView,
+} from './components/AiServerAssistantView';
 import { getOwnedCosmetics, sanitizeUserShopCosmetics } from './utils/shopOwnership';
 import {
   canManageServer,
@@ -178,6 +189,80 @@ const CURATED_SERVERS_KEY_PREFIX = 'primordial_curated_srv_v1_';
 const CURATED_MSGS_KEY_PREFIX = 'primordial_curated_msgs_v1_';
 const LOCAL_PREFS_KEY_PREFIX = 'primordial_local_prefs_v1_';
 const ACTIVITY_ORBS_KEY_PREFIX = 'primordial_activity_orbs_v1_';
+const AI_CONVO_KEY_PREFIX = 'primordial_ai_chat_v1_';
+const OWNER_JONH_MIGRATION_KEY = 'primordial_owner_jonh_v1';
+const OWNER_JONH_USER_MIGRATION_KEY = 'primordial_owner_jonh_user_v1';
+
+const DEFAULT_AI_CONVERSATION: AiConversationState = {
+  chatMessages: [],
+  buildMessages: [],
+  selectedTargetId: '',
+  mode: 'build',
+};
+
+const loadAiConversationForAccount = (accountId: string | null): AiConversationState => {
+  try {
+    const raw = localStorage.getItem(`${AI_CONVO_KEY_PREFIX}${accountId || 'guest'}`);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<AiConversationState> & {
+        messages?: AiAssistantMessage[];
+      };
+      if (parsed && (Array.isArray(parsed.chatMessages) || Array.isArray(parsed.buildMessages))) {
+        return {
+          chatMessages: Array.isArray(parsed.chatMessages) ? parsed.chatMessages.slice(-60) : [],
+          buildMessages: Array.isArray(parsed.buildMessages) ? parsed.buildMessages.slice(-60) : [],
+          selectedTargetId:
+            typeof parsed.selectedTargetId === 'string' ? parsed.selectedTargetId : '',
+          mode: parsed.mode === 'chat' ? 'chat' : 'build',
+        };
+      }
+      if (parsed && Array.isArray(parsed.messages)) {
+        const legacy = parsed.messages.slice(-60);
+        return {
+          chatMessages: legacy.filter((m) => m.mode === 'chat'),
+          buildMessages: legacy.filter((m) => m.mode !== 'chat'),
+          selectedTargetId:
+            typeof parsed.selectedTargetId === 'string' ? parsed.selectedTargetId : '',
+          mode: parsed.mode === 'chat' ? 'chat' : 'build',
+        };
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return { ...DEFAULT_AI_CONVERSATION };
+};
+
+const saveAiConversationForAccount = (
+  accountId: string | null,
+  state: AiConversationState
+) => {
+  const key = `${AI_CONVO_KEY_PREFIX}${accountId || 'guest'}`;
+  const trimmed: AiConversationState = {
+    ...state,
+    chatMessages: (state.chatMessages || []).slice(-50),
+    buildMessages: (state.buildMessages || []).slice(-50),
+  };
+  try {
+    localStorage.setItem(key, JSON.stringify(trimmed));
+  } catch {
+    // Quota fallback: drop heavy inline image previews from localStorage while keeping full chat history
+    try {
+      const lightweight: AiConversationState = {
+        ...trimmed,
+        chatMessages: trimmed.chatMessages.map((m) =>
+          m.images?.length ? { ...m, images: undefined } : m
+        ),
+        buildMessages: trimmed.buildMessages.map((m) =>
+          m.images?.length ? { ...m, images: undefined } : m
+        ),
+      };
+      localStorage.setItem(key, JSON.stringify(lightweight));
+    } catch {
+      /* ignore */
+    }
+  }
+};
 
 const isCuratedServerId = (id?: string | null): boolean =>
   Boolean(id && CURATED_PUBLIC_SERVERS.some((s) => s.id === id));
@@ -188,6 +273,7 @@ const loadLocalPrefsForAccount = (
   voiceEntryEffect?: VoiceEntryEffectId;
   ephemeralNoteExpiresAt?: number;
   betaTestsCount?: number;
+  aiCredits?: number;
 } => {
   try {
     const raw = localStorage.getItem(`${LOCAL_PREFS_KEY_PREFIX}${accountId || 'guest'}`);
@@ -204,6 +290,7 @@ const saveLocalPrefsForAccount = (
     voiceEntryEffect?: VoiceEntryEffectId;
     ephemeralNoteExpiresAt?: number;
     betaTestsCount?: number;
+    aiCredits?: number;
   }
 ) => {
   try {
@@ -327,19 +414,30 @@ export default function App() {
       if (rawAccs) {
         const parsed: StoredAccount[] = JSON.parse(rawAccs);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          const needsJonhMigration = !localStorage.getItem(OWNER_JONH_MIGRATION_KEY);
           const sanitized = parsed.map((acc) => {
             const owned = acc.ownedBundleIds || [];
+            const isExistingJonh =
+              needsJonhMigration &&
+              acc.user?.username?.trim().toLowerCase() === 'jonh';
             const mergedAccUser: UserProfile = {
               ...INITIAL_USER,
               ...acc.user,
+              ...(isExistingJonh
+                ? { email: acc.user?.email || 'jorgesantiagoensuprime@gmail.com' }
+                : {}),
               orbs: normalizeOrbs(acc.user?.orbs),
             };
             return {
               ...acc,
+              ...(isExistingJonh ? { isOwnerAccount: true } : {}),
               ownedBundleIds: owned,
               user: sanitizeUserShopCosmetics(mergedAccUser, owned, INITIAL_SHOP_BUNDLES),
             };
           });
+          if (needsJonhMigration) {
+            localStorage.setItem(OWNER_JONH_MIGRATION_KEY, '1');
+          }
           localStorage.setItem(ORBS_BUGFIX_KEY, '1');
           return normalizeSingleOwnerAccounts(sanitized);
         }
@@ -374,9 +472,15 @@ export default function App() {
         if (parsedUser) {
           const rawStyle = parsedUser.displayNameStyle as string | undefined;
           const rawPlate = parsedUser.nameplate as string | undefined;
+          const needsJonhUserMigration =
+            !localStorage.getItem(OWNER_JONH_USER_MIGRATION_KEY) &&
+            String(parsedUser.username || '').trim().toLowerCase() === 'jonh';
           const merged: UserProfile = {
             ...INITIAL_USER,
             ...parsedUser,
+            ...(needsJonhUserMigration
+              ? { email: parsedUser.email || 'jorgesantiagoensuprime@gmail.com' }
+              : {}),
             displayNameStyle: rawStyle === 'gta' || rawStyle === 'shinobi' ? 'default' : parsedUser.displayNameStyle,
             nameplate:
               rawPlate === 'vice-city' || rawPlate === 'konoha-naranja'
@@ -396,6 +500,9 @@ export default function App() {
             ephemeralNoteExpiresAt: noteExpired ? undefined : localPrefs.ephemeralNoteExpiresAt,
             customStatus: noteExpired ? '' : parsedUser.customStatus || '',
           };
+          if (needsJonhUserMigration) {
+            localStorage.setItem(OWNER_JONH_USER_MIGRATION_KEY, '1');
+          }
           return sanitizeUserShopCosmetics(merged, owned, INITIAL_SHOP_BUNDLES);
         }
       }
@@ -557,6 +664,33 @@ export default function App() {
   const [sentFriendRequestItems, setSentFriendRequestItems] = useState<SentFriendRequestItem[]>([]);
   const [liveProfilesByUid, setLiveProfilesByUid] = useState<Record<string, LivePublicProfileEntry>>({});
   const [presenceTick, setPresenceTick] = useState(0);
+  const [aiCredits, setAiCredits] = useState<number>(() => {
+    const prefs = loadLocalPrefsForAccount(activeAccountId);
+    return typeof prefs.aiCredits === 'number' ? prefs.aiCredits : 100;
+  });
+  const updateAiCredits = useCallback(
+    (updater: (prev: number) => number) => {
+      setAiCredits((prev) => {
+        const next = Math.max(0, Math.floor(updater(prev)));
+        saveLocalPrefsForAccount(activeAccountId, { aiCredits: next });
+        return next;
+      });
+    },
+    [activeAccountId]
+  );
+  const [aiConversation, setAiConversation] = useState<AiConversationState>(() =>
+    loadAiConversationForAccount(activeAccountId)
+  );
+  const updateAiConversation = useCallback(
+    (updater: (prev: AiConversationState) => AiConversationState) => {
+      setAiConversation((prev) => {
+        const next = updater(prev);
+        saveAiConversationForAccount(activeAccountId, next);
+        return next;
+      });
+    },
+    [activeAccountId]
+  );
   const [appPreferences, setAppPreferences] = useState<AppPreferences>(() => {
     try {
       const raw = localStorage.getItem(APP_PREFS_KEY);
@@ -640,6 +774,8 @@ export default function App() {
       ephemeralNoteExpiresAt: expired ? undefined : localPrefs.ephemeralNoteExpiresAt,
       ...(expired ? { customStatus: '' } : {}),
     }));
+    setAiCredits(typeof localPrefs.aiCredits === 'number' ? localPrefs.aiCredits : 100);
+    setAiConversation(loadAiConversationForAccount(activeAccountId));
     setDms((prev) => mergeBotDm(prev, activeAccountId, user.displayName));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccountId]);
@@ -3139,12 +3275,20 @@ export default function App() {
       gamesPlayedCount: 0,
       accountYears: 0,
     };
-    const hasExistingOwner = accounts.some(
-      (acc) =>
-        acc.isOwnerAccount === true ||
-        acc.user.username.trim().toLowerCase() === RESERVED_OWNER_USERNAME
+    const hasExistingOwner = accounts.some((acc) =>
+      isOwnerIdentity({
+        username: acc.user.username,
+        email: acc.user.email,
+        contact: acc.contact,
+        isOwnerAccount: acc.isOwnerAccount,
+      })
     );
-    const shouldPinOwner = !hasExistingOwner && cleanHandle === RESERVED_OWNER_USERNAME;
+    const shouldPinOwner =
+      !hasExistingOwner &&
+      isOwnerIdentity({
+        username: cleanHandle,
+        email: payload.contactType === 'email' ? payload.contact : undefined,
+      });
 
     const newAccount: StoredAccount = {
       id: newId,
@@ -3158,11 +3302,30 @@ export default function App() {
       wishlistIds: [],
     };
     autoCloudAttemptedRef.current = newId;
+    hydratedUidRef.current = null;
+    setFirebaseUid(null);
+    setFirebaseEmail(null);
     setAccounts((prev) => normalizeSingleOwnerAccounts([...prev, newAccount]));
     setActiveAccountId(newId);
     setUser(newUser);
     setOwnedBundleIds([]);
     setWishlistIds([]);
+    setClaimedQuestIds([]);
+    setJoinedServerIds([]);
+    setJoinedCuratedIds([]);
+    setCuratedMessagesByChannel({});
+    setServers([]);
+    setDms(mergeBotDm([], newId, payload.displayName));
+    setNotifications([]);
+    setFriendRequests([]);
+    setSentFriendRequestUids([]);
+    setSentFriendRequestItems([]);
+    setLiveProfilesByUid({});
+    setAiCredits(100);
+    setAiConversation(DEFAULT_AI_CONVERSATION);
+    setActiveContext({ type: 'dm' });
+    setSelectedDmId(null);
+    setSelectedChannelId(null);
     setScreen('inicio');
     setMobileChatOpen(false);
     setShowOwnerPanel(false);
@@ -3280,7 +3443,7 @@ export default function App() {
     );
     setUser(nextUser);
     flushCloudAccountSync({ user: nextUser, ownedBundleIds: allIds });
-    showToastMsg('¡Todo desbloqueado al máximo para tu cuenta Admin!');
+    showToastMsg('¡Todo desbloqueado al máximo para tu cuenta Owner!');
   };
 
   const handleLogout = () => {
@@ -3540,6 +3703,700 @@ export default function App() {
     setScreen('inicio');
     setMobileChatOpen(false);
     showToastMsg(`Servidor "${name}" creado con ${newSrv.channels.length} canales`);
+  };
+
+  const handleInviteAiBotToServer = async (serverId: string): Promise<boolean> => {
+    const srv = servers.find((s) => s.id === serverId);
+    if (!srv) {
+      showToastMsg('No se encontró el servidor seleccionado');
+      return false;
+    }
+    const hasLegacyLocalOwner =
+      srv.ownerId === 'me' || srv.ownerId === 'guest' || !srv.ownerId;
+    if (!canManageServer(srv, user.id) && !hasLegacyLocalOwner) {
+      showToastMsg('Necesitas permiso de administrador para invitar al Bot IA');
+      return false;
+    }
+    if (srv.members?.some((m) => m.uid === AI_BUILDER_BOT_UID)) {
+      return true;
+    }
+
+    const aiBotRole: ServerRole = {
+      id: 'role-ai-bot',
+      name: 'IA Arquitecto',
+      color: '#a855f7',
+      hoist: true,
+      permissions: ['Administrador', 'Gestionar canales', 'Gestionar mensajes'],
+    };
+    const hasBotRole = (srv.roles || []).some((r) => r.id === 'role-ai-bot');
+    const nextRoles = hasBotRole ? srv.roles || [] : [...(srv.roles || []), aiBotRole];
+
+    const botMember: ServerMemberSummary = {
+      uid: AI_BUILDER_BOT_UID,
+      displayName: 'Primordial Architect AI',
+      username: 'architect_ai',
+      avatar: 'primordial-bot',
+      status: 'online',
+      roleIds: ['role-ai-bot'],
+      isAdmin: true,
+    };
+
+    const firstTextChannel =
+      srv.channels.find((c) => c.type !== 'voice' && !c.isPrivate) ||
+      srv.channels.find((c) => c.type !== 'voice');
+
+    const joinAnnouncement =
+      'Primordial Architect AI se ha unido al servidor. Ya puedes usar el modo Construir para crear canales, categorías y roles automáticamente.';
+
+    if (firebaseUid && !isCuratedServerId(serverId)) {
+      try {
+        await inviteAiBotToFirestoreServer({
+          serverId,
+          botUid: AI_BUILDER_BOT_UID,
+          roleIds: ['role-ai-bot'],
+        });
+        if (!hasBotRole) {
+          void updateFirestoreServer(serverId, { roles: nextRoles }).catch(() => undefined);
+        }
+        if (firstTextChannel) {
+          void sendAiBotChannelMessage({
+            serverId,
+            channelId: firstTextChannel.id,
+            senderUid: firebaseUid,
+            content: joinAnnouncement,
+          }).catch(() => undefined);
+        }
+      } catch (err) {
+        console.error('Error inviting AI bot to Firestore server:', err);
+        showToastMsg('No se pudo conectar el Bot IA al servidor en la nube');
+        return false;
+      }
+    }
+
+    const joinMsg: ChatMessage = {
+      id: `ai-join-${Date.now()}`,
+      authorId: AI_BUILDER_BOT_UID,
+      authorName: 'Primordial Architect AI',
+      authorAvatar: 'primordial-bot',
+      authorTag: 'IA BOT',
+      timestamp: 'Ahora',
+      createdAtMs: Date.now(),
+      content: joinAnnouncement,
+      reactions: [],
+    };
+
+    setServers((prev) =>
+      prev.map((s) => {
+        if (s.id !== serverId) return s;
+        return {
+          ...s,
+          roles: nextRoles,
+          members: [...(s.members || []), botMember],
+          memberRoleIds: {
+            ...(s.memberRoleIds || {}),
+            [AI_BUILDER_BOT_UID]: ['role-ai-bot'],
+          },
+          memberCount: (s.memberCount || 1) + 1,
+          onlineCount: (s.onlineCount || 1) + 1,
+          channels: firstTextChannel
+            ? s.channels.map((ch) =>
+                ch.id === firstTextChannel.id
+                  ? { ...ch, messages: [...ch.messages, joinMsg] }
+                  : ch
+              )
+            : s.channels,
+        };
+      })
+    );
+
+    showToastMsg(`Primordial Architect AI entró a ${srv.name}`);
+    return true;
+  };
+
+  const handleDeleteServer = (serverId: string) => {
+    const targetSrv = servers.find((s) => s.id === serverId);
+    if (!targetSrv) return;
+    const hasLegacyLocalOwner =
+      targetSrv.ownerId === 'me' || targetSrv.ownerId === 'guest' || !targetSrv.ownerId;
+    if (!isServerOwner(targetSrv, user.id) && !hasLegacyLocalOwner) {
+      showToastMsg('Solo el dueño puede eliminar este servidor');
+      return;
+    }
+    const targetName = targetSrv.name;
+    if (firebaseUid && !isCuratedServerId(serverId)) {
+      void deleteFirestoreServer(serverId, firebaseUid).catch(() =>
+        showToastMsg('No se pudo eliminar el servidor en la nube')
+      );
+      setJoinedServerIds((prev) => prev.filter((id) => id !== serverId));
+    }
+    setServers((prev) => prev.filter((s) => s.id !== serverId));
+    setServerSettingsTarget(null);
+    setActiveContext({ type: 'dm' });
+    setSelectedChannelId(null);
+    setScreen('inicio');
+    setMobileChatOpen(false);
+    showToastMsg(`Servidor "${targetName}" eliminado`);
+  };
+
+  const handleApplyAiBuildToServer = async (
+    targetServerId: string | null,
+    plan: AiServerBuildPlan,
+    originalPrompt: string
+  ): Promise<{
+    serverId: string;
+    serverName: string;
+    channelsCreated: number;
+    channelsUpdated?: number;
+    rolesCreated: number;
+    channelNames: string[];
+    updatedChannelNames?: string[];
+    roleNames: string[];
+  }> => {
+    const now = Date.now();
+    const aiBotRole: ServerRole = {
+      id: 'role-ai-bot',
+      name: 'IA Arquitecto',
+      color: '#23a55a',
+      hoist: true,
+      permissions: ['Administrador', 'Gestionar canales', 'Gestionar mensajes'],
+    };
+    const botMember: ServerMemberSummary = {
+      uid: AI_BUILDER_BOT_UID,
+      displayName: 'Primordial Architect AI',
+      username: 'architect_ai',
+      avatar: 'primordial-bot',
+      status: 'online',
+      roleIds: ['role-ai-bot'],
+      isAdmin: true,
+    };
+
+    const incomingRoles: ServerRole[] = (plan.roles || []).map((r, idx) => ({
+      id: `role-ai-${now}-${idx}`,
+      name: r.name,
+      color: r.color || '#23a55a',
+      hoist: Boolean(r.hoist),
+      permissions:
+        r.permissions && r.permissions.length > 0
+          ? r.permissions
+          : ['Enviar mensajes', 'Leer canales'],
+    }));
+
+    // Case A: Create a brand new server with the AI Bot inside
+    if (!targetServerId) {
+      const serverName = (plan.serverName || 'Servidor IA').trim().slice(0, 80);
+      const accent = plan.accentColor || '#23a55a';
+
+      if (firebaseUid) {
+        const createdSrv = await createFirestoreServer({
+          uid: firebaseUid,
+          currentUser: user,
+          payload: {
+            name: serverName,
+            templateId: 'custom',
+            audience: 'community',
+            accentColor: accent,
+            chatTheme: 'onyx',
+            chatMessageStyle: 'classic',
+            includeBots: true,
+            includeStarterRoles: true,
+            includeVoiceChannels: false,
+          },
+        });
+
+        await inviteAiBotToFirestoreServer({
+          serverId: createdSrv.id,
+          botUid: AI_BUILDER_BOT_UID,
+          roleIds: ['role-ai-bot'],
+        });
+
+        const existingRoleNames = new Set(
+          (createdSrv.roles || []).map((r) => r.name.toLowerCase())
+        );
+        const filteredNewRoles = incomingRoles.filter(
+          (r) => !existingRoleNames.has(r.name.toLowerCase())
+        );
+        const mergedRoles: ServerRole[] = [
+          ...(createdSrv.roles || []),
+          ...(existingRoleNames.has('ia arquitecto') ? [] : [aiBotRole]),
+          ...filteredNewRoles,
+        ];
+
+        const mergedCategories = Array.from(
+          new Set([
+            ...(plan.categoriesOrder || []),
+            ...(plan.channels || []).map((c) => c.category || 'Canales de texto'),
+            ...(createdSrv.categoriesOrder || []),
+          ].filter(Boolean))
+        );
+
+        await updateFirestoreServer(createdSrv.id, {
+          description: plan.serverDescription || plan.summary || `Servidor construido con IA`,
+          accentColor: accent,
+          bannerColor: accent,
+          categoriesOrder: mergedCategories,
+          roles: mergedRoles,
+        });
+
+        const finalChannels: Channel[] = [...createdSrv.channels];
+        const createdNames: string[] = [];
+
+        for (let i = 0; i < (plan.channels || []).length; i++) {
+          const spec = plan.channels[i];
+          const existingMatch = finalChannels.find(
+            (c) =>
+              c.name.toLowerCase() === spec.name.toLowerCase() && c.type === spec.type
+          );
+
+          if (existingMatch) {
+            existingMatch.category = spec.category || existingMatch.category;
+            existingMatch.topic = spec.topic || existingMatch.topic;
+            await updateFirestoreChannel({
+              serverId: createdSrv.id,
+              channelId: existingMatch.id,
+              patch: {
+                category: existingMatch.category,
+                topic: existingMatch.topic,
+              },
+            }).catch(() => undefined);
+
+            if (spec.starterMessage) {
+              await sendAiBotChannelMessage({
+                serverId: createdSrv.id,
+                channelId: existingMatch.id,
+                senderUid: firebaseUid,
+                content: spec.starterMessage,
+              }).catch(() => undefined);
+              existingMatch.messages = [
+                ...existingMatch.messages,
+                {
+                  id: `ai-start-${now}-${i}`,
+                  authorId: AI_BUILDER_BOT_UID,
+                  authorName: 'Primordial Architect AI',
+                  authorAvatar: 'primordial-bot',
+                  authorTag: 'IA BOT',
+                  timestamp: 'Ahora',
+                  createdAtMs: Date.now(),
+                  content: spec.starterMessage,
+                  reactions: [],
+                },
+              ];
+            }
+          } else {
+            const chId = await createFirestoreChannel({
+              serverId: createdSrv.id,
+              name: spec.name,
+              type: spec.type,
+              category: spec.category || 'Canales de texto',
+              topic: spec.topic,
+              position: finalChannels.length,
+            });
+            createdNames.push(spec.name);
+            const starterMsgs: ChatMessage[] = [];
+            if (spec.starterMessage && spec.type !== 'voice') {
+              await sendAiBotChannelMessage({
+                serverId: createdSrv.id,
+                channelId: chId,
+                senderUid: firebaseUid,
+                content: spec.starterMessage,
+              }).catch(() => undefined);
+              starterMsgs.push({
+                id: `ai-start-${now}-${i}`,
+                authorId: AI_BUILDER_BOT_UID,
+                authorName: 'Primordial Architect AI',
+                authorAvatar: 'primordial-bot',
+                authorTag: 'IA BOT',
+                timestamp: 'Ahora',
+                createdAtMs: Date.now(),
+                content: spec.starterMessage,
+                reactions: [],
+              });
+            }
+            finalChannels.push({
+              id: chId,
+              name: spec.name,
+              type: spec.type,
+              category: spec.category || 'Canales de texto',
+              isPrivate: false,
+              topic: spec.topic,
+              voiceParticipants: spec.type === 'voice' ? [] : undefined,
+              messages: starterMsgs,
+            });
+          }
+        }
+
+        const enrichedServer: Server = {
+          ...createdSrv,
+          description: plan.serverDescription || plan.summary || createdSrv.description,
+          accentColor: accent,
+          bannerColor: accent,
+          categoriesOrder: mergedCategories,
+          roles: mergedRoles,
+          members: [...(createdSrv.members || []), botMember],
+          memberRoleIds: {
+            ...(createdSrv.memberRoleIds || {}),
+            [AI_BUILDER_BOT_UID]: ['role-ai-bot'],
+          },
+          memberCount: (createdSrv.memberCount || 1) + 1,
+          onlineCount: (createdSrv.onlineCount || 1) + 1,
+          channels: finalChannels,
+        };
+
+        setServers((prev) =>
+          prev.some((s) => s.id === enrichedServer.id)
+            ? prev.map((s) => (s.id === enrichedServer.id ? enrichedServer : s))
+            : [...prev, enrichedServer]
+        );
+        setJoinedServerIds((prev) =>
+          prev.includes(enrichedServer.id) ? prev : [...prev, enrichedServer.id]
+        );
+
+        showToastMsg(`Servidor "${serverName}" construido con IA`);
+        return {
+          serverId: enrichedServer.id,
+          serverName,
+          channelsCreated: finalChannels.length,
+          rolesCreated: filteredNewRoles.length,
+          channelNames: finalChannels.map((c) => c.name),
+          roleNames: filteredNewRoles.map((r) => r.name),
+        };
+      }
+
+      // Offline / local new server creation
+      const shortCode =
+        serverName
+          .split(/\s+/)
+          .map((w) => w.replace(/[^a-zA-Z0-9]/g, '')[0] || '')
+          .join('')
+          .slice(0, 3)
+          .toUpperCase() || 'IA';
+
+      const baseRoles: ServerRole[] = [
+        {
+          id: 'role-owner',
+          name: '👑 Owner',
+          color: '#f59e0b',
+          hoist: true,
+          permissions: ['Administrador'],
+        },
+        aiBotRole,
+        ...incomingRoles,
+        {
+          id: 'role-everyone',
+          name: '@everyone',
+          color: '#b5bac1',
+          hoist: false,
+          permissions: ['Leer canales', 'Enviar mensajes', 'Conectar a voz'],
+        },
+      ];
+
+      const localChannels: Channel[] = (plan.channels || []).map((spec, idx) => ({
+        id: `ch-ai-${now}-${idx}`,
+        name: spec.name,
+        type: spec.type,
+        category: spec.category || 'Canales de texto',
+        topic: spec.topic,
+        voiceParticipants: spec.type === 'voice' ? [] : undefined,
+        messages:
+          spec.starterMessage && spec.type !== 'voice'
+            ? [
+                {
+                  id: `ai-msg-${now}-${idx}`,
+                  authorId: AI_BUILDER_BOT_UID,
+                  authorName: 'Primordial Architect AI',
+                  authorAvatar: 'primordial-bot',
+                  authorTag: 'IA BOT',
+                  timestamp: 'Ahora',
+                  createdAtMs: now + idx,
+                  content: spec.starterMessage,
+                  reactions: [],
+                },
+              ]
+            : [],
+      }));
+
+      if (localChannels.length === 0) {
+        localChannels.push({
+          id: `ch-ai-${now}-general`,
+          name: 'general',
+          type: 'text',
+          category: 'Canales de texto',
+          topic: `Construido para: ${originalPrompt.slice(0, 80)}`,
+          messages: [],
+        });
+      }
+
+      const categoriesOrder = Array.from(
+        new Set([
+          ...(plan.categoriesOrder || []),
+          ...localChannels.map((c) => c.category),
+        ].filter(Boolean))
+      );
+
+      const uidKey = user.id || 'me';
+      const newLocalSrv: Server = {
+        id: `srv-ai-${now}`,
+        name: serverName,
+        shortCode,
+        ownerId: uidKey,
+        adminIds: [uidKey],
+        members: [
+          {
+            uid: uidKey,
+            displayName: user.displayName,
+            username: user.username,
+            avatar: user.avatar,
+            customAvatarUrl: user.customAvatarUrl,
+            status: user.status,
+            roleIds: ['role-owner'],
+            isAdmin: true,
+          },
+          botMember,
+        ],
+        hasUnread: false,
+        iconStyle: 'custom',
+        accentColor: accent,
+        bannerColor: accent,
+        description: plan.serverDescription || plan.summary,
+        memberCount: 2,
+        onlineCount: 2,
+        boostLevel: 0,
+        boostCount: 0,
+        unlockedPerkIds: [],
+        communityEnabled: true,
+        isDiscoverable: true,
+        showAllChannels: true,
+        chatTheme: 'onyx',
+        chatMessageStyle: 'classic',
+        chatAccentColor: accent,
+        categoriesOrder,
+        roles: baseRoles,
+        memberRoleIds: {
+          [uidKey]: ['role-owner'],
+          [AI_BUILDER_BOT_UID]: ['role-ai-bot'],
+        },
+        customEmojis: [],
+        stickers: [],
+        channels: localChannels,
+      };
+
+      setServers((prev) => [...prev, newLocalSrv]);
+      showToastMsg(`Servidor "${serverName}" construido con IA`);
+      return {
+        serverId: newLocalSrv.id,
+        serverName,
+        channelsCreated: localChannels.length,
+        rolesCreated: incomingRoles.length,
+        channelNames: localChannels.map((c) => c.name),
+        roleNames: incomingRoles.map((r) => r.name),
+      };
+    }
+
+    // Case B: Build/Update inside an existing server (Bot must be present)
+    const srv = servers.find((s) => s.id === targetServerId);
+    if (!srv) {
+      throw new Error('No se encontró el servidor destino.');
+    }
+    const hasLegacyLocalOwner =
+      srv.ownerId === 'me' || srv.ownerId === 'guest' || !srv.ownerId;
+    if (!canManageServer(srv, user.id) && !hasLegacyLocalOwner) {
+      throw new Error('No tienes permisos de administrador en este servidor.');
+    }
+
+    const normalizeForChannelMatch = (val: string) =>
+      val
+        .replace(/^#+\s*/, '')
+        .replace(/[^\p{L}\p{N}-]/gu, '')
+        .toLowerCase();
+
+    const updatedChannelIds = new Map<string, Partial<Channel>>();
+    const updatedNames: string[] = [];
+
+    for (const upd of plan.channelUpdates || []) {
+      const targetKey = upd.currentName.trim().toLowerCase();
+      const looseTargetKey = normalizeForChannelMatch(upd.currentName);
+      const match =
+        srv.channels.find((c) => c.name.toLowerCase() === targetKey) ||
+        (looseTargetKey
+          ? srv.channels.find(
+              (c) => normalizeForChannelMatch(c.name) === looseTargetKey
+            )
+          : undefined);
+      if (!match) continue;
+
+      const chPatch: Partial<Channel> = {};
+      if (upd.newName && upd.newName !== match.name) {
+        chPatch.name = upd.newName;
+      }
+      if (upd.topic) {
+        chPatch.topic = upd.topic;
+      }
+      if (upd.category) {
+        chPatch.category = upd.category;
+      }
+      if (Object.keys(chPatch).length === 0) continue;
+
+      updatedChannelIds.set(match.id, chPatch);
+      updatedNames.push(chPatch.name || match.name);
+
+      if (firebaseUid && !isCuratedServerId(srv.id)) {
+        void updateFirestoreChannel({
+          serverId: srv.id,
+          channelId: match.id,
+          patch: chPatch,
+        }).catch(() => undefined);
+      }
+    }
+
+    const existingChannelsWithUpdates = srv.channels.map((c) => {
+      const patch = updatedChannelIds.get(c.id);
+      return patch ? { ...c, ...patch } : c;
+    });
+
+    const existingKeys = new Set(
+      existingChannelsWithUpdates.map((c) => `${c.type}:${c.name.toLowerCase()}`)
+    );
+    const addedChannels: Channel[] = [];
+
+    for (let i = 0; i < (plan.channels || []).length; i++) {
+      const spec = plan.channels[i];
+      const key = `${spec.type}:${spec.name.toLowerCase()}`;
+      if (existingKeys.has(key)) continue;
+      existingKeys.add(key);
+
+      let chId = `ch-ai-${now}-${i}`;
+      if (firebaseUid && !isCuratedServerId(srv.id)) {
+        chId = await createFirestoreChannel({
+          serverId: srv.id,
+          name: spec.name,
+          type: spec.type,
+          category: spec.category || 'Canales de texto',
+          topic: spec.topic,
+          position: existingChannelsWithUpdates.length + addedChannels.length,
+        });
+      }
+
+      const starterMsgs: ChatMessage[] = [];
+      if (spec.starterMessage && spec.type !== 'voice') {
+        if (firebaseUid && !isCuratedServerId(srv.id)) {
+          void sendAiBotChannelMessage({
+            serverId: srv.id,
+            channelId: chId,
+            senderUid: firebaseUid,
+            content: spec.starterMessage,
+          }).catch(() => undefined);
+        }
+        starterMsgs.push({
+          id: `ai-start-${now}-${i}`,
+          authorId: AI_BUILDER_BOT_UID,
+          authorName: 'Primordial Architect AI',
+          authorAvatar: 'primordial-bot',
+          authorTag: 'IA BOT',
+          timestamp: 'Ahora',
+          createdAtMs: now + i,
+          content: spec.starterMessage,
+          reactions: [],
+        });
+      }
+
+      addedChannels.push({
+        id: chId,
+        name: spec.name,
+        type: spec.type,
+        category: spec.category || 'Canales de texto',
+        isPrivate: false,
+        topic: spec.topic,
+        voiceParticipants: spec.type === 'voice' ? [] : undefined,
+        messages: starterMsgs,
+      });
+    }
+
+    const existingRoleNames = new Set((srv.roles || []).map((r) => r.name.toLowerCase()));
+    const addedRoles = incomingRoles.filter(
+      (r) => !existingRoleNames.has(r.name.toLowerCase())
+    );
+    const mergedRoles = [...(srv.roles || []), ...addedRoles];
+
+    const mergedCategories = Array.from(
+      new Set([
+        ...(srv.categoriesOrder || []),
+        ...(plan.categoriesOrder || []),
+        ...existingChannelsWithUpdates.map((c) => c.category),
+        ...addedChannels.map((c) => c.category),
+      ].filter(Boolean))
+    );
+
+    if (firebaseUid && !isCuratedServerId(srv.id)) {
+      await updateFirestoreServer(srv.id, {
+        categoriesOrder: mergedCategories,
+        roles: mergedRoles,
+        ...(plan.serverDescription ? { description: plan.serverDescription } : {}),
+      });
+    }
+
+    const firstExistingText =
+      existingChannelsWithUpdates.find((c) => c.type !== 'voice' && !c.isPrivate) ||
+      addedChannels.find((c) => c.type !== 'voice');
+
+    const buildLogContent = `Construcción completada (${addedChannels.length} canales nuevos, ${updatedNames.length} canales actualizados, ${addedRoles.length} roles nuevos): ${plan.summary || originalPrompt.slice(0, 140)}`;
+    if (firstExistingText && firebaseUid && !isCuratedServerId(srv.id)) {
+      void sendAiBotChannelMessage({
+        serverId: srv.id,
+        channelId: firstExistingText.id,
+        senderUid: firebaseUid,
+        content: buildLogContent,
+      }).catch(() => undefined);
+    }
+
+    const logMsg: ChatMessage = {
+      id: `ai-log-${now}`,
+      authorId: AI_BUILDER_BOT_UID,
+      authorName: 'Primordial Architect AI',
+      authorAvatar: 'primordial-bot',
+      authorTag: 'IA BOT',
+      timestamp: 'Ahora',
+      createdAtMs: now + 99,
+      content: buildLogContent,
+      reactions: [],
+    };
+
+    setServers((prev) =>
+      prev.map((s) => {
+        if (s.id !== srv.id) return s;
+        const baseChannels = s.channels.map((c) => {
+          const patch = updatedChannelIds.get(c.id);
+          return patch ? { ...c, ...patch } : c;
+        });
+        const allChs = [...baseChannels, ...addedChannels];
+        return {
+          ...s,
+          description: plan.serverDescription || s.description,
+          categoriesOrder: mergedCategories,
+          roles: mergedRoles,
+          channels: firstExistingText
+            ? allChs.map((c) =>
+                c.id === firstExistingText.id ? { ...c, messages: [...c.messages, logMsg] } : c
+              )
+            : allChs,
+        };
+      })
+    );
+
+    showToastMsg(
+      updatedNames.length > 0 && addedChannels.length === 0
+        ? `${updatedNames.length} canales actualizados con IA en ${srv.name}`
+        : `Construcción aplicada en ${srv.name}: +${addedChannels.length} canales, ${updatedNames.length} editados`
+    );
+
+    return {
+      serverId: srv.id,
+      serverName: srv.name,
+      channelsCreated: addedChannels.length,
+      channelsUpdated: updatedNames.length,
+      rolesCreated: addedRoles.length,
+      channelNames: addedChannels.map((c) => c.name),
+      updatedChannelNames: updatedNames,
+      roleNames: addedRoles.map((r) => r.name),
+    };
   };
 
   const handleLoadDiscoverableServers = useCallback(async (): Promise<Server[]> => {
@@ -4508,6 +5365,43 @@ export default function App() {
   }, [voiceSession.active, voiceSession.serverId, voiceSession.channelId, firebaseUid]);
 
   const renderDesktopWorkspace = () => {
+    if (screen === 'ia-asistente') {
+      return (
+        <AiServerAssistantView
+          user={user}
+          servers={servers}
+          currentServerId={
+            activeContext.type === 'server' ? activeContext.serverId : null
+          }
+          credits={aiCredits}
+          isOwner={isOwner}
+          conversation={aiConversation}
+          onUpdateConversation={updateAiConversation}
+          onBack={() => setScreen('inicio')}
+          onInviteBotToServer={handleInviteAiBotToServer}
+          onApplyBuildPlan={handleApplyAiBuildToServer}
+          onDeductCredits={(amount) => updateAiCredits((prev) => prev - amount)}
+          onGrantBonusCredits={
+            isOwner
+              ? (amount) => {
+                  updateAiCredits((prev) => prev + amount);
+                  showToastMsg(`+${amount} créditos agregados`);
+                }
+              : undefined
+          }
+          onNavigateToServer={(serverId) => {
+            const target = servers.find((s) => s.id === serverId);
+            const firstCh =
+              target?.channels.find((c) => c.type !== 'voice' && !c.isPrivate) ||
+              target?.channels[0];
+            setActiveContext({ type: 'server', serverId });
+            setSelectedChannelId(firstCh?.id || null);
+            setScreen('inicio');
+            setMobileChatOpen(false);
+          }}
+        />
+      );
+    }
     if (screen === 'tu') {
       return (
         <ProfileView
@@ -4525,16 +5419,16 @@ export default function App() {
           onConsumeEditorRequest={() => setProfileEditorRequest(null)}
           onClose={() => setScreen('inicio')}
           onNavigate={(s) => setScreen(s)}
-          onUpdateUser={(patch) =>
-            setUser((prev) =>
-              sanitizeUserShopCosmetics(
-                { ...prev, ...patch },
-                ownedBundleIds,
-                INITIAL_SHOP_BUNDLES,
-                isOwner
-              )
-            )
-          }
+          onUpdateUser={(patch) => {
+            const nextUser = sanitizeUserShopCosmetics(
+              { ...user, ...patch },
+              ownedBundleIds,
+              INITIAL_SHOP_BUNDLES,
+              isOwner
+            );
+            setUser(nextUser);
+            flushCloudAccountSync({ user: nextUser });
+          }}
           onQueueNitroNameStyle={(patch) => setPendingNitroNamePatch(patch)}
           onShowToast={showToastMsg}
           onOpenBundle={(b) => {
@@ -4614,10 +5508,10 @@ export default function App() {
             playUiSound('ping', appPreferences.soundsEnabled);
             showToastMsg(
               appliedQueuedGlow
-                ? `¡Nitro activado por Admin y brillo aplicado a tu nombre!`
+                ? `¡Nitro activado por Owner y brillo aplicado a tu nombre!`
                 : tier === 'nitro'
-                ? '¡Primordial Nitro activado por Admin!'
-                : '¡Primordial Nitro Basic activado por Admin!'
+                ? '¡Primordial Nitro activado por Owner!'
+                : '¡Primordial Nitro Basic activado por Owner!'
             );
             setScreen('tu');
           }}
@@ -4829,7 +5723,9 @@ export default function App() {
               setScreen('inicio');
               showToastMsg(`Has salido de ${targetName}`);
             }}
+            onDeleteServer={handleDeleteServer}
             onInspectUser={(uid) => handleInspectUser(uid)}
+            onInviteOfficialBot={handleInviteAiBotToServer}
             onNotify={showToastMsg}
           />
         );
@@ -4969,6 +5865,7 @@ export default function App() {
     'insignias',
     'mejoras',
     'servidor-ajustes',
+    'ia-asistente',
   ].includes(screen);
 
   return (
@@ -5061,6 +5958,7 @@ export default function App() {
           <ServerRail
             servers={orderedServers}
             activeContext={activeContext}
+            isAiAssistantActive={screen === 'ia-asistente'}
             onSelectDm={() => {
               setActiveContext({ type: 'dm' });
               setScreen('inicio');
@@ -5078,6 +5976,20 @@ export default function App() {
               setShowCreateServer(true);
             }}
             onOpenDiscover={() => setShowDiscover(true)}
+            onOpenAiAssistant={() => {
+              if (
+                activeContext.type === 'server' &&
+                servers.some((s) => s.id === activeContext.serverId)
+              ) {
+                const openSrvId = activeContext.serverId;
+                updateAiConversation((prev) => ({
+                  ...prev,
+                  selectedTargetId: openSrvId,
+                }));
+              }
+              setScreen('ia-asistente');
+              setMobileChatOpen(false);
+            }}
             onMoveServer={handleMoveServer}
           />
 

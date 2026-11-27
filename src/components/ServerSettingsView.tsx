@@ -50,7 +50,7 @@ import {
   ServerSettingsSection,
   UserProfile,
 } from '../types/discord';
-import { ServerIconArt, UserAvatar } from './DiscordArt';
+import { PrimordialAppIcon, ServerIconArt, UserAvatar } from './DiscordArt';
 import { BoostGemIcon } from './ServerBoostView';
 import { getServerPermissions } from '../utils/ownerAccess';
 
@@ -76,6 +76,8 @@ interface ServerSettingsViewProps {
   onMoveCategory: (serverId: string, categoryName: string, direction: -1 | 1) => void;
   onOpenServerBoost: (serverId: string) => void;
   onLeaveServer: (serverId: string) => void;
+  onDeleteServer?: (serverId: string) => void;
+  onInviteOfficialBot?: (serverId: string) => Promise<boolean>;
   onInspectUser?: (userId: string) => void;
   onNotify: (msg: string) => void;
 }
@@ -157,11 +159,14 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
   onMoveCategory,
   onOpenServerBoost,
   onLeaveServer,
+  onDeleteServer,
+  onInviteOfficialBot,
   onInspectUser,
   onNotify,
 }) => {
   const [section, setSection] = useState<ServerSettingsSection>(initialSection);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmDeleteServer, setConfirmDeleteServer] = useState(false);
 
   // Vista general draft
   const [srvName, setSrvName] = useState(server.name);
@@ -289,6 +294,66 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
       memberRoleIds: { ...memberRoles, [memberId]: next },
     });
     onUpdateMemberRoles?.(server.id, memberId, next, Boolean(targetMember?.isAdmin));
+  };
+
+  const ensureStaffRole = (): ServerRole => {
+    const existing = roles.find((r) => /staff/i.test(r.name));
+    if (existing) return existing;
+    return {
+      id: 'role-staff',
+      name: '🛡️ Staff',
+      color: '#38bdf8',
+      hoist: true,
+      permissions: [
+        'Gestionar canales',
+        'Gestionar mensajes',
+        'Expulsar miembros',
+        'Fijar mensajes',
+      ],
+    };
+  };
+
+  const handleQuickCreateStaffRole = () => {
+    if (!canEditRoles) {
+      onNotify('Necesitas permiso para gestionar roles.');
+      return;
+    }
+    if (roles.some((r) => /staff/i.test(r.name))) {
+      onNotify('El rol Staff ya existe en este servidor.');
+      return;
+    }
+    const staffRole = ensureStaffRole();
+    const ownerIdx = roles.findIndex((r) => /owner|dueñ/i.test(r.name));
+    const nextRoles = [...roles];
+    nextRoles.splice(ownerIdx >= 0 ? ownerIdx + 1 : 0, 0, staffRole);
+    onUpdateServer(server.id, { roles: nextRoles });
+    onNotify('Rol 🛡️ Staff creado');
+  };
+
+  const handleQuickToggleStaff = (memberId: string, isAdminMember: boolean) => {
+    if (!canEditRoles) {
+      onNotify('Necesitas permiso para gestionar roles.');
+      return;
+    }
+    let staffRole = roles.find((r) => /staff/i.test(r.name));
+    let nextRoles = roles;
+    if (!staffRole) {
+      staffRole = ensureStaffRole();
+      const ownerIdx = roles.findIndex((r) => /owner|dueñ/i.test(r.name));
+      nextRoles = [...roles];
+      nextRoles.splice(ownerIdx >= 0 ? ownerIdx + 1 : 0, 0, staffRole);
+    }
+    const current = memberRoles[memberId] || [];
+    const hadStaff = current.includes(staffRole.id);
+    const nextIds = hadStaff
+      ? current.filter((r) => r !== staffRole!.id)
+      : [...current, staffRole.id];
+    onUpdateServer(server.id, {
+      ...(nextRoles !== roles ? { roles: nextRoles } : {}),
+      memberRoleIds: { ...memberRoles, [memberId]: nextIds },
+    });
+    onUpdateMemberRoles?.(server.id, memberId, nextIds, isAdminMember);
+    onNotify(hadStaff ? 'Rol Staff quitado' : 'Rol 🛡️ Staff asignado');
   };
 
   /* ---------------- SUB-VIEW HEADER ---------------- */
@@ -1424,20 +1489,32 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
       <div className="flex-1 flex flex-col h-full bg-[#111214] text-white overflow-hidden">
         {renderSubHeader(
           'Roles',
-          <button
-            onClick={() => {
-              setRoleNameInput('');
-              setRoleColorInput('#5865f2');
-              setRoleUseGradient(false);
-              setRoleHoistInput(true);
-              setRolePermsInput(['Enviar mensajes', 'Leer canales']);
-              setShowNewRole(true);
-            }}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full dc-btn-primary text-xs font-bold cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Crear rol</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {!roles.some((r) => /staff/i.test(r.name)) && (
+              <button
+                type="button"
+                onClick={handleQuickCreateStaffRole}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-200 text-xs font-bold cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>+ Staff rápido</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setRoleNameInput('');
+                setRoleColorInput('#5865f2');
+                setRoleUseGradient(false);
+                setRoleHoistInput(true);
+                setRolePermsInput(['Enviar mensajes', 'Leer canales']);
+                setShowNewRole(true);
+              }}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full dc-btn-primary text-xs font-bold cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Crear rol</span>
+            </button>
+          </div>
         )}
 
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 space-y-5">
@@ -1963,16 +2040,41 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
                     </button>
                   )}
                   {canEditRoles && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRoleTargetMemberId(m.id);
-                      }}
-                      className="px-2.5 py-1.5 rounded-full dc-btn-secondary text-[11px] font-semibold cursor-pointer shrink-0"
-                    >
-                      Roles
-                    </button>
+                    <>
+                      {(() => {
+                        const staffRoleObj = roles.find((r) => /staff/i.test(r.name));
+                        const hasStaff = Boolean(
+                          staffRoleObj && (memberRoles[m.id] || []).includes(staffRoleObj.id)
+                        );
+                        return (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickToggleStaff(m.id, Boolean(m.isAdmin));
+                            }}
+                            className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-colors inline-flex items-center gap-1 ${
+                              hasStaff
+                                ? 'bg-sky-500/25 text-sky-200 border border-sky-400/50 hover:bg-sky-500/35'
+                                : 'bg-white/[0.06] text-sky-300 border border-sky-400/25 hover:bg-sky-500/15'
+                            }`}
+                          >
+                            <Shield className="w-3 h-3" />
+                            <span>{hasStaff ? 'Quitar Staff' : 'Staff'}</span>
+                          </button>
+                        );
+                      })()}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRoleTargetMemberId(m.id);
+                        }}
+                        className="px-2.5 py-1.5 rounded-full dc-btn-secondary text-[11px] font-semibold cursor-pointer shrink-0"
+                      >
+                        Roles
+                      </button>
+                    </>
                   )}
                   {canKickMembers && !isSrvOwner && m.id !== user.id && onKickMember && (
                     <button
@@ -2280,9 +2382,47 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
               Configuración activa para <strong className="text-white">{server.name}</strong> ({server.memberCountDisplay ?? server.memberCount} miembros · {server.onlineCount} en línea · {boosts} mejoras).
             </p>
             {section === 'integraciones' && (
-              <div className="space-y-2 pt-2">
+              <div className="space-y-3 pt-2">
+                {(() => {
+                  const hasOfficialBot = Boolean(
+                    server.members?.some((m) => m.uid === 'primordial-ai-builder-bot')
+                  );
+                  return (
+                    <div className="rounded-xl bg-[#181920] border border-white/10 p-3.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <PrimordialAppIcon className="w-10 h-10 rounded-xl shrink-0 border border-white/15" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white truncate">
+                            Primordial Architect AI
+                          </p>
+                          <p className="text-[11.5px] text-zinc-400">
+                            {hasOfficialBot
+                              ? 'Bot oficial conectado · Listo para construir con IA'
+                              : 'Bot oficial de la app · Permite construir canales y roles con IA'}
+                          </p>
+                        </div>
+                      </div>
+                      {hasOfficialBot ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#23a55a]/20 border border-[#23a55a]/40 text-[#3dd67d] text-xs font-bold shrink-0 whitespace-nowrap">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Dentro</span>
+                        </span>
+                      ) : (
+                        onInviteOfficialBot && (
+                          <button
+                            type="button"
+                            onClick={() => void onInviteOfficialBot(server.id)}
+                            className="px-3.5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold shrink-0 cursor-pointer whitespace-nowrap"
+                          >
+                            Meter Bot oficial
+                          </button>
+                        )
+                      )}
+                    </div>
+                  );
+                })()}
                 <p className="text-xs text-zinc-400">
-                  No hay bots ni integraciones externas conectadas en {server.name}. Usa <code className="text-[#b4bcff]">/everyone</code> en cualquier canal para notificar a todos los miembros reales.
+                  Usa <code className="text-[#b4bcff]">/everyone</code> en cualquier canal para notificar a todos los miembros reales.
                 </p>
               </div>
             )}
@@ -2498,9 +2638,26 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
               </p>
             </div>
           ) : (
-            <div className="pt-2">
+            <div className="pt-2 space-y-2.5">
+              {onDeleteServer && (
+                <div className="rounded-2xl bg-[#111216] border border-red-500/30 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteServer(true)}
+                    className="w-full px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-red-500/10 transition-colors cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <Trash2 className="w-5 h-5 text-[#f23f43] shrink-0" />
+                      <span className="text-[15px] font-bold text-[#f23f43] truncate">
+                        Eliminar servidor
+                      </span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-[#f23f43]/70 shrink-0" />
+                  </button>
+                </div>
+              )}
               <p className="text-[11.5px] text-zinc-500 px-1 text-center">
-                Eres el dueño de {server.name}. Puedes otorgar o quitar permisos de Admin a otros miembros desde «Miembros».
+                Eres el dueño de {server.name}. Puedes otorgar rol Staff o Admin desde «Miembros» o eliminar el servidor aquí.
               </p>
             </div>
           )}
@@ -2542,6 +2699,52 @@ export const ServerSettingsView: React.FC<ServerSettingsViewProps> = ({
               </button>
               <button
                 onClick={() => setConfirmLeave(false)}
+                className="w-full h-11 rounded-full dc-btn-secondary text-sm font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteServer && onDeleteServer && (
+        <div
+          onClick={() => setConfirmDeleteServer(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-[#0c0d10] border border-red-500/35 rounded-t-3xl md:rounded-3xl p-5 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden border border-red-500/30 shrink-0">
+                <ServerIconArt server={server} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-display font-bold text-lg text-white truncate">
+                  ¿Eliminar «{server.name}»?
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Se borrarán todos los canales, mensajes y roles permanentemente. Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmDeleteServer(false);
+                  onDeleteServer(server.id);
+                }}
+                className="w-full h-11 rounded-full bg-[#da373c] hover:bg-[#b82b30] text-white text-sm font-bold cursor-pointer transition-colors"
+              >
+                Sí, eliminar servidor
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteServer(false)}
                 className="w-full h-11 rounded-full dc-btn-secondary text-sm font-semibold cursor-pointer"
               >
                 Cancelar

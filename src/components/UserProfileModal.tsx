@@ -23,7 +23,7 @@ import {
   VerifiedBadge,
 } from './DiscordArt';
 import { getDisplayNameTextPresentation } from '../utils/displayNameStyle';
-import { isOwnerUsername, isVerifiedAccount } from '../utils/ownerAccess';
+import { isOwnerIdentity, isOwnerUsername, isVerifiedAccount } from '../utils/ownerAccess';
 
 interface UserProfileModalProps {
   profile: PublicUserProfile | null;
@@ -253,9 +253,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <Check className="w-2.5 h-2.5 stroke-[3]" /> APP
                     </span>
                   )}
-                  {(profile.serverTag || isOwnerUsername(profile.username)) && (
+                  {(profile.serverTag ||
+                    isOwnerUsername(profile.username) ||
+                    (isSelf &&
+                      isOwnerIdentity({
+                        username: currentUser?.username,
+                        email: currentUser?.email,
+                      }))) && (
                     <span className="px-2 py-0.5 rounded-md bg-black/50 border border-white/15 text-[11px] font-bold text-white">
-                      {profile.serverTag || 'Staff'}
+                      {profile.serverTag || '👑 Owner'}
                     </span>
                   )}
                 </div>

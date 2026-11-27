@@ -313,12 +313,12 @@ const NAMEPLATE_OPTIONS: { id: NameplateId; label: string; gradient?: string }[]
 ];
 
 const AVATAR_PRESETS: { id: AvatarKey; label: string }[] = [
-  { id: 'madara', label: 'Gato Noir' },
-  { id: 'snuf', label: 'Tokyo' },
-  { id: 'alex', label: 'Atardecer' },
-  { id: 'joawasa', label: 'Shiba' },
-  { id: 'dragon', label: 'Cumbre' },
-  { id: 'coffee', label: 'Café' },
+  { id: 'discord-blurple', label: 'Azul Discord' },
+  { id: 'discord-green', label: 'Verde Discord' },
+  { id: 'discord-yellow', label: 'Amarillo' },
+  { id: 'discord-red', label: 'Rojo Discord' },
+  { id: 'discord-pink', label: 'Rosa Nitro' },
+  { id: 'discord-cyan', label: 'Celeste' },
 ];
 
 const ProfileInventoryCard: React.FC<{
@@ -864,11 +864,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               {isOwner && onOpenOwnerPanel && (
                 <button
                   onClick={onOpenOwnerPanel}
-                  title="Abrir Panel de Admin"
+                  title="Abrir Panel de Owner"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white text-xs font-black transition-all cursor-pointer shadow-lg active:scale-95"
                 >
                   <Crown className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Admin</span>
+                  <span>Owner</span>
                 </button>
               )}
               {activeProfileEffect !== 'none' && (
@@ -948,7 +948,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       {isVerifiedAccount(user.username) && <VerifiedBadge size="md" />}
                       <ChevronDown className="w-5 h-5 text-[var(--dc-text-secondary)]" />
                     </button>
-                    {(user.serverTag || isOwnerUsername(user.username)) && (
+                    {(user.serverTag || isOwner || isOwnerUsername(user.username)) && (
                       <button
                         onClick={() => {
                           openEditor('principal');
@@ -956,7 +956,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         }}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#181920] border border-white/15 text-[11.5px] font-bold text-white cursor-pointer hover:bg-[#22242e]"
                       >
-                        {user.serverTag || 'Staff'}
+                        {user.serverTag || '👑 Owner'}
                       </button>
                     )}
                   </div>
@@ -1138,7 +1138,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-black text-pink-200 truncate">
-                        Panel de Admin
+                        Panel de Owner
                       </p>
                       <p className="text-xs text-zinc-300 truncate">
                         Darse Orbs, cosméticos, insignias, Nitro y todo al instante
@@ -1642,9 +1642,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                             >
                               {draftName || user.displayName}
                             </h3>
-                            {(draftServerTag || isOwnerUsername(user.username)) && (
+                            {(draftServerTag || isOwner || isOwnerUsername(user.username)) && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#181920] border border-white/15 text-[11.5px] font-bold text-white">
-                                {draftServerTag || 'Staff'}
+                                {draftServerTag || '👑 Owner'}
                               </span>
                             )}
                           </div>

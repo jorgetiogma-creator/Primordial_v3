@@ -4,6 +4,7 @@ import {
   getAuth,
   signInAnonymously,
   signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
 import { doc, getDocFromServer, getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -86,19 +87,40 @@ export async function ensureFirebaseSessionForAppAccount(params: {
     };
   }
 
+  // Never inherit another user's authenticated Firebase session when switching/registering
+  if (auth.currentUser && hasExplicitCreds) {
+    const currentEmail = auth.currentUser.email?.toLowerCase();
+    if (auth.currentUser.isAnonymous || currentEmail !== targetEmail) {
+      await signOut(auth).catch(() => undefined);
+    }
+  }
+
   try {
     if (params.createIfMissing) {
       try {
         const cred = await createUserWithEmailAndPassword(auth, targetEmail, targetPassword);
         return { uid: cred.user.uid, email: cred.user.email, authProviderDisabled: false };
       } catch (createErr) {
+        if (isProviderDisabledError(createErr)) {
+          return {
+            uid: null,
+            email: null,
+            authProviderDisabled: true,
+            errorReason: 'provider-disabled',
+          };
+        }
         const code = getFirebaseErrorCode(createErr);
         if (code.includes('email-already-in-use')) {
           try {
             const signInCred = await signInWithEmailAndPassword(auth, targetEmail, targetPassword);
             return { uid: signInCred.user.uid, email: signInCred.user.email, authProviderDisabled: false };
-          } catch {
-            // Fall through to current/anonymous session so device still connects cleanly
+          } catch (signInErr) {
+            return {
+              uid: null,
+              email: null,
+              authProviderDisabled: isProviderDisabledError(signInErr),
+              errorReason: 'wrong-password',
+            };
           }
         }
       }
@@ -107,6 +129,14 @@ export async function ensureFirebaseSessionForAppAccount(params: {
         const cred = await signInWithEmailAndPassword(auth, targetEmail, targetPassword);
         return { uid: cred.user.uid, email: cred.user.email, authProviderDisabled: false };
       } catch (signErr) {
+        if (isProviderDisabledError(signErr)) {
+          return {
+            uid: null,
+            email: null,
+            authProviderDisabled: true,
+            errorReason: 'provider-disabled',
+          };
+        }
         const code = getFirebaseErrorCode(signErr);
         if (
           code.includes('user-not-found') ||
@@ -116,14 +146,19 @@ export async function ensureFirebaseSessionForAppAccount(params: {
           try {
             const created = await createUserWithEmailAndPassword(auth, targetEmail, targetPassword);
             return { uid: created.user.uid, email: created.user.email, authProviderDisabled: false };
-          } catch {
-            // Fall through to current/anonymous auth
+          } catch (createFallbackErr) {
+            return {
+              uid: null,
+              email: null,
+              authProviderDisabled: isProviderDisabledError(createFallbackErr),
+              errorReason: 'unknown',
+            };
           }
         }
       }
     }
 
-    if (auth.currentUser) {
+    if (!hasExplicitCreds && auth.currentUser) {
       return {
         uid: auth.currentUser.uid,
         email: auth.currentUser.email,
@@ -131,12 +166,16 @@ export async function ensureFirebaseSessionForAppAccount(params: {
       };
     }
 
-    const anonCred = await signInAnonymously(auth);
-    return { uid: anonCred.user.uid, email: anonCred.user.email, authProviderDisabled: false };
+    if (!hasExplicitCreds) {
+      const anonCred = await signInAnonymously(auth);
+      return { uid: anonCred.user.uid, email: anonCred.user.email, authProviderDisabled: false };
+    }
+
+    return { uid: null, email: null, authProviderDisabled: false, errorReason: 'unknown' };
   } catch (fallbackErr) {
     return {
-      uid: auth.currentUser?.uid || null,
-      email: auth.currentUser?.email || null,
+      uid: !hasExplicitCreds ? auth.currentUser?.uid || null : null,
+      email: !hasExplicitCreds ? auth.currentUser?.email || null : null,
       authProviderDisabled: isProviderDisabledError(fallbackErr),
     };
   }

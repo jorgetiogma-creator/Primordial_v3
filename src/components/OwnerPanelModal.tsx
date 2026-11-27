@@ -283,10 +283,10 @@ export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="font-display font-black text-base sm:text-lg text-white truncate">
-                  Panel de Admin
+                  Panel de Owner
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-400/45 text-pink-200 text-[10px] font-extrabold uppercase tracking-wider shrink-0">
-                  Admin · @{user.username}
+                  Owner · @{user.username}
                 </span>
               </div>
               <p className="text-xs text-zinc-300 truncate">
@@ -298,7 +298,7 @@ export const OwnerPanelModal: React.FC<OwnerPanelModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar panel de Admin"
+            aria-label="Cerrar panel de Owner"
             className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
