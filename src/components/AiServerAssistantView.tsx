@@ -64,9 +64,11 @@ interface AiServerAssistantViewProps {
     channelsCreated: number;
     channelsUpdated?: number;
     rolesCreated: number;
+    rolesUpdated?: number;
     channelNames: string[];
     updatedChannelNames?: string[];
     roleNames: string[];
+    updatedRoleNames?: string[];
   }>;
   onDeductCredits: (amount: number) => void;
   onGrantBonusCredits?: (amount: number) => void;
@@ -511,13 +513,35 @@ export const AiServerAssistantView: React.FC<AiServerAssistantViewProps> = ({
         }),
       });
 
-      const contentType = response.headers.get('content-type') || '';
-      const data = contentType.includes('application/json')
-        ? await response.json()
-        : { error: 'Respuesta inesperada del servidor de IA.' };
+      const rawText = await response.text();
+      type AiApiPayload = {
+        error?: string;
+        reply?: string;
+        suggestedBuildPrompt?: string;
+        plan?: AiServerBuildPlan;
+      };
+      const parseAiPayload = (text: string): AiApiPayload | null => {
+        if (!text) return null;
+        try {
+          const parsed: unknown = JSON.parse(text);
+          if (parsed && typeof parsed === 'object') {
+            return parsed as AiApiPayload;
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      };
+      const data = parseAiPayload(rawText);
 
-      if (!response.ok || data?.error) {
-        throw new Error(data?.error || 'No se pudo completar la respuesta de la IA.');
+      if (!data) {
+        throw new Error(
+          `El servidor devolvió una respuesta no válida (HTTP ${response.status}). Intenta de nuevo en unos segundos; no se descontaron créditos.`
+        );
+      }
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'No se pudo completar la respuesta de la IA.');
       }
 
       const finalElapsed = Math.max(1, Math.round((Date.now() - requestStartMs) / 1000));
@@ -963,6 +987,9 @@ export const AiServerAssistantView: React.FC<AiServerAssistantViewProps> = ({
                             <span className="inline-flex items-center gap-1">
                               <Shield className="w-3.5 h-3.5 text-[#d8b4fe]" />
                               {msg.buildResult.rolesCreated} roles
+                              {(msg.buildResult.rolesUpdated ?? 0) > 0
+                                ? ` · ${msg.buildResult.rolesUpdated} editados`
+                                : ''}
                             </span>
                             <span className="inline-flex items-center gap-1">
                               <Volume2 className="w-3.5 h-3.5 text-purple-300" />
@@ -979,6 +1006,17 @@ export const AiServerAssistantView: React.FC<AiServerAssistantViewProps> = ({
                               <p className="text-[11.5px] text-pink-200/85">
                                 Canales actualizados:{' '}
                                 {msg.buildResult.updatedChannelNames.join(', ')}
+                              </p>
+                            )}
+                          {msg.buildResult.roleNames && msg.buildResult.roleNames.length > 0 && (
+                            <p className="text-[11.5px] text-purple-200/85">
+                              Roles creados: {msg.buildResult.roleNames.join(', ')}
+                            </p>
+                          )}
+                          {msg.buildResult.updatedRoleNames &&
+                            msg.buildResult.updatedRoleNames.length > 0 && (
+                              <p className="text-[11.5px] text-pink-200/85">
+                                Roles actualizados: {msg.buildResult.updatedRoleNames.join(', ')}
                               </p>
                             )}
                           <button

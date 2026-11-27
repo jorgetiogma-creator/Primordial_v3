@@ -28,6 +28,7 @@ import {
 } from './lib/firebase';
 import {
   cancelSentFriendRequest,
+  claimProfileWithUsername,
   createFirestoreChannel,
   createFirestoreServer,
   deleteFirestoreChannel,
@@ -136,7 +137,7 @@ import {
   PrimordialAppIcon,
   UserAvatar,
 } from './components/DiscordArt';
-import { AuthView } from './components/AuthView';
+import { AuthView, CloudLoginResult } from './components/AuthView';
 import { ServerRail } from './components/ServerRail';
 import { MessagesPanel } from './components/MessagesPanel';
 import { ChatView, RichMessagePayload } from './components/ChatView';
@@ -418,7 +419,6 @@ export default function App() {
           const sanitized = parsed.map((acc) => {
             const owned = acc.ownedBundleIds || [];
             const isExistingJonh =
-              needsJonhMigration &&
               acc.user?.username?.trim().toLowerCase() === 'jonh';
             const mergedAccUser: UserProfile = {
               ...INITIAL_USER,
@@ -3160,23 +3160,90 @@ export default function App() {
     });
   };
 
-  const handleCloudLogin = async (identifier: string, password: string): Promise<boolean> => {
+  const handleCloudLogin = async (
+    identifier: string,
+    password: string,
+    extraEmails: string[] = []
+  ): Promise<CloudLoginResult> => {
     claimingCloudRef.current = true;
     try {
-      const res = await signInCloudAccountWithCredentials(identifier, password);
+      const res = await signInCloudAccountWithCredentials(identifier, password, extraEmails);
       if (res.authProviderDisabled) {
         setAuthProviderNeedsSetup(true);
         showToastMsg('Activa Correo/Anónimo en Firebase Auth para iniciar sesión desde otro dispositivo');
-        return false;
+        return {
+          ok: false,
+          errorReason: 'provider-disabled',
+          errorMessage:
+            'El acceso en la nube con correo/contraseña está desactivado en Firebase Auth. Crea una cuenta nueva o usa una cuenta guardada.',
+        };
       }
       if (!res.uid) {
         if (res.errorReason === 'wrong-password') {
           showToastMsg('Contraseña incorrecta para esta cuenta en la nube');
+          return {
+            ok: false,
+            errorReason: 'wrong-password',
+            errorMessage: 'Contraseña incorrecta.',
+          };
         }
-        return false;
+        if (res.errorReason === 'too-many-requests') {
+          return {
+            ok: false,
+            errorReason: 'too-many-requests',
+            errorMessage: 'Demasiados intentos seguidos en Firebase. Espera un minuto y vuelve a probar.',
+          };
+        }
+        if (res.errorReason === 'network') {
+          return {
+            ok: false,
+            errorReason: 'network',
+            errorMessage: 'Sin conexión estable con el servidor de autenticación. Reintenta en un momento.',
+          };
+        }
+        if (res.errorReason === 'invalid-credential') {
+          return {
+            ok: false,
+            errorReason: 'invalid-credential',
+            errorMessage:
+              'No encontramos una cuenta con esos datos o la contraseña no coincide. Verifica tu usuario, correo o teléfono.',
+          };
+        }
+        return {
+          ok: false,
+          errorReason: res.errorReason || 'not-found',
+          errorMessage: 'No encontramos esa cuenta en la nube ni en este dispositivo.',
+        };
       }
-      const bundle = await fetchUserAccountBundle(res.uid).catch(() => null);
-      if (!bundle) return false;
+
+      let bundle = await fetchUserAccountBundle(res.uid).catch(() => null);
+      if (!bundle) {
+        const emailPrefix = (res.email || identifier || 'usuario')
+          .split('@')[0]
+          .replace(/[^a-zA-Z0-9_.-]/g, '')
+          .slice(0, 24);
+        const fallbackHandle =
+          normalizeUsernameHandle(`${emailPrefix}_${res.uid.slice(0, 4)}`) ||
+          `user_${res.uid.slice(0, 8).toLowerCase()}`;
+        bundle = await claimProfileWithUsername({
+          uid: res.uid,
+          email: res.email,
+          displayName: emailPrefix || 'Usuario',
+          username: fallbackHandle,
+          avatar: 'discord-blurple',
+        }).catch(() => null);
+      }
+
+      if (!bundle) {
+        return {
+          ok: false,
+          errorReason: 'unknown',
+          errorMessage: 'Se verificó tu acceso, pero no se pudo cargar tu perfil desde la nube.',
+        };
+      }
+
+      const realCloudEmail =
+        res.email && !res.email.endsWith('@users.primordial.app') ? res.email : undefined;
 
       const resolvedOwner = isOwnerIdentity({
         username: bundle.user.username,
@@ -3184,14 +3251,19 @@ export default function App() {
         isOwnerAccount: bundle.isOwnerAccount,
       });
       const safeCloudUser = sanitizeUserShopCosmetics(
-        { ...INITIAL_USER, ...bundle.user, id: res.uid },
+        {
+          ...INITIAL_USER,
+          ...bundle.user,
+          id: res.uid,
+          ...(realCloudEmail ? { email: bundle.user.email || realCloudEmail } : {}),
+        },
         bundle.ownedBundleIds,
         INITIAL_SHOP_BUNDLES,
         resolvedOwner
       );
       const newAcc: StoredAccount = {
         id: res.uid,
-        contact: identifier.trim(),
+        contact: realCloudEmail || identifier.trim(),
         password,
         isOwnerAccount: resolvedOwner,
         user: safeCloudUser,
@@ -3200,7 +3272,13 @@ export default function App() {
       };
       setAccounts((prev) => {
         const filtered = prev.filter((a) => a.id !== res.uid);
-        return [...filtered, newAcc];
+        const nextList = [...filtered, newAcc];
+        try {
+          localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(nextList));
+        } catch {
+          /* ignore */
+        }
+        return nextList;
       });
       hydratedUidRef.current = res.uid;
       setFirebaseUid(res.uid);
@@ -3227,7 +3305,7 @@ export default function App() {
       showToastMsg(
         `¡Bienvenido, ${safeCloudUser.displayName}! (${bundle.ownedBundleIds.length} compras sincronizadas)`
       );
-      return true;
+      return { ok: true };
     } finally {
       claimingCloudRef.current = false;
     }
@@ -3350,9 +3428,17 @@ export default function App() {
   };
 
   const handleResetAccountPassword = (accountId: string, newPassword: string) => {
-    setAccounts((prev) =>
-      prev.map((acc) => (acc.id === accountId ? { ...acc, password: newPassword } : acc))
-    );
+    setAccounts((prev) => {
+      const updated = prev.map((acc) =>
+        acc.id === accountId ? { ...acc, password: newPassword } : acc
+      );
+      try {
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+      } catch {
+        /* ignore */
+      }
+      return updated;
+    });
     showToastMsg('Contraseña actualizada de forma segura');
   };
 
@@ -3848,9 +3934,11 @@ export default function App() {
     channelsCreated: number;
     channelsUpdated?: number;
     rolesCreated: number;
+    rolesUpdated?: number;
     channelNames: string[];
     updatedChannelNames?: string[];
     roleNames: string[];
+    updatedRoleNames?: string[];
   }> => {
     const now = Date.now();
     const aiBotRole: ServerRole = {
@@ -4310,11 +4398,30 @@ export default function App() {
       });
     }
 
-    const existingRoleNames = new Set((srv.roles || []).map((r) => r.name.toLowerCase()));
+    const updatedRoleNames: string[] = [];
+    const rolesAfterUpdates: ServerRole[] = (srv.roles || []).map((existingRole) => {
+      const upd = (plan.roleUpdates || []).find(
+        (ru) => ru.currentName.trim().toLowerCase() === existingRole.name.trim().toLowerCase()
+      );
+      if (!upd) return existingRole;
+      const nextRole: ServerRole = {
+        ...existingRole,
+        ...(upd.newName ? { name: upd.newName } : {}),
+        ...(upd.color ? { color: upd.color } : {}),
+        ...(typeof upd.hoist === 'boolean' ? { hoist: upd.hoist } : {}),
+        ...(upd.permissions && upd.permissions.length > 0
+          ? { permissions: upd.permissions }
+          : {}),
+      };
+      updatedRoleNames.push(nextRole.name);
+      return nextRole;
+    });
+
+    const existingRoleNames = new Set(rolesAfterUpdates.map((r) => r.name.toLowerCase()));
     const addedRoles = incomingRoles.filter(
       (r) => !existingRoleNames.has(r.name.toLowerCase())
     );
-    const mergedRoles = [...(srv.roles || []), ...addedRoles];
+    const mergedRoles = [...rolesAfterUpdates, ...addedRoles];
 
     const mergedCategories = Array.from(
       new Set([
@@ -4337,7 +4444,7 @@ export default function App() {
       existingChannelsWithUpdates.find((c) => c.type !== 'voice' && !c.isPrivate) ||
       addedChannels.find((c) => c.type !== 'voice');
 
-    const buildLogContent = `Construcción completada (${addedChannels.length} canales nuevos, ${updatedNames.length} canales actualizados, ${addedRoles.length} roles nuevos): ${plan.summary || originalPrompt.slice(0, 140)}`;
+    const buildLogContent = `Construcción completada (${addedChannels.length} canales nuevos, ${updatedNames.length} canales editados, ${addedRoles.length} roles nuevos${updatedRoleNames.length > 0 ? `, ${updatedRoleNames.length} roles editados` : ''}): ${plan.summary || originalPrompt.slice(0, 140)}`;
     if (firstExistingText && firebaseUid && !isCuratedServerId(srv.id)) {
       void sendAiBotChannelMessage({
         serverId: srv.id,
@@ -4382,9 +4489,11 @@ export default function App() {
     );
 
     showToastMsg(
-      updatedNames.length > 0 && addedChannels.length === 0
-        ? `${updatedNames.length} canales actualizados con IA en ${srv.name}`
-        : `Construcción aplicada en ${srv.name}: +${addedChannels.length} canales, ${updatedNames.length} editados`
+      addedChannels.length === 0 && updatedNames.length === 0
+        ? `${addedRoles.length + updatedRoleNames.length} roles aplicados con IA en ${srv.name}`
+        : updatedNames.length > 0 && addedChannels.length === 0
+          ? `${updatedNames.length} canales actualizados con IA en ${srv.name}`
+          : `Construcción aplicada en ${srv.name}: +${addedChannels.length} canales, +${addedRoles.length} roles`
     );
 
     return {
@@ -4393,9 +4502,11 @@ export default function App() {
       channelsCreated: addedChannels.length,
       channelsUpdated: updatedNames.length,
       rolesCreated: addedRoles.length,
+      rolesUpdated: updatedRoleNames.length,
       channelNames: addedChannels.map((c) => c.name),
       updatedChannelNames: updatedNames,
       roleNames: addedRoles.map((r) => r.name),
+      updatedRoleNames,
     };
   };
 

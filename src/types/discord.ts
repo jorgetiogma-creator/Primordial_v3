@@ -971,6 +971,14 @@ export interface AiChannelUpdateSpec {
   category?: string;
 }
 
+export interface AiRoleUpdateSpec {
+  currentName: string;
+  newName?: string;
+  color?: string;
+  hoist?: boolean;
+  permissions?: string[];
+}
+
 export interface AiServerBuildPlan {
   serverName?: string;
   summary: string;
@@ -980,6 +988,7 @@ export interface AiServerBuildPlan {
   channels: AiBuiltChannelSpec[];
   channelUpdates?: AiChannelUpdateSpec[];
   roles: AiBuiltRoleSpec[];
+  roleUpdates?: AiRoleUpdateSpec[];
 }
 
 export interface AiAssistantMessage {
@@ -997,9 +1006,11 @@ export interface AiAssistantMessage {
     channelsCreated: number;
     channelsUpdated?: number;
     rolesCreated: number;
+    rolesUpdated?: number;
     channelNames: string[];
     updatedChannelNames?: string[];
     roleNames: string[];
+    updatedRoleNames?: string[];
   };
   error?: boolean;
 }

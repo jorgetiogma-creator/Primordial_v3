@@ -18,7 +18,14 @@ export interface CloudSessionResult {
   uid: string | null;
   email: string | null;
   authProviderDisabled: boolean;
-  errorReason?: 'wrong-password' | 'not-found' | 'provider-disabled' | 'unknown';
+  errorReason?:
+    | 'wrong-password'
+    | 'invalid-credential'
+    | 'not-found'
+    | 'provider-disabled'
+    | 'too-many-requests'
+    | 'network'
+    | 'unknown';
 }
 
 function getFirebaseErrorCode(err: unknown): string {
@@ -137,7 +144,7 @@ export async function ensureFirebaseSessionForAppAccount(params: {
             errorReason: 'provider-disabled',
           };
         }
-        const code = getFirebaseErrorCode(signErr);
+        const code = getFirebaseErrorCode(signErr).toLowerCase();
         if (
           code.includes('user-not-found') ||
           code.includes('invalid-credential') ||
@@ -147,11 +154,14 @@ export async function ensureFirebaseSessionForAppAccount(params: {
             const created = await createUserWithEmailAndPassword(auth, targetEmail, targetPassword);
             return { uid: created.user.uid, email: created.user.email, authProviderDisabled: false };
           } catch (createFallbackErr) {
+            const fbCode = getFirebaseErrorCode(createFallbackErr).toLowerCase();
             return {
               uid: null,
               email: null,
               authProviderDisabled: isProviderDisabledError(createFallbackErr),
-              errorReason: 'unknown',
+              errorReason: fbCode.includes('email-already-in-use')
+                ? 'wrong-password'
+                : 'unknown',
             };
           }
         }
@@ -183,41 +193,79 @@ export async function ensureFirebaseSessionForAppAccount(params: {
 
 export async function signInCloudAccountWithCredentials(
   identifier: string,
-  password: string
+  password: string,
+  extraEmails: string[] = []
 ): Promise<CloudSessionResult> {
-  const cleanId = identifier.trim().toLowerCase().replace(/^@+/, '');
+  const rawTrimmed = identifier.trim();
+  const cleanId = rawTrimmed.toLowerCase().replace(/^@+/, '');
   if (!cleanId || !password.trim()) {
     return { uid: null, email: null, authProviderDisabled: false, errorReason: 'not-found' };
   }
 
-  const emailCandidates = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanId)
-    ? [cleanId]
-    : [deriveCloudAuthEmail(null, cleanId)];
+  const candidateSet = new Set<string>();
+  for (const extra of extraEmails) {
+    const cleanExtra = (extra || '').trim().toLowerCase();
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanExtra)) {
+      candidateSet.add(cleanExtra);
+    }
+  }
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanId)) {
+    candidateSet.add(cleanId);
+  } else {
+    candidateSet.add(deriveCloudAuthEmail(null, cleanId));
+    const digits = rawTrimmed.replace(/\D/g, '');
+    if (digits.length >= 6) {
+      candidateSet.add(`${digits}@users.primordial.app`);
+    }
+  }
+
   const pwd = deriveCloudAuthPassword(password, cleanId);
+  const passwordCandidates = Array.from(
+    new Set([pwd, password.trim(), password].filter((p) => p.length >= 1))
+  );
   let lastErrorReason: CloudSessionResult['errorReason'] = 'not-found';
 
-  for (const candidateEmail of emailCandidates) {
-    try {
-      const cred = await signInWithEmailAndPassword(auth, candidateEmail, pwd);
-      return { uid: cred.user.uid, email: cred.user.email, authProviderDisabled: false };
-    } catch (err) {
-      if (isProviderDisabledError(err)) {
-        return {
-          uid: null,
-          email: null,
-          authProviderDisabled: true,
-          errorReason: 'provider-disabled',
-        };
-      }
-      const code = getFirebaseErrorCode(err).toLowerCase();
-      if (code.includes('wrong-password')) {
-        lastErrorReason = 'wrong-password';
-      } else if (code.includes('invalid-credential') || code.includes('invalid-login-credentials')) {
-        lastErrorReason = 'wrong-password';
-      } else if (code.includes('user-not-found')) {
-        lastErrorReason = 'not-found';
-      } else {
-        lastErrorReason = 'unknown';
+  for (const candidateEmail of candidateSet) {
+    for (const candidatePwd of passwordCandidates) {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, candidateEmail, candidatePwd);
+        return { uid: cred.user.uid, email: cred.user.email, authProviderDisabled: false };
+      } catch (err) {
+        if (isProviderDisabledError(err)) {
+          return {
+            uid: null,
+            email: null,
+            authProviderDisabled: true,
+            errorReason: 'provider-disabled',
+          };
+        }
+        const code = getFirebaseErrorCode(err).toLowerCase();
+        if (code.includes('too-many-requests')) {
+          return {
+            uid: null,
+            email: null,
+            authProviderDisabled: false,
+            errorReason: 'too-many-requests',
+          };
+        }
+        if (code.includes('network-request-failed')) {
+          lastErrorReason = 'network';
+        } else if (code.includes('wrong-password')) {
+          lastErrorReason = 'wrong-password';
+        } else if (
+          code.includes('invalid-credential') ||
+          code.includes('invalid-login-credentials')
+        ) {
+          if (lastErrorReason !== 'wrong-password') {
+            lastErrorReason = 'invalid-credential';
+          }
+        } else if (code.includes('user-not-found')) {
+          if (lastErrorReason === 'not-found') {
+            lastErrorReason = 'not-found';
+          }
+        } else if (lastErrorReason === 'not-found') {
+          lastErrorReason = 'unknown';
+        }
       }
     }
   }

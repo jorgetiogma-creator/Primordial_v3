@@ -224,6 +224,13 @@ interface RawBuildPlan {
     hoist?: boolean;
     permissions?: string[];
   }>;
+  roleUpdates?: Array<{
+    currentName?: string;
+    newName?: string;
+    color?: string;
+    hoist?: boolean;
+    permissions?: string[];
+  }>;
 }
 
 function buildMultimodalContents(
@@ -285,7 +292,7 @@ function sanitizeBuildPlan(rawPlan: RawBuildPlan, fallbackTitle: string) {
 
   const seenChannels = new Set<string>();
   const channels = (Array.isArray(rawPlan.channels) ? rawPlan.channels : [])
-    .slice(0, 16)
+    .slice(0, 24)
     .map((ch) => {
       const chType: 'text' | 'voice' | 'announcement' =
         ch.type === 'voice' || ch.type === 'announcement' ? ch.type : 'text';
@@ -324,7 +331,7 @@ function sanitizeBuildPlan(rawPlan: RawBuildPlan, fallbackTitle: string) {
 
   const seenRoles = new Set<string>();
   const roles = (Array.isArray(rawPlan.roles) ? rawPlan.roles : [])
-    .slice(0, 8)
+    .slice(0, 20)
     .map((r) => ({
       name: String(r.name || 'Miembro').trim().slice(0, 40) || 'Miembro',
       color: /^#[0-9a-fA-F]{6}$/.test(String(r.color || '').trim())
@@ -337,6 +344,39 @@ function sanitizeBuildPlan(rawPlan: RawBuildPlan, fallbackTitle: string) {
       const key = r.name.toLowerCase();
       if (seenRoles.has(key)) return false;
       seenRoles.add(key);
+      return true;
+    });
+
+  const seenRoleUpdates = new Set<string>();
+  const roleUpdates = (Array.isArray(rawPlan.roleUpdates) ? rawPlan.roleUpdates : [])
+    .slice(0, 20)
+    .map((ru) => {
+      const currentName = String(ru.currentName || '').trim().slice(0, 40);
+      const newName = ru.newName ? String(ru.newName).trim().slice(0, 40) : undefined;
+      const color = /^#[0-9a-fA-F]{6}$/.test(String(ru.color || '').trim())
+        ? String(ru.color).trim()
+        : undefined;
+      const permissions = Array.isArray(ru.permissions)
+        ? normalizePermissions(ru.permissions)
+        : undefined;
+      return {
+        currentName,
+        ...(newName ? { newName } : {}),
+        ...(color ? { color } : {}),
+        ...(typeof ru.hoist === 'boolean' ? { hoist: ru.hoist } : {}),
+        ...(permissions ? { permissions } : {}),
+      };
+    })
+    .filter((ru) => {
+      if (
+        !ru.currentName ||
+        (!ru.newName && !ru.color && typeof ru.hoist !== 'boolean' && !ru.permissions)
+      ) {
+        return false;
+      }
+      const key = ru.currentName.toLowerCase();
+      if (seenRoleUpdates.has(key)) return false;
+      seenRoleUpdates.add(key);
       return true;
     });
 
@@ -373,12 +413,13 @@ function sanitizeBuildPlan(rawPlan: RawBuildPlan, fallbackTitle: string) {
     channels,
     channelUpdates,
     roles,
+    roleUpdates,
   };
 }
 
 async function startServer() {
   const app = express();
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: '25mb' }));
 
   app.post('/api/ai/server-assistant', async (req, res) => {
     req.setTimeout(MAX_REQUEST_TIMEOUT_MS);
@@ -480,7 +521,7 @@ async function startServer() {
 
         const finalReply = parsed?.reply?.trim() || rawText;
         if (!finalReply) {
-          res.status(502).json({
+          res.status(422).json({
             error: 'La IA no devolvió contenido en esta respuesta. Inténtalo nuevamente.',
           });
           return;
@@ -523,7 +564,7 @@ async function startServer() {
           config: {
             thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
             systemInstruction:
-              'Eres Primordial Architect AI, IA arquitecta senior de servidores. En modo CONSTRUIR diseña rápido en español: puedes crear canales nuevos en "channels" Y/O modificar canales ya existentes en "channelUpdates" (por ejemplo agregar emojis acorde al nombre o tema de cada canal ya creado, renombrarlos, cambiar topic o categoría). Si el usuario pide modificar canales existentes (p. ej. poner emojis a los canales ya hechos), usa "channelUpdates" con "currentName" exacto de los canales existentes y "newName" con su emoji (ej: "💬-general" o "💬│general" o "🔊 Chat de voz"), y deja "channels" vacío si no pidió canales nuevos. Para canales nuevos usa 3-5 categorías, 6-12 canales ("announcement", "text", "voice"), "starterMessage" bien redactado, y 3-5 roles con colores hex y permisos EXACTOS de: "Administrador", "Gestionar canales", "Gestionar roles", "Gestionar mensajes", "Expulsar miembros", "Fijar mensajes", "Enviar mensajes", "Leer canales", "Conectar a voz".',
+              'Eres Primordial Architect AI, IA arquitecta senior de servidores. En modo CONSTRUIR diseña rápido en español según lo que pida el usuario:\n1) Si pide SOLO roles (por ejemplo: "haz roles", "crea roles de staff/VIP/rangos"), crea entre 3 y 12 roles completos en "roles" (nombre con emoji opcional, color hex llamativo, hoist true/false y permisos EXACTOS de: "Administrador", "Gestionar canales", "Gestionar roles", "Gestionar mensajes", "Expulsar miembros", "Fijar mensajes", "Enviar mensajes", "Leer canales", "Conectar a voz") y deja "channels": [] y "channelUpdates": [].\n2) Si pide modificar roles existentes (ponerles emoji, color o permisos), usa "roleUpdates" con "currentName" exacto.\n3) Si pide modificar canales existentes (p. ej. poner emojis a los canales ya hechos, renombrarlos, cambiar topic o categoría), usa "channelUpdates" con "currentName" exacto de los canales existentes y "newName" con su emoji (ej: "💬-general" o "🔊 Chat de voz"), y deja "channels": [].\n4) Si pide construir un servidor completo o nuevos canales, usa 3-5 categorías, 6-14 canales ("announcement", "text", "voice"), "starterMessage" bien redactado y roles completos.',
             responseMimeType: 'application/json',
             responseSchema: {
               type: Type.OBJECT,
@@ -561,7 +602,7 @@ async function startServer() {
                       topic: { type: Type.STRING },
                       category: { type: Type.STRING },
                     },
-                    required: ['currentName', 'newName'],
+                    required: ['currentName'],
                   },
                 },
                 roles: {
@@ -578,6 +619,23 @@ async function startServer() {
                       },
                     },
                     required: ['name', 'color', 'permissions'],
+                  },
+                },
+                roleUpdates: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      currentName: { type: Type.STRING },
+                      newName: { type: Type.STRING },
+                      color: { type: Type.STRING },
+                      hoist: { type: Type.BOOLEAN },
+                      permissions: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING },
+                      },
+                    },
+                    required: ['currentName'],
                   },
                 },
               },
@@ -599,7 +657,7 @@ async function startServer() {
       const rawBuild = (buildResponse.text ?? '').trim();
       const rawPlan = extractAndParseJson<RawBuildPlan>(rawBuild);
       if (!rawPlan) {
-        res.status(502).json({
+        res.status(422).json({
           error:
             'No se pudo interpretar la arquitectura generada por la IA. Inténtalo de nuevo (no se gastaron créditos).',
         });
@@ -611,10 +669,15 @@ async function startServer() {
         serverContext?.name || 'Nuevo Servidor IA'
       );
 
-      if (sanitizedPlan.channels.length === 0 && sanitizedPlan.channelUpdates.length === 0) {
-        res.status(502).json({
+      if (
+        sanitizedPlan.channels.length === 0 &&
+        sanitizedPlan.channelUpdates.length === 0 &&
+        sanitizedPlan.roles.length === 0 &&
+        sanitizedPlan.roleUpdates.length === 0
+      ) {
+        res.status(422).json({
           error:
-            'La IA no generó canales válidos para aplicar. Intenta describir con más detalle lo que necesitas (no se gastaron créditos).',
+            'La IA no generó canales ni roles válidos para aplicar. Intenta describir con más detalle lo que necesitas (no se gastaron créditos).',
         });
         return;
       }
@@ -627,6 +690,28 @@ async function startServer() {
       res.status(formatted.status).json({ error: formatted.message });
     }
   });
+
+  app.use(
+    (
+      err: unknown,
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      if (req.path.startsWith('/api/')) {
+        const errObj = err as { status?: number; type?: string; message?: string };
+        const status =
+          typeof errObj?.status === 'number' && errObj.status >= 400 ? errObj.status : 500;
+        const message =
+          errObj?.type === 'entity.too.large'
+            ? 'Las imágenes adjuntas superan el tamaño permitido. Prueba con imágenes más pequeñas.'
+            : errObj?.message || 'Error procesando la solicitud en el servidor.';
+        res.status(status).json({ error: message });
+        return;
+      }
+      next(err);
+    }
+  );
 
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');

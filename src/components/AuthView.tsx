@@ -26,10 +26,20 @@ import { AvatarKey, StoredAccount } from '../types/discord';
 import { PrimordialAppIcon, UserAvatar } from './DiscordArt';
 import { RESERVED_OWNER_USERNAME } from '../utils/ownerAccess';
 
+export interface CloudLoginResult {
+  ok: boolean;
+  errorReason?: string;
+  errorMessage?: string;
+}
+
 interface AuthViewProps {
   accounts: StoredAccount[];
   onLoginAccount: (account: StoredAccount) => void;
-  onCloudLogin?: (identifier: string, password: string) => Promise<boolean>;
+  onCloudLogin?: (
+    identifier: string,
+    password: string,
+    extraEmails?: string[]
+  ) => Promise<CloudLoginResult | boolean>;
   onRegisterAccount: (payload: {
     contact: string;
     contactType: 'phone' | 'email';
@@ -597,17 +607,52 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
   };
 
-  const resolveAccountForQuickAuth = (): StoredAccount | null => {
-    const idClean = loginIdentifier.trim().toLowerCase().replace(/^@+/, '');
-    if (!idClean) return null;
+  const findMatchingAccount = (rawIdentifier: string): StoredAccount | null => {
+    const raw = rawIdentifier.trim();
+    if (!raw) return null;
+    const idLower = raw.toLowerCase();
+    const idNoAt = idLower.replace(/^@+/, '');
+    const idDigits = raw.replace(/\D/g, '');
+    const idDigitsNoZero = idDigits.replace(/^0+/, '');
+
+    const matchPhoneStr = (candidate?: string | null): boolean => {
+      if (!candidate) return false;
+      const candLower = candidate.trim().toLowerCase();
+      if (candLower === idLower) return true;
+      if (idDigits.length < 6) return false;
+      const candDigits = candidate.replace(/\D/g, '');
+      if (candDigits.length < 6) return false;
+      if (candDigits === idDigits) return true;
+      const candNoZero = candDigits.replace(/^0+/, '');
+      if (idDigitsNoZero.length >= 7 && (candDigits.endsWith(idDigitsNoZero) || candNoZero === idDigitsNoZero)) {
+        return true;
+      }
+      return false;
+    };
+
     return (
-      accounts.find(
-        (a) =>
-          a.contact.toLowerCase() === idClean ||
-          a.user.username.toLowerCase().replace(/^@+/, '') === idClean ||
-          a.user.displayName.toLowerCase() === idClean
-      ) || null
+      accounts.find((acc) => {
+        const contactLower = (acc.contact || '').trim().toLowerCase();
+        const contactNoAt = contactLower.replace(/^@+/, '');
+        const emailLower = (acc.user.email || '').trim().toLowerCase();
+        const usernameLower = (acc.user.username || '').trim().toLowerCase().replace(/^@+/, '');
+        const displayLower = (acc.user.displayName || '').trim().toLowerCase();
+
+        return (
+          contactLower === idLower ||
+          contactNoAt === idNoAt ||
+          (emailLower && emailLower === idLower) ||
+          usernameLower === idNoAt ||
+          displayLower === idLower ||
+          matchPhoneStr(acc.contact) ||
+          matchPhoneStr(acc.user.phone)
+        );
+      }) || null
     );
+  };
+
+  const resolveAccountForQuickAuth = (): StoredAccount | null => {
+    return findMatchingAccount(loginIdentifier);
   };
 
   const finalizeAuthenticatedLogin = (account: StoredAccount, rememberDevice = false) => {
@@ -620,6 +665,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
       }
     }
     setFailedAttempts(0);
+    setLockoutSeconds(0);
     setChallengeSolved(false);
     setPendingAccount(null);
     onLoginAccount(account);
@@ -653,38 +699,91 @@ export const AuthView: React.FC<AuthViewProps> = ({
       return;
     }
 
-    const idClean = loginIdentifier.trim().toLowerCase().replace(/^@+/, '');
-    if (!idClean || !loginPassword.trim()) {
+    const rawId = loginIdentifier.trim();
+    if (!rawId || !loginPassword.trim()) {
       setLoginError('Introduce tu usuario, correo o teléfono y tu contraseña.');
       return;
     }
 
-    const found = accounts.find(
-      (acc) =>
-        acc.contact.toLowerCase() === idClean ||
-        acc.user.username.toLowerCase().replace(/^@+/, '') === idClean ||
-        acc.user.displayName.toLowerCase() === idClean
-    );
+    const found = findMatchingAccount(rawId);
+
+    const runCloudAttempt = async (
+      identifierToTry: string,
+      extraEmails: string[] = []
+    ): Promise<CloudLoginResult> => {
+      if (!onCloudLogin) {
+        return { ok: false, errorReason: 'not-found' };
+      }
+      setCloudLoginPending(true);
+      try {
+        const rawRes = await onCloudLogin(identifierToTry, loginPassword, extraEmails);
+        if (typeof rawRes === 'boolean') {
+          return { ok: rawRes };
+        }
+        return rawRes;
+      } catch {
+        return {
+          ok: false,
+          errorReason: 'unknown',
+          errorMessage: 'No se pudo conectar para verificar tu cuenta.',
+        };
+      } finally {
+        setCloudLoginPending(false);
+      }
+    };
 
     if (!found) {
-      if (onCloudLogin) {
-        setCloudLoginPending(true);
-        const signedIn = await onCloudLogin(loginIdentifier.trim(), loginPassword.trim()).catch(
-          () => false
-        );
-        setCloudLoginPending(false);
-        if (signedIn) {
-          setFailedAttempts(0);
-          setChallengeSolved(false);
-          return;
-        }
+      const cloudRes = await runCloudAttempt(rawId);
+      if (cloudRes.ok) {
+        setFailedAttempts(0);
+        setLockoutSeconds(0);
+        setChallengeSolved(false);
+        return;
       }
-      registerFailedAttempt('No encontramos esa cuenta o la contraseña no coincide.');
+      if (
+        cloudRes.errorReason === 'provider-disabled' ||
+        cloudRes.errorReason === 'network' ||
+        cloudRes.errorReason === 'too-many-requests'
+      ) {
+        setLoginError(
+          cloudRes.errorMessage || 'No pudimos conectar con el servicio de inicio de sesión.'
+        );
+        return;
+      }
+      registerFailedAttempt(
+        cloudRes.errorMessage || 'No encontramos esa cuenta o la contraseña no coincide.'
+      );
       return;
     }
 
-    if (found.password !== loginPassword) {
-      registerFailedAttempt('Contraseña incorrecta.');
+    const storedPwd = found.password || '';
+    const passwordMatches =
+      storedPwd.length > 0 &&
+      (storedPwd === loginPassword ||
+        (storedPwd.trim().length > 0 && storedPwd.trim() === loginPassword.trim()));
+
+    if (!passwordMatches) {
+      const extraEmails = [
+        found.user.email || '',
+        found.contact?.includes('@') ? found.contact : '',
+        found.user.username ? `${found.user.username}@users.primordial.app` : '',
+      ].filter(Boolean);
+      const cloudRes = await runCloudAttempt(
+        found.user.email || found.contact || rawId,
+        extraEmails
+      );
+      if (cloudRes.ok) {
+        onResetPassword?.(found.id, loginPassword.trim());
+        setFailedAttempts(0);
+        setLockoutSeconds(0);
+        setChallengeSolved(false);
+        return;
+      }
+      registerFailedAttempt(
+        storedPwd.length > 0
+          ? 'Contraseña incorrecta.'
+          : cloudRes.errorMessage || 'No encontramos esa cuenta o la contraseña no coincide.'
+      );
       return;
     }
 
@@ -829,17 +928,12 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const handleSendRecoveryCode = (e: React.FormEvent) => {
     e.preventDefault();
     setRecError(null);
-    const clean = recIdentifier.trim().toLowerCase();
+    const clean = recIdentifier.trim();
     if (!clean) {
       setRecError('Escribe tu correo, teléfono o nombre de usuario.');
       return;
     }
-    const found = accounts.find(
-      (a) =>
-        a.contact.toLowerCase() === clean ||
-        a.user.username.toLowerCase() === clean ||
-        a.user.displayName.toLowerCase() === clean
-    );
+    const found = findMatchingAccount(clean);
     if (!found) {
       setRecError('No encontramos ninguna cuenta guardada con ese dato en este dispositivo.');
       return;
@@ -864,7 +958,10 @@ export const AuthView: React.FC<AuthViewProps> = ({
       return;
     }
     onResetPassword?.(recAccount.id, recNewPassword.trim());
-    setLoginIdentifier(recAccount.contact || recAccount.user.username);
+    setFailedAttempts(0);
+    setLockoutSeconds(0);
+    setChallengeSolved(false);
+    setLoginIdentifier(recAccount.user.email || recAccount.contact || recAccount.user.username);
     setLoginPassword('');
     setInfoBanner('Contraseña restablecida con éxito. Ya puedes iniciar sesión.');
     setRecAccount(null);
@@ -902,23 +999,37 @@ export const AuthView: React.FC<AuthViewProps> = ({
       setRegError('Este nombre de usuario es privado y pertenece en exclusiva a la cuenta Owner.');
       return;
     }
-    const duplicate = accounts.some(
+    const duplicateUsername = accounts.some(
       (a) => a.user.username.toLowerCase() === uname.toLowerCase()
     );
-    if (duplicate) {
+    if (duplicateUsername) {
       setRegError('Ese nombre de usuario ya existe. Elige otro distinto.');
       return;
     }
+    const resolvedContactType: 'phone' | 'email' = contactMode;
     const contact =
-      contactMode === 'phone'
+      resolvedContactType === 'phone'
         ? phoneNumber.trim()
           ? `${selectedCountry.dial} ${phoneNumber.trim()}`
           : `${uname}@users.primordial.app`
         : emailAddress.trim() || `${uname}@users.primordial.app`;
 
+    if (
+      (resolvedContactType === 'email' && emailAddress.trim()) ||
+      (resolvedContactType === 'phone' && phoneNumber.trim())
+    ) {
+      const existingByContact = findMatchingAccount(contact);
+      if (existingByContact) {
+        setRegError('Ya existe una cuenta registrada con ese correo o teléfono. Inicia sesión con ella.');
+        return;
+      }
+    }
+
     onRegisterAccount({
       contact,
-      contactType: emailAddress.trim() ? 'email' : contactMode,
+      contactType: contact.includes('@') && !contact.endsWith('@users.primordial.app')
+        ? 'email'
+        : resolvedContactType,
       displayName: display,
       username: uname,
       password: regPassword.trim(),
